@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice {{ invoice.invoice_number }}</title>
+  <style>
+    @page {
+      size: letter;
+      margin: 0.6in 0.65in 0.6in 0.65in;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      font-size: 9.5pt;
+      color: #1a1a1a;
+      background: #fff;
+      line-height: 1.4;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #1a1a1a;
+    }
+
+    .header-left .invoice-title {
+      font-size: 28pt;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #1a1a1a;
+      line-height: 1;
+    }
+
+    .header-left .company-name {
+      font-size: 11pt;
+      font-weight: 700;
+      margin-top: 6px;
+      color: #222;
+    }
+
+    .header-left .company-address {
+      font-size: 8.5pt;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .header-right p {
+      font-size: 8.5pt;
+      color: #444;
+      margin-bottom: 2px;
+    }
+
+    .header-right .label {
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    /* ── ADDRESS BLOCKS ─────────────────────────────────────── */
+    .address-section {
+      background: #f3f4f6;
+      border-radius: 4px;
+      display: flex;
+      margin-bottom: 10px;
+    }
+
+    .address-block {
+      flex: 1;
+      padding: 12px 16px;
+    }
+
+    .address-block:first-child {
+      border-right: 1px solid #ddd;
+    }
+
+    .address-block .block-title {
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .address-block .recipient-name {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .address-block p {
+      font-size: 8.5pt;
+      color: #444;
+      margin-top: 1px;
+    }
+
+    /* ── DETAILS STRIP ──────────────────────────────────────── */
+    .details-strip {
+      background: #f3f4f6;
+      border-radius: 4px;
+      display: flex;
+      padding: 10px 16px;
+      gap: 0;
+      margin-bottom: 18px;
+    }
+
+    .details-strip .detail-cell {
+      flex: 1;
+    }
+
+    .details-strip .detail-cell .d-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #888;
+    }
+
+    .details-strip .detail-cell .d-value {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #111;
+      margin-top: 2px;
+    }
+
+    /* ── LINE ITEMS TABLE ───────────────────────────────────── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+
+    .items-table thead tr {
+      border-bottom: 2px solid #1a1a1a;
+    }
+
+    .items-table th {
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #555;
+      padding: 5px 8px 7px 8px;
+      text-align: left;
+    }
+
+    .items-table th.right {
+      text-align: right;
+    }
+
+    .items-table td {
+      padding: 9px 8px;
+      font-size: 8.5pt;
+      vertical-align: top;
+      border-bottom: 1px solid #e5e7eb;
+      color: #2a2a2a;
+    }
+
+    .items-table td.right {
+      text-align: right;
+    }
+
+    .items-table td.num {
+      color: #888;
+      font-size: 8pt;
+      width: 28px;
+    }
+
+    .items-table td.product {
+      font-weight: 700;
+      color: #111;
+      width: 170px;
+    }
+
+    .items-table td.imei-list {
+      font-size: 7.8pt;
+      color: #444;
+      font-family: 'Courier New', monospace;
+      line-height: 1.7;
+      max-width: 200px;
+    }
+
+    .items-table td.qty {
+      width: 40px;
+      text-align: center;
+    }
+
+    .items-table td.rate {
+      width: 80px;
+      text-align: right;
+    }
+
+    .items-table td.amount {
+      width: 80px;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .imei-condition {
+      display: block;
+      margin-top: 5px;
+      font-size: 7.5pt;
+      font-style: italic;
+      color: #666;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    /* ── FOOTER AREA ────────────────────────────────────────── */
+    .footer-area {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+    }
+
+    .ways-to-pay {
+      flex: 1;
+    }
+
+    .ways-to-pay .wtp-label {
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .payment-icons {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .payment-icon-badge {
+      display: inline-block;
+      border: 1.5px solid #ccc;
+      border-radius: 5px;
+      padding: 4px 10px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #444;
+      background: #fff;
+      letter-spacing: 0.4px;
+    }
+
+    .payment-icon-badge.visa     { color: #1a1f71; border-color: #1a1f71; }
+    .payment-icon-badge.mc       { color: #eb001b; border-color: #eb001b; }
+    .payment-icon-badge.bank     { color: #2c6e49; border-color: #2c6e49; }
+    .payment-icon-badge.paypal   { color: #003087; border-color: #003087; }
+    .payment-icon-badge.venmo    { color: #3d95ce; border-color: #3d95ce; }
+
+    /* ── TOTAL BLOCK ─────────────────────────────────────────── */
+    .totals-block {
+      background: #f3f4f6;
+      border-radius: 4px;
+      padding: 12px 16px;
+      min-width: 230px;
+      text-align: right;
+    }
+
+    .totals-block .total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 30px;
+      font-size: 9pt;
+      color: #444;
+      margin-bottom: 5px;
+    }
+
+    .totals-block .total-row.grand {
+      border-top: 1.5px solid #aaa;
+      padding-top: 7px;
+      margin-top: 5px;
+      font-size: 11pt;
+      font-weight: 700;
+      color: #111;
+    }
+
+    /* ── BOTTOM SECTION ─────────────────────────────────────── */
+    .bottom-section {
+      margin-top: 22px;
+      display: flex;
+      gap: 0;
+      align-items: flex-start;
+    }
+
+    .note-to-customer {
+      flex: 1;
+      padding-right: 30px;
+    }
+
+    .note-to-customer .note-title {
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .note-to-customer p {
+      font-size: 7.8pt;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 3px;
+    }
+
+    .signature-area {
+      width: 260px;
+      flex-shrink: 0;
+      border-top: 1px solid #aaa;
+      padding-top: 60px;
+      text-align: center;
+    }
+
+    .signature-area .sig-label {
+      font-size: 7.5pt;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .fulfillment-badge {
+      display: inline-block;
+      background: #e0f2fe;
+      border: 1px solid #7dd3fc;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 7.8pt;
+      font-weight: 700;
+      color: #0369a1;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <div class="header-left">
+      <div class="invoice-title">Invoice</div>
+      <div class="company-name">{{ company.name }}</div>
+      <div class="company-address">{{ company.address }}</div>
+    </div>
+    <div class="header-right">
+      <p><span class="label">Email:</span> {{ company.email }}</p>
+      <p><span class="label">Phone:</span> {{ company.phone }}</p>
+      <p><span class="label">Web:</span> {{ company.website }}</p>
+    </div>
+  </div>
+
+  <!-- ── ADDRESS BLOCKS ── -->
+  <div class="address-section">
+    <div class="address-block">
+      <div class="block-title">Bill to</div>
+      <div class="recipient-name">{{ bill_to.name }}</div>
+      {% if bill_to.company %}<p>{{ bill_to.company }}</p>{% endif %}
+      <p>{{ bill_to.phone or '' }}</p>
+      <p>{{ bill_to.email or '' }}</p>
+      {% if bill_to.address %}<p>{{ bill_to.address }}</p>{% endif %}
+    </div>
+    <div class="address-block">
+      <div class="block-title">Ship to
+        {% if invoice.fulfillment_method == 'Picked Up In-Store' %}
+          <span class="fulfillment-badge">&#x2713; Walk-in / Carry Out</span>
+        {% else %}
+          <span class="fulfillment-badge" style="background:#dcfce7;border-color:#86efac;color:#15803d;">&#x1F69A; Shipped</span>
+        {% endif %}
+      </div>
+      {% if invoice.fulfillment_method == 'Picked Up In-Store' %}
+        <div class="recipient-name">{{ bill_to.name }}</div>
+        <p style="font-style:italic;color:#888;">Customer will carry out — no shipping address required.</p>
+      {% else %}
+        <div class="recipient-name">{{ ship_to.name }}</div>
+        {% if ship_to.company %}<p>{{ ship_to.company }}</p>{% endif %}
+        <p>{{ ship_to.address or 'Address not provided' }}</p>
+        <p>{{ ship_to.phone or '' }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── DETAILS STRIP ── -->
+  <div class="details-strip">
+    <div class="detail-cell">
+      <div class="d-label">Invoice No.</div>
+      <div class="d-value">{{ invoice.invoice_number }}</div>
+    </div>
+    <div class="detail-cell">
+      <div class="d-label">Terms</div>
+      <div class="d-value">Wholesale Terms</div>
+    </div>
+    <div class="detail-cell">
+      <div class="d-label">Invoice Date</div>
+      <div class="d-value">{{ invoice.date }}</div>
+    </div>
+    <div class="detail-cell">
+      <div class="d-label">Due Date</div>
+      <div class="d-value">{{ invoice.due_date }}</div>
+    </div>
+    {% if invoice.tax_exempt_id %}
+    <div class="detail-cell">
+      <div class="d-label">Tax Exempt ID</div>
+      <div class="d-value">{{ invoice.tax_exempt_id }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── LINE ITEMS TABLE ── -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Product / Service</th>
+        <th>Description (IMEIs)</th>
+        <th style="text-align:center;">Qty</th>
+        <th class="right">Rate</th>
+        <th class="right">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in line_items %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td class="product">{{ row.product }}</td>
+        <td class="imei-list">
+          {{ row.imei_html | safe }}
+          {% if row.condition %}
+            <span class="imei-condition">{{ row.condition }}</span>
+          {% endif %}
+        </td>
+        <td class="qty">{{ row.qty }}</td>
+        <td class="rate">${{ "%.2f" | format(row.rate) }}</td>
+        <td class="amount">${{ "%.2f" | format(row.amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- ── FOOTER (Ways to Pay + Totals) ── -->
+  <div class="footer-area">
+    <div class="ways-to-pay">
+      <div class="wtp-label">Ways to Pay</div>
+      <div class="payment-icons">
+        <span class="payment-icon-badge visa">VISA</span>
+        <span class="payment-icon-badge mc">MC</span>
+        <span class="payment-icon-badge bank">Bank Transfer</span>
+        <span class="payment-icon-badge paypal">PayPal</span>
+        <span class="payment-icon-badge venmo">Venmo</span>
+      </div>
+    </div>
+    <div class="totals-block">
+      <div class="total-row">
+        <span>Subtotal</span>
+        <span>${{ "%.2f" | format(totals.subtotal) }}</span>
+      </div>
+      {% if totals.discount > 0 %}
+      <div class="total-row">
+        <span>Wholesale Discount ({{ totals.discount_pct }}%)</span>
+        <span style="color:#c00;">-${{ "%.2f" | format(totals.discount) }}</span>
+      </div>
+      {% endif %}
+      {% if totals.tax_exempt %}
+      <div class="total-row">
+        <span>Sales Tax</span>
+        <span style="color:#15803d;">Exempt</span>
+      </div>
+      {% else %}
+      <div class="total-row">
+        <span>Tax ({{ totals.tax_pct }}%)</span>
+        <span>${{ "%.2f" | format(totals.tax) }}</span>
+      </div>
+      {% endif %}
+      <div class="total-row grand">
+        <span>Total Due</span>
+        <span>${{ "%.2f" | format(totals.total) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM: Note + Signature ── -->
+  <div class="bottom-section">
+    <div class="note-to-customer">
+      <div class="note-title">Note to Customer &amp; Warranty Policy</div>
+      <p><strong>All Sales Final:</strong> All wholesale device sales are final. No returns or exchanges unless item is Dead on Arrival (DOA).</p>
+      <p><strong>DOA Policy:</strong> DOA claims must be reported within 48 hours of receipt. Device must power on and hold charge to qualify as functional.</p>
+      <p><strong>Condition Disclosure:</strong> Device grade and condition are as described on this invoice. Cosmetic wear is pre-disclosed and not eligible for dispute.</p>
+      <p><strong>Blacklist / IMEI:</strong> Buyer assumes full responsibility for verifying IMEI status. Seller does not guarantee carrier unlocked status post-sale unless explicitly noted.</p>
+      <p style="margin-top:6px;font-size:7.3pt;color:#999;">By signing below, buyer acknowledges receipt of all items listed and agrees to all terms.</p>
+    </div>
+    <div class="signature-area">
+      <div class="sig-label">Authorized Signature</div>
+    </div>
+  </div>
+
+</body>
+</html>

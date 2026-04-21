@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-zinc-50 text-zinc-900 antialiased selection:bg-zinc-200 selection:text-zinc-900;
+  }
+}
+
+@layer components {
+  .input-stark {
+    @apply bg-white border border-zinc-200 text-zinc-900 text-sm px-4 py-2 rounded-md outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-all placeholder:text-zinc-400;
+  }
+
+  .btn-primary {
+    @apply bg-zinc-900 text-white hover:bg-zinc-800 px-4 py-2 rounded-md font-medium text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 px-4 py-2 rounded-md font-medium text-sm transition-all active:scale-[0.98] shadow-sm;
+  }
+
+  .badge-glow {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border;
+  }
+
+  /* Semantic Badges */
+  .badge-success {
+    @apply bg-emerald-50 text-emerald-700 border-emerald-200;
+  }
+
+  .badge-warning {
+    @apply bg-amber-50 text-amber-700 border-amber-200;
+  }
+
+  .badge-error {
+    @apply bg-rose-50 text-rose-700 border-rose-200;
+  }
+
+  .badge-neutral {
+    @apply bg-zinc-100 text-zinc-700 border-zinc-200;
+  }
+}
