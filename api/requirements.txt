@@ -8,3 +8,4 @@ passlib[bcrypt]
 httpx
 pytest
 psycopg2-binary
+email-validator
