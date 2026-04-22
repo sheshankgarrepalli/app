@@ -31,6 +31,7 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          <Route path="/debug" element={<div className="p-10 text-2xl font-bold">Rendering Works!</div>} />
           <Route path="/" element={
             <>
               <SignedIn>

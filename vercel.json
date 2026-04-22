@@ -19,9 +19,11 @@
             "dest": "mobile-store/backend/main.py"
         },
         {
+            "handle": "filesystem"
+        },
+        {
             "src": "/(.*)",
-            "dest": "mobile-store/frontend/$1",
-            "check": true
+            "dest": "mobile-store/frontend/index.html"
         }
     ]
 }
