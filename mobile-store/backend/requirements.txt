@@ -3,7 +3,8 @@ uvicorn
 sqlalchemy
 pydantic
 reportlab
-pyjwt
+python-jose[cryptography]
 passlib[bcrypt]
 httpx
 pytest
+psycopg2-binary

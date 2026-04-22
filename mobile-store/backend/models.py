@@ -38,8 +38,9 @@ class StoreLocation(Base):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    clerk_id = Column(String, unique=True, index=True, nullable=True)
     email = Column(String, unique=True, index=True)
-    password_hash = Column(String)
+    password_hash = Column(String, nullable=True)
     role = Column(Enum(RoleEnum))
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
     

@@ -135,6 +135,7 @@ class UserCreate(BaseModel):
 
 class UserOut(BaseModel):
     id: int
+    clerk_id: Optional[str]
     email: EmailStr
     role: RoleEnum
     class Config: from_attributes = True

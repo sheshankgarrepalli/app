@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react';
 
 interface User {
   id: number;
+  clerk_id: string;
   email: string;
   role: string;
   store_id: string | null;
@@ -11,7 +12,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string, role: string) => void;
+  login: (token: string) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -19,43 +20,47 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { getToken, isLoaded: isAuthLoaded, signOut } = useClerkAuth();
+  const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (token && token !== 'undefined' && token !== 'null') {
-      setIsLoading(true);
-      axios.get('http://localhost:8000/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => {
-          setUser(res.data);
-        })
-        .catch((err) => {
-          console.error("Auth check failed:", err);
-          logout();
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      setIsLoading(false);
-      setUser(null);
-    }
-  }, [token]);
+    const initAuth = async () => {
+      if (isAuthLoaded && isUserLoaded) {
+        if (clerkUser) {
+          const clerkToken = await getToken();
+          setToken(clerkToken);
+
+          // Fetch additional user data from our backend if needed
+          // For now, we'll map Clerk user data directly
+          setUser({
+            id: 0, // Placeholder
+            clerk_id: clerkUser.id,
+            email: clerkUser.primaryEmailAddress?.emailAddress || "",
+            role: (clerkUser.publicMetadata.role as string) || "user",
+            store_id: (clerkUser.publicMetadata.store_id as string) || null,
+          });
+        } else {
+          setToken(null);
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    };
+    initAuth();
+  }, [isAuthLoaded, isUserLoaded, clerkUser, getToken]);
 
   const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
+    // Clerk handles login via its own components
     setToken(newToken);
-    setIsLoading(true); // Trigger re-fetch of user info
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    signOut();
     setToken(null);
     setUser(null);
-    setIsLoading(false);
   };
 
   return (
