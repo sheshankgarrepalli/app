@@ -14,7 +14,10 @@ def bulk_route_devices(req: schemas.BulkRouteRequest, db: Session = Depends(get_
     errors = []
     
     for imei in req.imeis:
-        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == imei,
+            models.DeviceInventory.org_id == current_user.current_org_id
+        ).first()
         if not device:
             errors.append(f"IMEI {imei} not found")
             continue
@@ -29,7 +32,8 @@ def bulk_route_devices(req: schemas.BulkRouteRequest, db: Session = Depends(get_
             employee_id=current_user.email,
             previous_status=old_status,
             new_status=req.destination,
-            notes=f"Routed to {req.destination}. Defects: {', '.join(req.defects)}. {req.notes}"
+            notes=f"Routed to {req.destination}. Defects: {', '.join(req.defects)}. {req.notes}",
+            org_id=current_user.current_org_id
         )
         db.add(log)
         success_count += 1
@@ -48,12 +52,16 @@ def dispatch_transfer(req: schemas.TransferDispatchRequest, db: Session = Depend
         origin_id=req.origin,
         destination_id=req.destination,
         courier_name=req.courier_name,
-        status=models.ManifestStatus.In_Transit # The user says "updates status to In Transit"
+        status=models.ManifestStatus.In_Transit, # The user says "updates status to In Transit"
+        org_id=current_user.current_org_id
     )
     db.add(manifest)
     
     for imei in req.imeis:
-        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == imei,
+            models.DeviceInventory.org_id == current_user.current_org_id
+        ).first()
         if not device:
             raise HTTPException(status_code=404, detail=f"IMEI {imei} not found")
         
@@ -70,7 +78,8 @@ def dispatch_transfer(req: schemas.TransferDispatchRequest, db: Session = Depend
             employee_id=current_user.email,
             previous_status=old_status,
             new_status=models.DeviceStatus.In_Transit,
-            notes=f"Dispatched on Manifest {manifest_id}"
+            notes=f"Dispatched on Manifest {manifest_id}",
+            org_id=current_user.current_org_id
         )
         db.add(log)
         
@@ -92,7 +101,10 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
     errors = []
     
     for imei in req.imeis:
-        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == imei,
+            models.DeviceInventory.org_id == current_user.current_org_id
+        ).first()
         if not device:
             errors.append(f"IMEI {imei} not found")
             continue
@@ -103,7 +115,11 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
         if old_status == models.DeviceStatus.Transit_to_Repair:
             new_status = models.DeviceStatus.In_Repair
             # Activate Repair Ticket
-            ticket = db.query(models.RepairTicket).filter(models.RepairTicket.imei == imei, models.RepairTicket.status == models.RepairStatus.Pending).first()
+            ticket = db.query(models.RepairTicket).filter(
+                models.RepairTicket.imei == imei, 
+                models.RepairTicket.status == models.RepairStatus.Pending,
+                models.RepairTicket.org_id == current_user.current_org_id
+            ).first()
             if ticket:
                 ticket.status = models.RepairStatus.In_Progress
         elif old_status == models.DeviceStatus.Transit_to_Main_Bin:
@@ -116,7 +132,8 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
                 ledger_entry = models.DeviceCostLedger(
                     imei=imei,
                     cost_type="QC Labor",
-                    amount=qc_rate.fee_amount
+                    amount=qc_rate.fee_amount,
+                    org_id=current_user.current_org_id
                 )
                 db.add(ledger_entry)
                 device.cost_basis += qc_rate.fee_amount
@@ -133,7 +150,8 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
             employee_id=current_user.email,
             previous_status=old_status,
             new_status=new_status,
-            notes=f"Acknowledged receipt. Status moved to {new_status}. {req.notes}"
+            notes=f"Acknowledged receipt. Status moved to {new_status}. {req.notes}",
+            org_id=current_user.current_org_id
         )
         db.add(log)
         success_count += 1
@@ -160,8 +178,11 @@ def receive_transfer(transfer_order_id: str, db: Session = Depends(get_db), curr
 @router.get("/")
 def get_transfers(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
     if current_user.role == "admin":
-        orders = db.query(models.TransferOrder).all()
+        orders = db.query(models.TransferOrder).filter(models.TransferOrder.org_id == current_user.current_org_id).all()
     else:
-        orders = db.query(models.TransferOrder).filter(models.TransferOrder.destination_location_id == current_user.role).all()
+        orders = db.query(models.TransferOrder).filter(
+            models.TransferOrder.destination_location_id == current_user.role,
+            models.TransferOrder.org_id == current_user.current_org_id
+        ).all()
         
     return orders

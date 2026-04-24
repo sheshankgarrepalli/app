@@ -14,7 +14,7 @@ def get_all_customers(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
-    query = db.query(models.UnifiedCustomer)
+    query = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.org_id == current_user.current_org_id)
     if not include_inactive:
         query = query.filter(models.UnifiedCustomer.is_active == 1)
     
@@ -43,7 +43,7 @@ def create_customer(customer: schemas.UnifiedCustomerCreate, db: Session = Depen
             last = customer_data.get("last_name") or ""
             customer_data["name"] = f"{first} {last}".strip() or "Unknown Customer"
             
-    new_customer = models.UnifiedCustomer(crm_id=crm_id, **customer_data)
+    new_customer = models.UnifiedCustomer(crm_id=crm_id, org_id=current_user.current_org_id, **customer_data)
     db.add(new_customer)
     db.commit()
     db.refresh(new_customer)
@@ -51,13 +51,22 @@ def create_customer(customer: schemas.UnifiedCustomerCreate, db: Session = Depen
 
 @router.get("/{crm_id}/history", response_model=schemas.UnifiedCustomerHistoryOut)
 def get_customer_history(crm_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
-    customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == crm_id).first()
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == crm_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
         
-    devices = db.query(models.DeviceInventory).filter(models.DeviceInventory.sold_to_crm_id == crm_id).all()
+    devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.sold_to_crm_id == crm_id,
+        models.DeviceInventory.org_id == current_user.current_org_id
+    ).all()
     
-    invoices = db.query(models.Invoice).filter(models.Invoice.customer_id == crm_id).all()
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.customer_id == crm_id,
+        models.Invoice.org_id == current_user.current_org_id
+    ).all()
     lifetime_spent = sum(inv.total for inv in invoices)
     
     # We can also fetch repair tickets if implemented in the future.
@@ -70,7 +79,10 @@ def get_customer_history(crm_id: str, db: Session = Depends(get_db), current_use
 
 @router.put("/{crm_id}", response_model=schemas.UnifiedCustomerOut)
 def update_customer(crm_id: str, customer_update: schemas.UnifiedCustomerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
-    customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == crm_id).first()
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == crm_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
         
@@ -92,7 +104,10 @@ def update_customer(crm_id: str, customer_update: schemas.UnifiedCustomerCreate,
 
 @router.delete("/{crm_id}")
 def delete_customer(crm_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
-    customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == crm_id).first()
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == crm_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
         

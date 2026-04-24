@@ -119,6 +119,7 @@ async def get_current_user(
         
         role = public_metadata.get("role") or private_metadata.get("role") or "store_a"
         store_id = public_metadata.get("store_id") or private_metadata.get("store_id")
+        org_id = payload.get("org_id")
 
         # Database operations are blocking; in a high-traffic app, use an async driver.
         # Here we rely on FastAPI's handling of async dependencies.
@@ -164,6 +165,9 @@ async def get_current_user(
                 db.commit()
                 db.refresh(user)
 
+        # Attach current org_id dynamically to the user context
+        user.current_org_id = org_id
+        
         return user
 
     except jwt.ExpiredSignatureError:

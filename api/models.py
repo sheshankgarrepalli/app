@@ -41,6 +41,7 @@ class CustomerType(str, enum.Enum):
 class StoreLocation(Base):
     __tablename__ = "store_locations"
     id = Column(String, primary_key=True, index=True) # e.g., "Store_A", "Warehouse_Alpha"
+    org_id = Column(String, index=True, nullable=True)
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
 
@@ -48,6 +49,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     clerk_id = Column(String, unique=True, index=True, nullable=True)
+    org_id = Column(String, index=True, nullable=True)
     email = Column(String, unique=True, index=True)
     role = Column(Enum(RoleEnum))
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
@@ -65,6 +67,7 @@ class PhoneModel(Base):
 class UnifiedCustomer(Base):
     __tablename__ = "unified_customers"
     crm_id = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     customer_type = Column(Enum(CustomerType), default=CustomerType.Retail)
     name = Column(String, nullable=True) # Deprecated legacy 
     first_name = Column(String, nullable=True)
@@ -109,6 +112,7 @@ class CustomerDocument(Base):
 class TransferOrder(Base):
     __tablename__ = "transfer_orders"
     id = Column(String, primary_key=True, index=True) 
+    org_id = Column(String, index=True, nullable=True)
     transfer_type = Column(Enum(TransferType), nullable=False)
     destination_location_id = Column(String, nullable=False)
     created_at = Column(DateTime, default=func.now())
@@ -117,6 +121,7 @@ class TransferOrder(Base):
 class TransferManifest(Base):
     __tablename__ = "transfer_manifests"
     manifest_id = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     origin_id = Column(String, nullable=False)
     destination_id = Column(String, nullable=False)
     courier_name = Column(String, nullable=True)
@@ -138,6 +143,7 @@ class ManifestItem(Base):
 class DeviceInventory(Base):
     __tablename__ = "device_inventory"
     imei = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     serial_number = Column(String, nullable=True)
     model_number = Column(String, ForeignKey("phone_models.model_number"), nullable=True)
     is_hydrated = Column(Boolean, default=False, nullable=False)
@@ -162,6 +168,7 @@ class DeviceInventory(Base):
 class DeviceHistoryLog(Base):
     __tablename__ = "device_history_log"
     log_id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False)
     timestamp = Column(DateTime, default=func.now())
     action_type = Column(String, nullable=False)
@@ -188,6 +195,7 @@ class InvoiceStatus(str, enum.Enum):
 class Invoice(Base):
     __tablename__ = "invoices"
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     invoice_number = Column(String, unique=True, index=True)
     customer_id = Column(String, ForeignKey("unified_customers.crm_id"), nullable=True)
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
@@ -230,6 +238,7 @@ class PaymentTransaction(Base):
 class InventoryAudit(Base):
     __tablename__ = "inventory_audits"
     audit_id = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     location_id = Column(String, nullable=False)
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
     conducted_by_employee_id = Column(String, nullable=False)
@@ -260,6 +269,7 @@ class RepairStatus(enum.Enum):
 class PartsInventory(Base):
     __tablename__ = "parts_inventory"
     sku = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     part_name = Column(String, nullable=False)
     current_stock_qty = Column(Integer, default=0)
     moving_average_cost = Column(Float, default=0.0)
@@ -269,6 +279,7 @@ class PartsInventory(Base):
 class DeviceCostLedger(Base):
     __tablename__ = "device_cost_ledger"
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False)
     cost_type = Column(String, nullable=False) # e.g., "Purchase", "Part: Screen", "Labor"
     amount = Column(Float, nullable=False)
@@ -284,6 +295,7 @@ class RepairMapping(Base):
 class RepairTicket(Base):
     __tablename__ = "repair_tickets"
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False)
     symptoms = Column(String) # JSON or comma-separated
     notes = Column(String)
@@ -300,6 +312,7 @@ class Supplier(Base):
 class PartIntake(Base):
     __tablename__ = "part_intakes"
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     sku = Column(String, ForeignKey("parts_inventory.sku"), nullable=False)
     qty = Column(Integer, nullable=False)
     total_price = Column(Float, default=0.0)
@@ -317,5 +330,6 @@ class DeviceCatalog(Base):
 class LaborRateConfig(Base):
     __tablename__ = "labor_rate_config"
     id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     action_name = Column(String, unique=True, nullable=False) # e.g., 'QC_Standard', 'Repair_Screen'
     fee_amount = Column(Float, nullable=False, default=0.0)

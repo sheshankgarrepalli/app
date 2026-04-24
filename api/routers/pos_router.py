@@ -22,7 +22,7 @@ def retail_checkout(
 ):
     customer_id = req.customer_id
     if not customer_id and req.customer:
-        db_customer = models.UnifiedCustomer(**req.customer.model_dump())
+        db_customer = models.UnifiedCustomer(org_id=current_user.current_org_id, **req.customer.model_dump())
         db_customer.crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
         db.add(db_customer)
         db.flush()
@@ -32,13 +32,17 @@ def retail_checkout(
     if not customer_id:
         raise HTTPException(status_code=400, detail="Customer info required")
         
-    customer_db_obj = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == customer_id).first()
+    customer_db_obj = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == customer_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     
     subtotal = 0.0
     for item in req.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.location_id == current_user.role,
+            models.DeviceInventory.org_id == current_user.current_org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
         ).first()
         if not db_store_inv:
@@ -65,7 +69,7 @@ def retail_checkout(
     if abs(total_payments - total) > 0.01:
         raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) does not match invoice total ({total})")
     
-    last_invoice = db.query(models.Invoice).order_by(models.Invoice.id.desc()).first()
+    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id).order_by(models.Invoice.id.desc()).first()
     next_id = last_invoice.id + 1 if last_invoice else 1
     invoice_number = f"INV-{next_id:04d}"
     
@@ -79,7 +83,8 @@ def retail_checkout(
         total=total,
         fulfillment_method=req.fulfillment_method,
         shipping_address=req.shipping_address,
-        status=models.InvoiceStatus.Paid
+        status=models.InvoiceStatus.Paid,
+        org_id=current_user.current_org_id
     )
     db.add(db_invoice)
     db.flush()
@@ -88,7 +93,10 @@ def retail_checkout(
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
     
     for item in req.items:
-        db_store_inv = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first()
+        db_store_inv = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == item.imei,
+            models.DeviceInventory.org_id == current_user.current_org_id
+        ).first()
         db_store_inv.warranty_expiry_date = warranty_expiry
         
         db_item = models.InvoiceItem(
@@ -116,7 +124,7 @@ def retail_checkout(
 def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))):
     customer_id = invoice.customer_id
     if not customer_id and invoice.customer:
-        db_customer = models.UnifiedCustomer(**invoice.customer.model_dump())
+        db_customer = models.UnifiedCustomer(org_id=current_user.current_org_id, **invoice.customer.model_dump())
         db_customer.crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
         db.add(db_customer)
         db.commit()
@@ -126,13 +134,17 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     if not customer_id:
         raise HTTPException(status_code=400, detail="Customer info required")
         
-    customer_db_obj = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == customer_id).first()
+    customer_db_obj = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == customer_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     
     subtotal = 0.0
     for item in invoice.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.location_id == current_user.role,
+            models.DeviceInventory.org_id == current_user.current_org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
         ).first()
         if not db_store_inv:
@@ -153,7 +165,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     tax_amount = subtotal * (final_tax_percent / 100)
     total = subtotal + tax_amount
     
-    last_invoice = db.query(models.Invoice).order_by(models.Invoice.id.desc()).first()
+    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id).order_by(models.Invoice.id.desc()).first()
     next_id = last_invoice.id + 1 if last_invoice else 1
     invoice_number = f"INV-{next_id:04d}"
     
@@ -166,7 +178,8 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         tax_amount=tax_amount,
         total=total,
         fulfillment_method=invoice.fulfillment_method,
-        shipping_address=invoice.shipping_address
+        shipping_address=invoice.shipping_address,
+        org_id=current_user.current_org_id
     )
     db.add(db_invoice)
     db.commit()
@@ -176,7 +189,10 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     warranty_expiry = db_invoice.created_at + timedelta(days=15)
     
     for item in invoice.items:
-        db_store_inv = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first()
+        db_store_inv = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == item.imei,
+            models.DeviceInventory.org_id == current_user.current_org_id
+        ).first()
         db_store_inv.warranty_expiry_date = warranty_expiry
         
         db_item = models.InvoiceItem(
@@ -193,11 +209,17 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
 
 @router.post("/returns")
 def process_returns(req: schemas.RMARequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
-    customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == req.customer_id).first()
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == req.customer_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
         
-    devices = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei.in_(req.imei_list)).all()
+    devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei.in_(req.imei_list),
+        models.DeviceInventory.org_id == current_user.current_org_id
+    ).all()
     if len(devices) != len(req.imei_list):
         raise HTTPException(status_code=400, detail="One or more IMEIs not found")
         
@@ -338,11 +360,14 @@ def convert_estimate(
 @router.post("/invoices/{invoice_id}/pay")
 def process_payment(
     invoice_id: str,
-    payment: schemas.PaymentRecordBase,
+    payment: schemas.PaymentSchema,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
-    invoice = db.query(models.Invoice).filter(models.Invoice.invoice_number == invoice_id).first()
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == current_user.current_org_id
+    ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     

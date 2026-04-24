@@ -32,7 +32,8 @@ def get_dashboard(
     # 1. Total Sold (Count of items, not invoices)
     # Joining with Invoice to filter by created_at
     total_sold = db.query(models.InvoiceItem).join(models.Invoice).filter(
-        models.Invoice.created_at >= start_date
+        models.Invoice.created_at >= start_date,
+        models.Invoice.org_id == current_user.current_org_id
     ).count()
     
     # 2. Sales by Location (Count of items per store)
@@ -41,7 +42,8 @@ def get_dashboard(
         models.Invoice.store_id, 
         func.count(models.InvoiceItem.id)
     ).join(models.InvoiceItem).filter(
-        models.Invoice.created_at >= start_date
+        models.Invoice.created_at >= start_date,
+        models.Invoice.org_id == current_user.current_org_id
     ).group_by(models.Invoice.store_id).all()
     
     sales_by_location = defaultdict(int)
@@ -63,7 +65,8 @@ def get_dashboard(
     ).count()
     # Actually models.TransferOrder has created_at
     warehouse_outflow = db.query(models.TransferOrder).filter(
-        models.TransferOrder.created_at >= start_date
+        models.TransferOrder.created_at >= start_date,
+        models.TransferOrder.org_id == current_user.current_org_id
     ).count()
     
     # 4. Top Selling Models
@@ -71,7 +74,7 @@ def get_dashboard(
         models.InvoiceItem.model_number, 
         func.count(models.InvoiceItem.id).label('count')
     ).join(models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id) \
-     .filter(models.Invoice.created_at >= start_date) \
+     .filter(models.Invoice.created_at >= start_date, models.Invoice.org_id == current_user.current_org_id) \
      .group_by(models.InvoiceItem.model_number) \
      .order_by(func.count(models.InvoiceItem.id).desc()) \
      .limit(5).all()

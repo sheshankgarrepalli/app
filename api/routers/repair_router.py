@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from models import RepairTicket, RepairStatus, DeviceInventory, DeviceCostLedger, RepairMapping, PartsInventory, User, RoleEnum
+from models import RepairTicket, RepairStatus, DeviceInventory, DeviceCostLedger, RepairMapping, PartsInventory, User, RoleEnum, LaborRateConfig
 from schemas import RepairTicketOut, RepairTicketCreate, RepairCompleteRequest
 from auth import get_current_user
 from datetime import datetime
@@ -11,7 +11,10 @@ router = APIRouter(prefix="/api/repair", tags=["Repair"])
 
 @router.post("/triage", response_model=RepairTicketOut)
 def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    device = db.query(DeviceInventory).filter(DeviceInventory.imei == req.imei).first()
+    device = db.query(DeviceInventory).filter(
+        DeviceInventory.imei == req.imei,
+        DeviceInventory.org_id == current_user.current_org_id
+    ).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
     
@@ -20,7 +23,8 @@ def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), curren
         imei=req.imei,
         symptoms=req.symptoms,
         notes=req.notes,
-        status=RepairStatus.In_Repair
+        status=RepairStatus.In_Repair,
+        org_id=current_user.current_org_id
     )
     db.add(ticket)
     
@@ -32,15 +36,25 @@ def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), curren
 
 @router.get("/tickets", response_model=List[RepairTicketOut])
 def list_tickets(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(RepairTicket).filter(RepairTicket.status != RepairStatus.Completed).all()
+    return db.query(RepairTicket).filter(
+        RepairTicket.status != RepairStatus.Completed,
+        RepairTicket.org_id == current_user.current_org_id
+    ).all()
 
 @router.post("/complete")
 def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    ticket = db.query(RepairTicket).filter(RepairTicket.imei == req.imei, RepairTicket.status == RepairStatus.In_Repair).first()
+    ticket = db.query(RepairTicket).filter(
+        RepairTicket.imei == req.imei, 
+        RepairTicket.status == RepairStatus.In_Repair,
+        RepairTicket.org_id == current_user.current_org_id
+    ).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Active repair ticket not found")
     
-    device = db.query(DeviceInventory).filter(DeviceInventory.imei == req.imei).first()
+    device = db.query(DeviceInventory).filter(
+        DeviceInventory.imei == req.imei,
+        DeviceInventory.org_id == current_user.current_org_id
+    ).first()
     
     # --- THE GHOST ACCOUNTANT ---
     for category in req.work_completed:
@@ -61,7 +75,8 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
                 ledger_entry = DeviceCostLedger(
                     imei=device.imei,
                     cost_type=f"Part: {category}",
-                    amount=part.moving_average_cost
+                    amount=part.moving_average_cost,
+                    org_id=current_user.current_org_id
                 )
                 db.add(ledger_entry)
                 
@@ -78,7 +93,8 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
                 labor_entry = DeviceCostLedger(
                     imei=device.imei,
                     cost_type=f"Labor: {category}",
-                    amount=labor_rate.fee_amount
+                    amount=labor_rate.fee_amount,
+                    org_id=current_user.current_org_id
                 )
                 db.add(labor_entry)
                 device.cost_basis += labor_rate.fee_amount

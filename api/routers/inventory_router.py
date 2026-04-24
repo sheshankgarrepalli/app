@@ -30,7 +30,8 @@ def fast_receive(request: schemas.FastReceiveRequest, db: Session = Depends(get_
         model_number=request.inventory.model_number,
         location_id=request.location_id,
         sub_location_bin="Receiving_Bay",
-        cost_basis=request.inventory.cost_basis or 0.0
+        cost_basis=request.inventory.cost_basis or 0.0,
+        org_id=current_user.current_org_id
     )
     db.add(db_inventory)
     
@@ -44,12 +45,15 @@ def fast_receive(request: schemas.FastReceiveRequest, db: Session = Depends(get_
 @router.get("/central", response_model=List[schemas.DeviceInventoryOut])
 def get_central_inventory(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     # Admins can see global central inventory, but we'll filter by Warehouse_Alpha by default
-    return db.query(models.DeviceInventory).filter(models.DeviceInventory.location_id == "Warehouse_Alpha").all()
+    return db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.location_id == "Warehouse_Alpha",
+        models.DeviceInventory.org_id == current_user.current_org_id
+    ).all()
 
 @router.get("/store", response_model=List[schemas.DeviceInventoryOut])
 def get_store_inventory(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
-        stmt = db.query(models.DeviceInventory)
+        stmt = db.query(models.DeviceInventory).filter(models.DeviceInventory.org_id == current_user.current_org_id)
         
         # Admin OR user with null store_id bypasses the filter
         if current_user.role == "admin" or not current_user.store_id:
@@ -77,7 +81,10 @@ def route_device_internally(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
         
-    return db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+    return db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei == imei,
+        models.DeviceInventory.org_id == current_user.current_org_id
+    ).first()
 
 @router.post("/repair/assign", response_model=schemas.DeviceInventoryOut)
 def assign_repair(
@@ -105,7 +112,10 @@ def complete_repair(
 
 @router.get("/technicians", response_model=List[schemas.UserOut])
 def get_technicians(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
-    return db.query(models.User).filter(models.User.role == models.RoleEnum.technician).all()
+    return db.query(models.User).filter(
+        models.User.role == models.RoleEnum.technician,
+        models.User.org_id == current_user.current_org_id
+    ).all()
 
 @router.post("/rapid-audit", response_model=schemas.AuditReportResponse)
 def rapid_audit(
@@ -120,6 +130,7 @@ def rapid_audit(
     try:
         expected_devices = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.location_id == location_id,
+            models.DeviceInventory.org_id == current_user.current_org_id,
             models.DeviceInventory.device_status.in_([models.DeviceStatus.Sellable, models.DeviceStatus.In_QC])
         ).all()
         
@@ -201,7 +212,8 @@ def batch_manual_intake(
                 location_id=current_user.store_id or "Warehouse_Alpha",
                 store_id=current_user.store_id,
                 device_status=models.DeviceStatus.Sellable if dev.model_number else None,
-                cost_basis=dev.acquisition_cost or 0.0
+                cost_basis=dev.acquisition_cost or 0.0,
+                org_id=current_user.current_org_id
             )
             db.add(db_device)
             results.append(db_device)
@@ -210,7 +222,8 @@ def batch_manual_intake(
                 db_ledger = models.DeviceCostLedger(
                     imei=dev.imei,
                     cost_type="Base_Acquisition",
-                    amount=dev.acquisition_cost
+                    amount=dev.acquisition_cost,
+                    org_id=current_user.current_org_id
                 )
                 db.add(db_ledger)
 
@@ -365,7 +378,10 @@ def batch_reconcile(
 
 @router.get("/{imei}", response_model=schemas.DeviceInventoryOut)
 def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
-    device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+    device = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei == imei,
+        models.DeviceInventory.org_id == current_user.current_org_id
+    ).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
     return device

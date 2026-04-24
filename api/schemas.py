@@ -349,6 +349,10 @@ class PaymentTransactionOut(PaymentSchema):
     timestamp: datetime
     class Config: from_attributes = True
 
+class InvoiceItemCreate(BaseModel):
+    imei: str
+    unit_price: float
+
 class RetailCheckoutRequest(BaseModel):
     customer_id: Optional[str] = None
     customer: Optional[UnifiedCustomerCreate] = None
@@ -357,11 +361,6 @@ class RetailCheckoutRequest(BaseModel):
     fulfillment_method: Optional[str] = "Walk-in"
     shipping_address: Optional[str] = None
     payments: List[PaymentSchema]
-
-
-class InvoiceItemCreate(BaseModel):
-    imei: str
-    unit_price: float
 
 class InvoiceCreate(BaseModel):
     customer_id: Optional[str] = None

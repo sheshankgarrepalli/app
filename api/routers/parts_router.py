@@ -21,13 +21,17 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
     sku = f"{req.model_number}-{cat_code}-{qual_code}"
     
     # Ensure Part exists in inventory
-    part = db.query(PartsInventory).filter(PartsInventory.sku == sku).first()
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == sku,
+        PartsInventory.org_id == current_user.current_org_id
+    ).first()
     if not part:
         part = PartsInventory(
             sku=sku,
             part_name=f"{req.model_number} {req.category} ({req.quality})",
             current_stock_qty=0,
-            moving_average_cost=0.0
+            moving_average_cost=0.0,
+            org_id=current_user.current_org_id
         )
         db.add(part)
     
@@ -39,7 +43,8 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
         sku=sku,
         qty=req.qty,
         supplier_id=req.supplier_id,
-        is_priced=0
+        is_priced=0,
+        org_id=current_user.current_org_id
     )
     db.add(intake)
     db.commit()
@@ -48,14 +53,20 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
 
 @router.put("/price", response_model=PartsInventoryOut)
 def price_intake(req: PartPriceRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    intake = db.query(PartIntake).filter(PartIntake.id == req.intake_id).first()
+    intake = db.query(PartIntake).filter(
+        PartIntake.id == req.intake_id,
+        PartIntake.org_id == current_user.current_org_id
+    ).first()
     if not intake:
         raise HTTPException(status_code=404, detail="Intake record not found")
     
     if intake.is_priced == 1:
         raise HTTPException(status_code=400, detail="Intake already priced")
     
-    part = db.query(PartsInventory).filter(PartsInventory.sku == intake.sku).first()
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == intake.sku,
+        PartsInventory.org_id == current_user.current_org_id
+    ).first()
     
     # MAC Calculation: (Old Value + New Value) / (Old Qty + New Qty)
     # Landed Cost: New Value = total_price + shipping_fees
@@ -74,7 +85,10 @@ def price_intake(req: PartPriceRequest, db: Session = Depends(get_db), current_u
 
 @router.get("/unpriced", response_model=List[PartIntakeOut])
 def list_unpriced(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(PartIntake).filter(PartIntake.is_priced == 0).all()
+    return db.query(PartIntake).filter(
+        PartIntake.is_priced == 0,
+        PartIntake.org_id == current_user.current_org_id
+    ).all()
 
 @router.get("/suppliers", response_model=List[SupplierOut])
 def list_suppliers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -117,4 +131,4 @@ def seed_mock_data(db: Session = Depends(get_db)):
 
 @router.get("/", response_model=List[PartsInventoryOut])
 def list_parts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(PartsInventory).all()
+    return db.query(PartsInventory).filter(PartsInventory.org_id == current_user.current_org_id).all()
