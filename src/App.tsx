@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ClerkLoading, useUser } from '@clerk/react';
+import { ClerkLoading, useUser, useOrganization, OrganizationList, RedirectToSignIn } from '@clerk/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AxiosInterceptor } from './api/AxiosInterceptor';
 import Login from './pages/Login';
@@ -23,9 +23,11 @@ import { TransferDispatch } from './pages/TransferDispatch';
 import TeamSettings from './pages/Settings/TeamSettings';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
+  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
+  const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { user, isLoading } = useAuth();
   
-  if (isLoading) {
+  if (!isUserLoaded || !isOrgLoaded || isLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
@@ -36,6 +38,21 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
     );
   }
 
+  // Tier 1: Not Authenticated
+  if (!isSignedIn) {
+    return <RedirectToSignIn />;
+  }
+
+  // Tier 2: Authenticated, but No Org
+  if (!organization) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+        <OrganizationList hidePersonal={true} />
+      </div>
+    );
+  }
+
+  // Tier 3: Fully Authenticated & Org Active
   if (!user) return <Navigate to="/login" replace />;
   if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   
@@ -111,9 +128,11 @@ function AuthRoutes() {
 }
 
 function AuthWrapper() {
+  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
+  const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { user, isLoading } = useAuth();
   
-  if (isLoading) {
+  if (!isUserLoaded || !isOrgLoaded || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Synchronizing Identity...</div>
@@ -121,6 +140,21 @@ function AuthWrapper() {
     );
   }
 
+  // Tier 1: Not Authenticated
+  if (!isSignedIn) {
+    return <RedirectToSignIn />;
+  }
+
+  // Tier 2: Authenticated, but No Org
+  if (!organization) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+        <OrganizationList hidePersonal={true} />
+      </div>
+    );
+  }
+
+  // Tier 3: Fully Authenticated & Org Active
   if (!user) return <Navigate to="/login" replace />;
 
   if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />;

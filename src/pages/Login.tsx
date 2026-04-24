@@ -18,7 +18,7 @@ const Login = () => {
         </div>
 
         <div className="w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex justify-center p-6">
-          <SignIn routing="path" path="/login" forceRedirectUrl="/" />
+          <SignIn routing="path" path="/login" fallbackRedirectUrl="/" />
         </div>
       </div>
     </div>
