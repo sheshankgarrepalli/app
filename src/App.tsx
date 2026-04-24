@@ -88,7 +88,7 @@ function AuthRoutes() {
   return (
     <Routes>
       {/* Public Login Route */}
-      <Route path="/login" element={
+      <Route path="/login/*" element={
         !isSignedIn ? <Login /> : <Navigate to="/" replace />
       } />
 
@@ -96,8 +96,6 @@ function AuthRoutes() {
       <Route path="/" element={
         isSignedIn ? <AuthWrapper /> : <Navigate to="/login" replace />
       } />
-
-      <Route path="/login/*" element={<Navigate to="/login" replace />} />
 
       {/* Protected Routes */}
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
