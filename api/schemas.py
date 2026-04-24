@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, date
-from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus, ManifestStatus
+from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus, ManifestStatus, PaymentMethodEnum
 
 # --- ERP SCHEMAS ---
 
@@ -338,18 +338,26 @@ class RMARequest(BaseModel):
     imei_list: List[str]
     override_policy: Optional[bool] = False
 
-class PaymentRecordBase(BaseModel):
-    amount_paid: float
-    payment_method: str
-    date: Optional[datetime] = None
+class PaymentSchema(BaseModel):
+    amount: float
+    payment_method: PaymentMethodEnum
+    reference_id: Optional[str] = None
 
-class PaymentRecordCreate(PaymentRecordBase):
+class PaymentTransactionOut(PaymentSchema):
+    id: str
     invoice_id: int
-
-class PaymentRecordOut(PaymentRecordBase):
-    id: int
-    invoice_id: int
+    timestamp: datetime
     class Config: from_attributes = True
+
+class RetailCheckoutRequest(BaseModel):
+    customer_id: Optional[str] = None
+    customer: Optional[UnifiedCustomerCreate] = None
+    items: List[InvoiceItemCreate]
+    tax_percent: float = 8.5
+    fulfillment_method: Optional[str] = "Walk-in"
+    shipping_address: Optional[str] = None
+    payments: List[PaymentSchema]
+
 
 class InvoiceItemCreate(BaseModel):
     imei: str
@@ -382,7 +390,7 @@ class InvoiceOut(BaseModel):
     created_at: datetime
     items: List[InvoiceItemCreate]
     customer: Optional[UnifiedCustomerOut]
-    payments: List[PaymentRecordOut] = []
+    payments: List[PaymentTransactionOut] = []
     class Config: from_attributes = True
 
 class AuditReconciliationRequest(BaseModel):

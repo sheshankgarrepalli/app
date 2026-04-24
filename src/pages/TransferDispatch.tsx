@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../api/axiosInstance'; // Assuming axiosInstance is configured here
+import api from '../api/api';
 import { PrintableView } from '../components/PrintableView';
 
 export const TransferDispatch = () => {

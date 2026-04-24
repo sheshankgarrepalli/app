@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, Building, User as UserIcon, CreditCard, Receipt } from 'lucide-react';
 import CheckoutCRMWidget from './CheckoutCRMWidget';
+import CheckoutModal from '../components/CheckoutModal';
 
 export default function POS() {
   const { token, user } = useAuth();
@@ -35,26 +36,37 @@ export default function POS() {
     setRetailItems(newItems);
   };
 
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handleRetailCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (retailItems.some(i => !i.imei || !i.price)) return alert("Please fill all items cleanly");
+    setIsCheckoutModalOpen(true);
+  };
 
+  const executeRetailCheckout = async (payments: any[]) => {
+    setIsProcessing(true);
     const payload = {
       customer_id: selectedCrmCustomer ? selectedCrmCustomer.crm_id : undefined,
       customer: selectedCrmCustomer ? undefined : { name: customerName, phone: customerPhone, customer_type: 'Retail' },
       items: retailItems.map(i => ({ imei: i.imei, unit_price: parseFloat(i.price) })),
-      tax_percent: parseFloat(taxPercent)
+      tax_percent: parseFloat(taxPercent),
+      payments: payments.map(p => ({ amount: p.amount, payment_method: p.method, reference_id: p.reference_id }))
     };
 
     try {
-      const res = await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/pos/invoice', payload, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/pos/checkout', payload, { headers: { Authorization: `Bearer ${token}` } });
       const invoiceId = res.data.id;
       window.open(`/api/pos/invoice/${invoiceId}/pdf`, '_blank');
 
       setCustomerName(''); setCustomerPhone(''); setRetailItems([{ imei: '', price: '' }]);
+      setIsCheckoutModalOpen(false);
       alert("Retail sale complete and invoice generated!");
     } catch (err: any) {
       alert(err.response?.data?.detail || "Error during retail checkout");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -326,6 +338,14 @@ export default function POS() {
           </form>
         )}
       </div>
+
+      <CheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        totalAmount={retailTotal}
+        onComplete={executeRetailCheckout}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }

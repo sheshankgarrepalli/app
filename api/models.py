@@ -1,4 +1,5 @@
 import enum
+import uuid
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, func, Boolean
 from sqlalchemy.orm import relationship
@@ -169,6 +170,12 @@ class DeviceHistoryLog(Base):
     new_status = Column(String, nullable=False)
     notes = Column(String, nullable=True)
 
+class PaymentMethodEnum(str, enum.Enum):
+    Cash = "Cash"
+    Credit_Card = "Credit Card"
+    Wire = "Wire"
+    Store_Credit = "Store Credit"
+    On_Terms = "On Terms"
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -190,7 +197,6 @@ class Invoice(Base):
     total = Column(Float)
     fulfillment_method = Column(String, default="Walk-in")
     shipping_address = Column(String, nullable=True)
-    payment_method = Column(String, default="Cash")
     status = Column(Enum(InvoiceStatus), default=InvoiceStatus.Unpaid)
     is_estimate = Column(Integer, default=0) # 0=Invoice, 1=Estimate
     due_date = Column(DateTime, nullable=True)
@@ -198,7 +204,7 @@ class Invoice(Base):
     
     customer = relationship("UnifiedCustomer")
     items = relationship("InvoiceItem", back_populates="invoice")
-    payments = relationship("PaymentRecord", back_populates="invoice")
+    payments = relationship("PaymentTransaction", back_populates="invoice")
 
 class InvoiceItem(Base):
     __tablename__ = "invoice_items"
@@ -210,13 +216,14 @@ class InvoiceItem(Base):
     
     invoice = relationship("Invoice", back_populates="items")
 
-class PaymentRecord(Base):
-    __tablename__ = "payment_records"
-    id = Column(Integer, primary_key=True, index=True)
+class PaymentTransaction(Base):
+    __tablename__ = "payment_transactions"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     invoice_id = Column(Integer, ForeignKey("invoices.id"))
-    amount_paid = Column(Float, nullable=False)
-    payment_method = Column(String, nullable=False) # Cash, Card, Wire
-    date = Column(DateTime, default=func.now())
+    amount = Column(Float, nullable=False, default=0.0)
+    payment_method = Column(Enum(PaymentMethodEnum), nullable=False)
+    reference_id = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=func.now())
     
     invoice = relationship("Invoice", back_populates="payments")
 

@@ -2,7 +2,7 @@ import uuid
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from models import DeviceInventory, UnifiedCustomer, TransferOrder, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentRecord
+from models import DeviceInventory, UnifiedCustomer, TransferOrder, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction, PaymentMethodEnum
 
 def _log_history(db: Session, imei: str, action_type: str, employee_id: str, new_status: str, previous_status: str = None, notes: str = None):
     log = DeviceHistoryLog(
@@ -85,7 +85,6 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             total=total_due,
             fulfillment_method=fulfillment_method,
             shipping_address=shipping_address,
-            payment_method=payment_method,
             status=status,
             is_estimate=1 if is_estimate else 0,
             due_date=due_date
@@ -93,12 +92,17 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
         db.add(db_invoice)
         db.flush() # Get ID
 
-        # Create PaymentRecord if upfront payment exists
+        # Create PaymentTransaction if upfront payment exists
         if not is_estimate and upfront_payment > 0:
-            payment_rec = PaymentRecord(
+            try:
+                p_method = PaymentMethodEnum(payment_method)
+            except ValueError:
+                p_method = PaymentMethodEnum.Cash
+
+            payment_rec = PaymentTransaction(
                 invoice_id=db_invoice.id,
-                amount_paid=upfront_payment,
-                payment_method=payment_method
+                amount=upfront_payment,
+                payment_method=p_method
             )
             db.add(payment_rec)
 

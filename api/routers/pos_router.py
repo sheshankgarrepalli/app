@@ -14,6 +14,104 @@ from wholesale_invoice_pdf import generate_wholesale_invoice_pdf
 
 router = APIRouter(prefix="/api/pos", tags=["pos"])
 
+@router.post("/checkout", response_model=schemas.InvoiceOut)
+def retail_checkout(
+    req: schemas.RetailCheckoutRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))
+):
+    customer_id = req.customer_id
+    if not customer_id and req.customer:
+        db_customer = models.UnifiedCustomer(**req.customer.model_dump())
+        db_customer.crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
+        db.add(db_customer)
+        db.flush()
+        db.refresh(db_customer)
+        customer_id = db_customer.crm_id
+        
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="Customer info required")
+        
+    customer_db_obj = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == customer_id).first()
+    
+    subtotal = 0.0
+    for item in req.items:
+        db_store_inv = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == item.imei,
+            models.DeviceInventory.location_id == current_user.role,
+            models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+        ).first()
+        if not db_store_inv:
+            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
+        
+        db_store_inv.device_status = models.DeviceStatus.Sold
+        db_store_inv.sold_to_crm_id = customer_id
+        
+        applied_price = item.unit_price
+        if customer_db_obj and customer_db_obj.pricing_tier > 0:
+            applied_price = applied_price * (1.0 - customer_db_obj.pricing_tier)
+            
+        subtotal += applied_price
+
+    final_tax_percent = req.tax_percent
+    if customer_db_obj and customer_db_obj.tax_exempt_id:
+        final_tax_percent = 0.0
+
+    tax_amount = subtotal * (final_tax_percent / 100)
+    total = subtotal + tax_amount
+    
+    # Strict Math Validation
+    total_payments = sum(p.amount for p in req.payments)
+    if abs(total_payments - total) > 0.01:
+        raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) does not match invoice total ({total})")
+    
+    last_invoice = db.query(models.Invoice).order_by(models.Invoice.id.desc()).first()
+    next_id = last_invoice.id + 1 if last_invoice else 1
+    invoice_number = f"INV-{next_id:04d}"
+    
+    db_invoice = models.Invoice(
+        invoice_number=invoice_number,
+        customer_id=customer_id,
+        store_id=current_user.store_id or current_user.role,
+        subtotal=subtotal,
+        tax_percent=final_tax_percent,
+        tax_amount=tax_amount,
+        total=total,
+        fulfillment_method=req.fulfillment_method,
+        shipping_address=req.shipping_address,
+        status=models.InvoiceStatus.Paid
+    )
+    db.add(db_invoice)
+    db.flush()
+    
+    from datetime import timedelta
+    warranty_expiry = datetime.utcnow() + timedelta(days=15)
+    
+    for item in req.items:
+        db_store_inv = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first()
+        db_store_inv.warranty_expiry_date = warranty_expiry
+        
+        db_item = models.InvoiceItem(
+            invoice_id=db_invoice.id,
+            imei=item.imei,
+            model_number=db_store_inv.model_number,
+            unit_price=item.unit_price
+        )
+        db.add(db_item)
+        
+    for p in req.payments:
+        db_payment = models.PaymentTransaction(
+            invoice_id=db_invoice.id,
+            amount=p.amount,
+            payment_method=p.payment_method,
+            reference_id=p.reference_id
+        )
+        db.add(db_payment)
+        
+    db.commit()
+    db.refresh(db_invoice)
+    return db_invoice
+
 @router.post("/invoice", response_model=schemas.InvoiceOut)
 def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))):
     customer_id = invoice.customer_id
@@ -195,7 +293,7 @@ def convert_estimate(
     
     # Update B2B Credit Ledger if needed
     customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
-    if invoice.payment_method == "On Terms":
+    if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
         if customer.current_balance + invoice.total > customer.credit_limit:
             raise HTTPException(status_code=400, detail="Credit limit exceeded")
         customer.current_balance += invoice.total
@@ -248,24 +346,24 @@ def process_payment(
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
-    db_payment = models.PaymentRecord(
+    db_payment = models.PaymentTransaction(
         invoice_id=invoice.id,
-        amount_paid=payment.amount_paid,
+        amount=payment.amount,
         payment_method=payment.payment_method
     )
     db.add(db_payment)
     
     # Update invoice status
-    total_paid = sum(p.amount_paid for p in invoice.payments) + payment.amount_paid
+    total_paid = sum(p.amount for p in invoice.payments) + payment.amount
     if total_paid >= invoice.total:
         invoice.status = models.InvoiceStatus.Paid
     elif total_paid > 0:
         invoice.status = models.InvoiceStatus.Partially_Paid
     
     # If it was "On Terms", update customer balance
-    if invoice.payment_method == "On Terms":
+    if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
         customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
-        customer.current_balance -= payment.amount_paid
+        customer.current_balance -= payment.amount
         if customer.current_balance < 0: customer.current_balance = 0
         
     db.commit()
@@ -332,9 +430,9 @@ def update_invoice(
     new_total = subtotal + tax_amount
 
     # Update Credit Ledger
-    if invoice.payment_method == "On Terms":
+    if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
         old_total = invoice.total
-        total_paid = sum(p.amount_paid for p in invoice.payments)
+        total_paid = sum(p.amount for p in invoice.payments if p.payment_method != models.PaymentMethodEnum.On_Terms)
         old_unpaid = old_total - total_paid
         new_unpaid = new_total - total_paid
         
@@ -392,7 +490,7 @@ def process_returns(
             # Apply credit to this specific invoice
             # We'll log it as a negative payment or just adjust the balance logic
             # For simplicity in this ERP, we'll deduct from customer balance if it was "On Terms"
-            if invoice.payment_method == "On Terms":
+            if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
                 customer.current_balance -= return_value
                 if customer.current_balance < 0: customer.current_balance = 0
                 total_credit_applied += return_value
@@ -480,7 +578,7 @@ def get_client_statement(
     }
     
     for inv in invoices:
-        inv_paid = sum(p.amount_paid for p in inv.payments)
+        inv_paid = sum(p.amount for p in inv.payments)
         statement_data["invoices"].append({
             "number": inv.invoice_number,
             "date": inv.created_at.isoformat(),
