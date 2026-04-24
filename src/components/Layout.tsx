@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserButton } from '@clerk/react';
+import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   Users, CreditCard,
   Wrench, LayoutDashboard, ShoppingCart,
@@ -11,6 +11,7 @@ import {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
+  const { organization, isLoaded } = useOrganization();
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, roles: ['admin'] },
@@ -21,10 +22,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { id: 'repair', label: 'Repairs', path: '/repair/kanban', icon: Wrench, roles: ['admin', 'technician'] },
     { id: 'crm', label: 'CRM', path: '/admin/crm', icon: Users, roles: ['admin', 'store_a', 'store_b', 'store_c'] },
     { id: 'finance', label: 'Finance', path: '/admin/finance', icon: CreditCard, roles: ['admin'] },
+    { id: 'team', label: 'Team Settings', path: '/admin/team', icon: Users, roles: ['admin'] },
     { id: 'admin', label: 'Settings', path: '/admin/system', icon: Settings, roles: ['admin'] },
   ];
 
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-50">
+        <div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Loading Workspace...</div>
+      </div>
+    );
+  }
+
+  // Force workspace creation if no organization exists
+  if (!organization) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-50">
+        <CreateOrganization />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-zinc-50 text-zinc-900 font-sans selection:bg-zinc-200">
@@ -55,11 +74,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="p-6 border-t border-zinc-100 bg-zinc-50/50 space-y-4">
-          <div className="flex items-center gap-3 px-2">
-            <UserButton />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-zinc-900 truncate uppercase tracking-widest">{user?.email?.split('@')[0]}</div>
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{user?.role}</div>
+          <div className="flex flex-col gap-3 px-2">
+            <div className="flex items-center justify-between w-full">
+              <OrganizationSwitcher 
+                hidePersonal={true}
+                appearance={{
+                  elements: {
+                    organizationSwitcherTrigger: "w-full flex justify-between items-center py-2 px-3 border border-zinc-200 rounded-md bg-white hover:bg-zinc-50 transition-colors",
+                    organizationPreviewTextContainer: "truncate",
+                    organizationSwitcherTriggerIcon: "text-zinc-400"
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <UserButton />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-zinc-900 truncate uppercase tracking-widest">{user?.email?.split('@')[0]}</div>
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{user?.role}</div>
+              </div>
             </div>
           </div>
         </div>

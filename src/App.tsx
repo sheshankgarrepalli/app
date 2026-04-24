@@ -20,6 +20,7 @@ import SystemAdmin from './pages/SystemAdmin';
 import ManualIntake from './pages/ManualIntake';
 import RapidAudit from './pages/RapidAudit';
 import { TransferDispatch } from './pages/TransferDispatch';
+import TeamSettings from './pages/Settings/TeamSettings';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { user, isLoading } = useAuth();
@@ -90,6 +91,7 @@ function AuthRoutes() {
       <Route path="/admin/manual-intake" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><ManualIntake /></ProtectedRoute>} />
       <Route path="/admin/rapid-audit" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><RapidAudit /></ProtectedRoute>} />
       <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
+      <Route path="/admin/team" element={<ProtectedRoute allowedRoles={['admin']}><TeamSettings /></ProtectedRoute>} />
       <Route path="/transfers/dispatch" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><TransferDispatch /></ProtectedRoute>} />
 
       <Route path="/track" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c', 'technician']}><TrackDevice /></ProtectedRoute>} />
