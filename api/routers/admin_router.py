@@ -45,7 +45,6 @@ def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_
     
     new_user = models.User(
         email=req.email,
-        password_hash=auth.get_password_hash(req.password),
         role=req.role,
         store_id=req.store_id
     )

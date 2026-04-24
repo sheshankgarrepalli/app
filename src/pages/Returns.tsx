@@ -27,7 +27,7 @@ export default function Returns() {
         setErrorStatus('');
         setScannedDevice(null);
         try {
-            const res = await axios.get(`http://localhost:8000/api/inventory/track/${imei}`, {
+            const res = await axios.get(`/api/inventory/track/${imei}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const deviceData = res.data.device;

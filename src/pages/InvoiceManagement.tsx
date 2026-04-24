@@ -14,7 +14,7 @@ export default function InvoiceManagement() {
     const fetchInvoices = async (q = '') => {
         setIsLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/pos/invoices?query=${q}`, {
+            const res = await axios.get(`/api/pos/invoices?query=${q}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setInvoices(res.data);

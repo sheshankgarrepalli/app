@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import datetime
-from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus
+from datetime import datetime, date
+from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus, ManifestStatus
 
 # --- ERP SCHEMAS ---
 
@@ -128,9 +128,15 @@ class BulkReceiveRequest(BaseModel):
     imeis: List[str]
     notes: str = ""
 
+class DeviceBulkCreate(BaseModel):
+    imei: str
+    model_number: Optional[str] = None
+    serial_number: Optional[str] = None
+    cost_basis: Optional[float] = 0.0
+    is_hydrated: bool = False
+
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
     role: RoleEnum
 
 class UserOut(BaseModel):
@@ -138,6 +144,8 @@ class UserOut(BaseModel):
     email: EmailStr
     role: RoleEnum
     class Config: from_attributes = True
+
+
 
 class Token(BaseModel):
     access_token: str
@@ -165,7 +173,7 @@ class PhoneModelOut(PhoneModelBase):
 class InventoryCreateItem(BaseModel):
     imei: str
     serial_number: Optional[str] = None
-    model_number: str
+    model_number: Optional[str] = None
     cost_basis: Optional[float] = 0.0
 
 class FastReceiveRequest(BaseModel):
@@ -176,9 +184,9 @@ class FastReceiveRequest(BaseModel):
 class ManualDeviceIntakeRow(BaseModel):
     imei: str
     serial_number: Optional[str] = None
-    model_number: str
-    condition: str
-    acquisition_cost: float
+    model_number: Optional[str] = None
+    condition: Optional[str] = None
+    acquisition_cost: Optional[float] = 0.0
 
 class BatchManualIntakeRequest(BaseModel):
     devices: List[ManualDeviceIntakeRow]
@@ -186,14 +194,14 @@ class BatchManualIntakeRequest(BaseModel):
 class DeviceInventoryOut(BaseModel):
     imei: str
     serial_number: Optional[str]
-    model_number: str
+    model_number: Optional[str]
     location_id: str
     sub_location_bin: Optional[str]
-    device_status: DeviceStatus
+    device_status: Optional[DeviceStatus]
     assigned_technician_id: Optional[str]
     cost_basis: float
     received_date: datetime
-    model: PhoneModelOut
+    model: Optional[PhoneModelOut]
     class Config: from_attributes = True
 
 class DeviceHistoryLogOut(BaseModel):
@@ -216,6 +224,27 @@ class TransferOrderCreate(BaseModel):
     imei_list: List[str]
     destination_location_id: str
     transfer_type: str
+
+class TransferDispatchRequest(BaseModel):
+    imeis: List[str]
+    destination: str
+    courier_name: Optional[str] = None
+    origin: Optional[str] = "Store_A" # Default or can be dynamic from context
+
+class ManifestItemOut(BaseModel):
+    imei: str
+    class Config: from_attributes = True
+
+class TransferManifestOut(BaseModel):
+    manifest_id: str
+    origin_id: str
+    destination_id: str
+    courier_name: Optional[str]
+    status: ManifestStatus
+    created_at: datetime
+    updated_at: datetime
+    items: List[ManifestItemOut]
+    class Config: from_attributes = True
 
 class InternalRoutingRequest(BaseModel):
     new_bin: str
@@ -260,7 +289,7 @@ class UnifiedCustomerCreate(BaseModel):
     phone: str # Required now per user instructions
     email: Optional[str] = None
     tax_exempt_id: Optional[str] = None
-    tax_exempt_expiry: Optional[datetime] = None
+    tax_exempt_expiry: Optional[date] = None
     pricing_tier: float = 0.0
     credit_limit: float = 0.0
     current_balance: float = 0.0

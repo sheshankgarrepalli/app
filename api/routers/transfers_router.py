@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 import models, schemas, auth
 import wms_core
 from database import get_db
+import uuid
 
 router = APIRouter(prefix="/api/transfers", tags=["transfers"])
 
@@ -35,6 +36,55 @@ def bulk_route_devices(req: schemas.BulkRouteRequest, db: Session = Depends(get_
         
     db.commit()
     return {"success_count": success_count, "errors": errors}
+
+@router.post("/dispatch", response_model=schemas.TransferManifestOut)
+def dispatch_transfer(req: schemas.TransferDispatchRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Create unique manifest ID
+    manifest_id = f"MAN-{str(uuid.uuid4())[:8].upper()}"
+    
+    # Create Manifest
+    manifest = models.TransferManifest(
+        manifest_id=manifest_id,
+        origin_id=req.origin,
+        destination_id=req.destination,
+        courier_name=req.courier_name,
+        status=models.ManifestStatus.In_Transit # The user says "updates status to In Transit"
+    )
+    db.add(manifest)
+    
+    for imei in req.imeis:
+        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+        if not device:
+            raise HTTPException(status_code=404, detail=f"IMEI {imei} not found")
+        
+        old_status = device.device_status
+        if old_status in [models.DeviceStatus.In_Transit, models.DeviceStatus.Sold]:
+            raise HTTPException(status_code=400, detail=f"IMEI {imei} cannot be dispatched. Current status: {old_status}")
+            
+        device.device_status = models.DeviceStatus.In_Transit
+        
+        # Audit Log
+        log = models.DeviceHistoryLog(
+            imei=imei,
+            action_type="Transfer Dispatch",
+            employee_id=current_user.email,
+            previous_status=old_status,
+            new_status=models.DeviceStatus.In_Transit,
+            notes=f"Dispatched on Manifest {manifest_id}"
+        )
+        db.add(log)
+        
+        # Manifest Item
+        m_item = models.ManifestItem(
+            manifest_id=manifest_id,
+            imei=imei
+        )
+        db.add(m_item)
+        
+    db.flush() # Ensure atomic integrity before committing
+    db.commit()
+    db.refresh(manifest)
+    return manifest
 
 @router.post("/bulk-receive")
 def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):

@@ -1,0 +1,172 @@
+> [debug] [2026-04-22T08:58:18.620Z] Found config in file "/home/sheshank/Desktop/app/vercel.json"
+> [debug] [2026-04-22T08:58:18.623Z] Vercel CLI 52.0.0
+> [debug] [2026-04-22T08:58:18.636Z] Agent/TTY/nonInteractive: isAgent=true agentName=antigravity stdin.isTTY=true --non-interactive=false explicitFalse=false => nonInteractive=false
+> [debug] [2026-04-22T08:58:18.637Z] user supplied a possible target for deployment or an extension
+> [debug] [2026-04-22T08:58:18.645Z] failed to find extension command with name "vercel---prod"
+> [debug] [2026-04-22T08:58:18.698Z] Setting target to production
+> [debug] [2026-04-22T08:58:18.709Z] Spinner invoked (Retrieving project…) with a 1000ms delay
+> [debug] [2026-04-22T08:58:18.713Z] Valid access token, skipping token refresh.
+> [debug] [2026-04-22T08:58:18.754Z] #1 → GET https://api.vercel.com/teams/team_8FNj9PlGfcVECW8IavDycCVA?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+> [debug] [2026-04-22T08:58:18.756Z] #2 → GET https://api.vercel.com/v9/projects/prj_jzT92pnp4kDpScrVDANJcukdWUo6?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+> [debug] [2026-04-22T08:58:18.997Z] #1 ← 200 OK: sfo1::bd8s4-1776848298997-0d559908a1d2 [243ms]
+> [debug] [2026-04-22T08:58:19.053Z] #2 ← 200 OK: sfo1::cwq5t-1776848299023-28de6d304cde [297ms]
+> [debug] [2026-04-22T08:58:19.072Z] Spinner invoked (Deploying sheshanks-projects-5275d9db/app) with a 0ms delay
+[client-debug] 2026-04-22T08:58:19.073Z Creating deployment...
+[client-debug] 2026-04-22T08:58:19.074Z Provided 'path' is a directory.
+[client-debug] 2026-04-22T08:58:19.077Z Found 26 rules in .vercelignore
+[client-debug] 2026-04-22T08:58:19.077Z Building file tree...
+[client-debug] 2026-04-22T08:58:19.087Z Found 122 files in the specified directory
+[client-debug] 2026-04-22T08:58:19.103Z Yielding a 'hashes-calculated' event with 118 hashes
+> [debug] [2026-04-22T08:58:19.105Z] #3 → GET https://api.vercel.com/v9/projects/app?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+> [debug] [2026-04-22T08:58:19.212Z] #3 ← 200 OK: sfo1::pjc9w-1776848299191-17f2fcfc4971 [107ms]
+[client-debug] 2026-04-22T08:58:19.213Z Using provided API URL: https://api.vercel.com
+[client-debug] 2026-04-22T08:58:19.213Z Using provided user agent: vercel 52.0.0 node-v18.19.1 linux (x64)
+[client-debug] 2026-04-22T08:58:19.213Z Setting platform version to harcoded value 2
+[client-debug] 2026-04-22T08:58:19.213Z Creating the deployment and starting upload...
+[client-debug] 2026-04-22T08:58:19.214Z Determining necessary files for upload...
+[client-debug] 2026-04-22T08:58:19.215Z Creating deployment
+[client-debug] 2026-04-22T08:58:19.217Z Sending deployment creation API request
+[client-debug] 2026-04-22T08:58:19.534Z Deployment response: {"error":{"code":"missing_files","message":"Missing files","missing":["609cdfef525852ea172a7d257995635642a29800","e6a6935e14769a94c856da6b022d07e7e14e30a0","eb5bedd42669a2c2eb3ef0374a2fb34a4537b4e4"]}}
+[client-debug] 2026-04-22T08:58:19.534Z Error: Deployment request status is 400
+[client-debug] 2026-04-22T08:58:19.534Z 3 files are required to upload
+[client-debug] 2026-04-22T08:58:19.535Z Yielding a 'file-count' event
+> [debug] [2026-04-22T08:58:19.535Z] Total files 118, 3 changed
+> [debug] [2026-04-22T08:58:19.536Z] Spinner invoked (Uploading [--------------------] (0.0B/2.1KB)) with a 0ms delay
+[client-debug] 2026-04-22T08:58:19.536Z Building an upload list...
+[client-debug] 2026-04-22T08:58:19.538Z Starting upload
+[client-debug] 2026-04-22T08:58:19.539Z POST https://api.vercel.com/v2/files?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+[client-debug] 2026-04-22T08:58:19.541Z POST https://api.vercel.com/v2/files?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+[client-debug] 2026-04-22T08:58:19.541Z POST https://api.vercel.com/v2/files?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+> [debug] [2026-04-22T08:58:19.544Z] Spinner invoked (Uploading [==================--] (1.9KB/2.1KB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:19.545Z] Spinner invoked (Uploading [====================] (2.1KB/2.1KB)) with a 0ms delay
+[client-debug] 2026-04-22T08:58:19.730Z DONE in 191ms: POST https://api.vercel.com/v2/files?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+[client-debug] 2026-04-22T08:58:19.730Z File 609cdfef525852ea172a7d257995635642a29800 (/home/sheshank/Desktop/app/deploy_logs.txt) uploaded
+[client-debug] 2026-04-22T08:58:19.730Z Yielding a 'file-uploaded' event
+> [debug] [2026-04-22T08:58:19.730Z] Uploaded: /home/sheshank/Desktop/app/deploy_logs.txt (212B)
+[client-debug] 2026-04-22T08:58:19.761Z DONE in 220ms: POST https://api.vercel.com/v2/files?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+[client-debug] 2026-04-22T08:58:19.762Z File e6a6935e14769a94c856da6b022d07e7e14e30a0 (/home/sheshank/Desktop/app/build_debug.txt) uploaded
+[client-debug] 2026-04-22T08:58:19.762Z Yielding a 'file-uploaded' event
+> [debug] [2026-04-22T08:58:19.762Z] Uploaded: /home/sheshank/Desktop/app/build_debug.txt (1.7KB)
+[client-debug] 2026-04-22T08:58:19.942Z DONE in 400ms: POST https://api.vercel.com/v2/files?teamId=team_8FNj9PlGfcVECW8IavDycCVA
+[client-debug] 2026-04-22T08:58:19.942Z File eb5bedd42669a2c2eb3ef0374a2fb34a4537b4e4 (/home/sheshank/Desktop/app/error_logs.txt) uploaded
+[client-debug] 2026-04-22T08:58:19.942Z Yielding a 'file-uploaded' event
+> [debug] [2026-04-22T08:58:19.943Z] Uploaded: /home/sheshank/Desktop/app/error_logs.txt (181B)
+[client-debug] 2026-04-22T08:58:19.943Z All files uploaded
+[client-debug] 2026-04-22T08:58:19.943Z Yielding a 'all-files-uploaded' event
+[client-debug] 2026-04-22T08:58:19.943Z Starting deployment creation
+[client-debug] 2026-04-22T08:58:19.943Z Creating deployment
+[client-debug] 2026-04-22T08:58:19.943Z Sending deployment creation API request
+[client-debug] 2026-04-22T08:58:21.377Z Deployment response: {"alias":["app-sheshanks-projects-5275d9db.vercel.app","app-sheshankmouli-6021-sheshanks-projects-5275d9db.vercel.app"],"aliasAssigned":false,"automaticAliases":["app-sheshanks-projects-5275d9db.vercel.app","app-sheshankmouli-6021-sheshanks-projects-5275d9db.vercel.app"],"bootedAt":1776848300395,"buildingAt":1776848300395,"buildSkipped":false,"createdAt":1776848300395,"creator":{"uid":"8Wkhq52Ju61NPFY25bASocvU","username":"sheshankmouli-6021"},"id":"dpl_szPikdXRxa4ysLTjj6doFQ3zNtiT","name":"app","meta":{"githubCommitAuthorName":"sheshankgarrepalli","githubCommitAuthorEmail":"moulisheshank@gmail.com","githubCommitMessage":"Add email-validator to requirements.txt","githubCommitOrg":"sheshankgarrepalli","githubCommitRef":"main","githubCommitRepo":"app","githubCommitSha":"eb4f392209839af8b3eb5794000ed03dbd277e09","githubDeployment":"1","githubOrg":"sheshankgarrepalli","githubRepo":"app","gitDirty":"1","actor":"antigravity"},"originCacheRegion":"iad1","project":{"id":"prj_jzT92pnp4kDpScrVDANJcukdWUo6","name":"app","framework":null},"public":false,"readyState":"INITIALIZING","regions":["iad1"],"source":"cli","status":"INITIALIZING","target":"production","team":{"id":"team_8FNj9PlGfcVECW8IavDycCVA","name":"sheshank's projects","slug":"sheshanks-projects-5275d9db"},"type":"LAMBDAS","url":"app-ct855zee8-sheshanks-projects-5275d9db.vercel.app","version":2,"previewCommentsEnabled":true,"oidcTokenClaims":{"sub":"owner:sheshanks-projects-5275d9db:project:app:environment:production","iss":"https://oidc.vercel.com/sheshanks-projects-5275d9db","scope":"owner:sheshanks-projects-5275d9db:project:app:environment:production","aud":"https://vercel.com/sheshanks-projects-5275d9db","owner":"sheshanks-projects-5275d9db","owner_id":"team_8FNj9PlGfcVECW8IavDycCVA","project":"app","project_id":"prj_jzT92pnp4kDpScrVDANJcukdWUo6","environment":"production","plan":"hobby"},"lambdas":[{"id":"bld_1mmdgdubh","createdAt":1776848301015,"entrypoint":".","readyState":"READY","readyStateAt":1776848301015,"output":[]}],"aliasAssignedAt":null,"build":{"env":[]},"builds":[],"createdIn":"sfo1","env":[],"functions":null,"inspectorUrl":"https://vercel.com/sheshanks-projects-5275d9db/app/szPikdXRxa4ysLTjj6doFQ3zNtiT","isInConcurrentBuildsQueue":false,"isInSystemBuildsQueue":true,"ownerId":"team_8FNj9PlGfcVECW8IavDycCVA","plan":"hobby","projectId":"prj_jzT92pnp4kDpScrVDANJcukdWUo6","projectSettings":{"buildCommand":null,"devCommand":null,"framework":null,"commandForIgnoringBuildStep":null,"installCommand":null,"outputDirectory":null,"speedInsights":{"id":"j78RgOGYE30cAKum0ZWaDOsn6Zi","hasData":false},"webAnalytics":{"id":"udLpAe00FVst2l0Z8mFU4DVs3","enabledAt":1776829116488},"nodeVersion":"24.x"},"routes":[{"handle":"filesystem"},{"src":"^/api/debug/packages$","dest":"/api/debug.py","check":true},{"src":"^/api/test$","dest":"/api/test.py","check":true},{"src":"^/api(?:/(.*))$","dest":"/api/main.py","check":true},{"src":"^(?:/(.*))$","dest":"/index.html","check":true}],"config":{"version":1,"secureComputePrimaryRegion":null,"secureComputeFallbackRegion":null,"functionTimeout":300,"functionType":"fluid","functionMemoryType":"standard","isUsingActiveCPU":true,"resourceConfig":{"buildQueue":{"configuration":"SKIP_NAMESPACE_QUEUE"}}},"attribution":{"commitMeta":{"name":"sheshankgarrepalli","email":"moulisheshank@gmail.com","isVerified":false}}}
+[client-debug] 2026-04-22T08:58:21.377Z Deployment created
+[client-debug] 2026-04-22T08:58:21.377Z Yielding a 'created' event
+Inspect: https://vercel.com/sheshanks-projects-5275d9db/app/szPikdXRxa4ysLTjj6doFQ3zNtiT [2s]
+Production: https://app-ct855zee8-sheshanks-projects-5275d9db.vercel.app [2s]
+https://app-ct855zee8-sheshanks-projects-5275d9db.vercel.app> [debug] [2026-04-22T08:58:21.379Z] Spinner invoked (Building...) with a 0ms delay
+> [debug] [2026-04-22T08:58:21.380Z] #4 → GET https://api.vercel.com/v2/user
+[client-debug] 2026-04-22T08:58:21.380Z Waiting for deployment to be ready...
+[client-debug] 2026-04-22T08:58:21.380Z Waiting for builds and the deployment to complete...
+> [debug] [2026-04-22T08:58:21.567Z] #4 ← 200 OK: sfo1::rjzs9-1776848301467-a23b4b8e756e [187ms]
+> [debug] [2026-04-22T08:58:21.569Z] #5 → GET https://api.vercel.com/v3/now/deployments/dpl_szPikdXRxa4ysLTjj6doFQ3zNtiT/events?direction=forward&follow=1&format=lines&teamId=team_8FNj9PlGfcVECW8IavDycCVA
+[client-debug] 2026-04-22T08:58:23.528Z Deployment state changed to BUILDING
+[client-debug] 2026-04-22T08:58:23.528Z Yielding a 'building' event
+> [debug] [2026-04-22T08:58:23.528Z] Spinner invoked (Building...) with a 0ms delay
+> [debug] [2026-04-22T08:58:24.359Z] #5 ← 200 OK: sfo1::gkd99-1776848301661-1ee4f8c15f12 [2.79s]
+> [debug] [2026-04-22T08:58:24.361Z] Spinner invoked (Building: Running build in Washington, D.C., USA (East) – iad1) with a 0ms delay
+> [debug] [2026-04-22T08:58:24.361Z] Spinner invoked (Building: Build machine configuration: 2 cores, 8 GB) with a 0ms delay
+> [debug] [2026-04-22T08:58:24.361Z] Spinner invoked (Building: Retrieving list of deployment files...) with a 0ms delay
+> [debug] [2026-04-22T08:58:26.394Z] Spinner invoked (Building: Downloading 122 deployment files...) with a 0ms delay
+> [debug] [2026-04-22T08:58:26.394Z] Spinner invoked (Building: Restored build cache from previous deployment (3wwURevGWn3sjMbsUq5DS64c4JV5)) with a 0ms delay
+> [debug] [2026-04-22T08:58:26.394Z] Spinner invoked (Building: Running "vercel build") with a 0ms delay
+> [debug] [2026-04-22T08:58:28.754Z] Spinner invoked (Building: Vercel CLI 51.6.1) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Installing dependencies...) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Using CPython 3.14.3) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Resolved 40 packages in 349ms) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Downloading reportlab (1.9MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Downloading sqlalchemy (3.1MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Downloading pillow (6.8MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Downloading cryptography (4.3MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Downloading pygments (1.2MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.755Z] Spinner invoked (Building: Downloading pydantic-core (2.0MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:28.756Z] Spinner invoked (Building: Downloading psycopg2-binary (4.1MiB)) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.719Z] Spinner invoked (Building: Downloaded pydantic-core) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.719Z] Spinner invoked (Building: Downloaded psycopg2-binary) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Downloaded pillow) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Downloaded cryptography) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Downloaded reportlab) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Downloaded sqlalchemy) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Downloaded pygments) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Prepared 40 packages in 430ms) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: If the cache and target directories are on different filesystems, hardlinking may not be supported.) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: Installed 40 packages in 243ms) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.720Z] Spinner invoked (Building: + alembic==1.18.4) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + annotated-doc==0.0.4) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + annotated-types==0.7.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + anyio==4.13.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + certifi==2026.2.25) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + cffi==2.0.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + charset-normalizer==3.4.7) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + click==8.3.2) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + cryptography==46.0.7) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + dnspython==2.8.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + email-validator==2.3.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + fastapi==0.136.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + greenlet==3.4.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + h11==0.16.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + httpcore==1.0.9) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + httpx==0.28.1) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + idna==3.12) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + iniconfig==2.3.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + jinja2==3.1.6) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.721Z] Spinner invoked (Building: + mako==1.3.11) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + markupsafe==3.0.3) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + packaging==26.1) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pillow==12.2.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pluggy==1.6.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + psycopg2-binary==2.9.12) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pycparser==3.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pydantic==2.13.3) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pydantic-core==2.46.3) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pydantic-settings==2.14.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pygments==2.20.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pyjwt==2.12.1) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + pytest==9.0.3) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + python-dotenv==1.2.2) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + python-multipart==0.0.26) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + reportlab==4.4.10) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + sqlalchemy==2.0.49) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + starlette==1.0.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + typing-extensions==4.15.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + typing-inspection==0.4.2) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: + uvicorn==0.45.0) with a 0ms delay
+> [debug] [2026-04-22T08:58:29.722Z] Spinner invoked (Building: Installing dependencies...) with a 0ms delay
+> [debug] [2026-04-22T08:58:31.616Z] Spinner invoked (Building: added 7 packages in 1s) with a 0ms delay
+> [debug] [2026-04-22T08:58:31.617Z] Spinner invoked (Building: 39 packages are looking for funding) with a 0ms delay
+> [debug] [2026-04-22T08:58:31.617Z] Spinner invoked (Building: run `npm fund` for details) with a 0ms delay
+> [debug] [2026-04-22T08:58:31.617Z] Spinner invoked (Building: Running "npm run build") with a 0ms delay
+> [debug] [2026-04-22T08:58:31.617Z] Spinner invoked (Building: > frontend@0.0.0 build) with a 0ms delay
+> [debug] [2026-04-22T08:58:31.617Z] Spinner invoked (Building: > tsc -b && vite build) with a 0ms delay
+[client-debug] 2026-04-22T08:58:36.492Z Yielding a 'error' event
+> [debug] [2026-04-22T08:58:36.500Z] Error: Error: Command "npm run build" exited with 2
+Error: Command "npm run build" exited with 2
+    at Now.handleDeploymentError (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-HUUTUVP5.js:4756:12)
+    at processDeployment (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-HUUTUVP5.js:4499:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Now.create (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-HUUTUVP5.js:4647:24)
+    at async createDeploy (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/commands/deploy/index.js:180:12)
+    at async handleDefaultDeploy (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/commands/deploy/index.js:1615:18)
+    at async _Span.trace (/home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/@vercel/build-utils/dist/index.js:32191:14)
+    at async main (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/index.js:24394:18)
+> [debug] [2026-04-22T08:58:36.500Z] handling error: Error: Command "npm run build" exited with 2
+    at Now.handleDeploymentError (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-HUUTUVP5.js:4756:12)
+    at processDeployment (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-HUUTUVP5.js:4499:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Now.create (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-HUUTUVP5.js:4647:24)
+    at async createDeploy (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/commands/deploy/index.js:180:12)
+    at async handleDefaultDeploy (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/commands/deploy/index.js:1615:18)
+    at async _Span.trace (/home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/@vercel/build-utils/dist/index.js:32191:14)
+    at async main (file:///home/sheshank/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/index.js:24394:18)
+Error: Command "npm run build" exited with 2
+> [debug] [2026-04-22T08:58:37.720Z] Failed to send telemetry events. Unexpected response from telemetry server: 401
+> [debug] [2026-04-22T08:58:37.751Z] Telemetry subprocess exited with code 0

@@ -11,7 +11,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setError(null);
-    axios.get(`http://localhost:8000/api/reports/dashboard?date_range=${dateRange}`, {
+    axios.get(`/api/reports/dashboard?date_range=${dateRange}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => setData(res.data))

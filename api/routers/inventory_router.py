@@ -189,40 +189,102 @@ def batch_manual_intake(
             detail=f"Duplicate IMEIs detected: {', '.join(existing_imeis)}"
         )
 
+    from sqlalchemy.exc import IntegrityError
+    
     try:
+        # Step 1: Stage all devices and cost ledgers
         for dev in request.devices:
-            # 1. Create Device
             db_device = models.DeviceInventory(
                 imei=dev.imei,
                 serial_number=dev.serial_number,
                 model_number=dev.model_number,
                 location_id=current_user.store_id or "Warehouse_Alpha",
                 store_id=current_user.store_id,
-                device_status=models.DeviceStatus.Sellable,
-                cost_basis=dev.acquisition_cost
+                device_status=models.DeviceStatus.Sellable if dev.model_number else None,
+                cost_basis=dev.acquisition_cost or 0.0
             )
             db.add(db_device)
-            
-            # 2. Create Cost Ledger Entry
-            db_ledger = models.DeviceCostLedger(
-                imei=dev.imei,
-                cost_type="Base_Acquisition",
-                amount=dev.acquisition_cost
-            )
-            db.add(db_ledger)
-            
-            # 3. Create History Log
+            results.append(db_device)
+
+            if dev.acquisition_cost:
+                db_ledger = models.DeviceCostLedger(
+                    imei=dev.imei,
+                    cost_type="Base_Acquisition",
+                    amount=dev.acquisition_cost
+                )
+                db.add(db_ledger)
+
+        # Step 2: Flush to the database to satisfy Foreign Key constraints for the logs
+        db.flush()
+
+        # Step 3: Now that IMEIs exist in the DB session, create the history logs
+        for dev in request.devices:
             wms_core._log_history(
                 db, 
                 dev.imei, 
-                "Manual Intake", 
+                "Manual Intake" if dev.model_number else "Raw Scan", 
                 current_user.email, 
-                "Sellable", 
+                "Sellable" if dev.model_number else "Pending",
                 None, 
-                f"Manually added to inventory by {current_user.email}"
+                f"Asset ingested via bulk workflow"
             )
+
+        db.commit()
+        for r in results:
+            db.refresh(r)
+        return results
+
+    except IntegrityError as e:
+        db.rollback()
+        # Extract IMEI from error if possible, or send generic duplicate message
+        raise HTTPException(
+            status_code=400, 
+            detail="Integrity Error: One or more IMEIs in this batch already exist in the inventory."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/bulk-intake", response_model=List[schemas.DeviceInventoryOut])
+def bulk_blind_intake(
+    request: schemas.BulkReceiveRequest, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    """
+    IMEI-Centric Blind Scan: Accepts only a list of IMEIs and creates raw records.
+    Metadata binding happens later via Auction/Invoice sheets.
+    """
+    from sqlalchemy.exc import IntegrityError
+    results = []
+    
+    # Filter out IMEIs that already exist to allow idempotent "re-scans"
+    existing_imeis = {d.imei for d in db.query(models.DeviceInventory.imei).filter(models.DeviceInventory.imei.in_(request.imeis)).all()}
+    new_imeis = [i for i in request.imeis if i not in existing_imeis]
+    
+    if not new_imeis:
+        return []
+
+    try:
+        for imei in new_imeis:
+            db_device = models.DeviceInventory(
+                imei=imei,
+                location_id=current_user.store_id or "Warehouse_Alpha",
+                store_id=current_user.store_id,
+                device_status=None, # Raw state
+                is_hydrated=False,
+                cost_basis=0.0
+            )
+            db.add(db_device)
             results.append(db_device)
-        
+
+        db.flush()
+
+        for imei in new_imeis:
+            wms_core._log_history(
+                db, imei, "Blind Scan", current_user.email, "Raw", None, "Initial IMEI Registration"
+            )
+
         db.commit()
         for r in results:
             db.refresh(r)
@@ -230,6 +292,76 @@ def batch_manual_intake(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/bind-specs")
+def bind_specs_to_imeis(
+    data_sheet: List[dict], # List of rows with imei, model_number, cost, etc.
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    """
+    The 'Data Binder': Hydrates raw-scanned devices with technical specs from external sources.
+    """
+    bound_count = 0
+    for row in data_sheet:
+        imei = row.get("imei")
+        if not imei: continue
+        
+        db_device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+        if db_device:
+            # Bind specs
+            if "model_number" in row:
+                db_device.model_number = row["model_number"]
+            if "cost" in row:
+                db_device.cost_basis = row["cost"]
+            
+            db_device.is_hydrated = True
+            db_device.device_status = models.DeviceStatus.Sellable
+            bound_count += 1
+            
+            wms_core._log_history(
+                db, imei, "Data Binding", current_user.email, "Sellable", "Raw", f"Specs bound from sheet by {current_user.email}"
+            )
+
+    db.commit()
+    return {"status": "success", "bound_count": bound_count}
+
+@router.post("/batch-reconcile")
+def batch_reconcile(
+    request: schemas.BatchManualIntakeRequest, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    """
+    Updates existing partial device records with metadata (model, cost, condition).
+    Typically used for reconciling raw-scanned IMEIs with an auction sheet.
+    """
+    updated_count = 0
+    for dev in request.devices:
+        db_device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == dev.imei).first()
+        if db_device:
+            if dev.model_number:
+                db_device.model_number = dev.model_number
+            if dev.acquisition_cost:
+                db_device.cost_basis = dev.acquisition_cost
+                # Update/Create ledger
+                ledger = db.query(models.DeviceCostLedger).filter(
+                    models.DeviceCostLedger.imei == dev.imei,
+                    models.DeviceCostLedger.cost_type == "Base_Acquisition"
+                ).first()
+                if ledger:
+                    ledger.amount = dev.acquisition_cost
+                else:
+                    db.add(models.DeviceCostLedger(imei=dev.imei, cost_type="Base_Acquisition", amount=dev.acquisition_cost))
+            
+            if dev.condition:
+                # We can map condition to status or notes if needed
+                db_device.device_status = models.DeviceStatus.Sellable
+            
+            updated_count += 1
+            
+    db.commit()
+    return {"status": "success", "reconciled_count": updated_count}
 
 @router.get("/{imei}", response_model=schemas.DeviceInventoryOut)
 def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):

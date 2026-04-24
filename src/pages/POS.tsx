@@ -49,7 +49,7 @@ export default function POS() {
     try {
       const res = await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/pos/invoice', payload, { headers: { Authorization: `Bearer ${token}` } });
       const invoiceId = res.data.id;
-      window.open(`http://localhost:8000/api/pos/invoice/${invoiceId}/pdf`, '_blank');
+      window.open(`/api/pos/invoice/${invoiceId}/pdf`, '_blank');
 
       setCustomerName(''); setCustomerPhone(''); setRetailItems([{ imei: '', price: '' }]);
       alert("Retail sale complete and invoice generated!");
@@ -235,7 +235,7 @@ export default function POS() {
                         onClick={async () => {
                           if (!crmId) return;
                           try {
-                            const res = await axios.get(`http://localhost:8000/api/crm/${crmId}/history`, { headers: { Authorization: `Bearer ${token}` } });
+                            const res = await axios.get(`/api/crm/${crmId}/history`, { headers: { Authorization: `Bearer ${token}` } });
                             setB2bCustomer(res.data.customer);
                             if (res.data.customer.shipping_address) setShippingAddress(res.data.customer.shipping_address);
                           } catch (err) {

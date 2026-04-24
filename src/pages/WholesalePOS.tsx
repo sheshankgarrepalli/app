@@ -66,7 +66,7 @@ export default function WholesalePOS() {
 
     searchTimeout.current = setTimeout(async () => {
       try {
-        const res = await axios.get(`http://localhost:8000/api/crm/?search=${customerSearch}`, {
+        const res = await axios.get(`/api/crm/?search=${customerSearch}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setCustomerResults(res.data);
@@ -93,7 +93,7 @@ export default function WholesalePOS() {
 
       try {
         setErrorStatus(null);
-        const res = await axios.get(`http://localhost:8000/api/inventory/${imei}`, {
+        const res = await axios.get(`/api/inventory/${imei}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 

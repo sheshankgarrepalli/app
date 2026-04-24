@@ -78,7 +78,7 @@ function LaborRatesSetup() {
         };
 
         try {
-            await axios.put(`http://localhost:8000/api/admin/rates/upsert`, payload, {
+            await axios.put(`/api/admin/rates/upsert`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setEditingId(null);

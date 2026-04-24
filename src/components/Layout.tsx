@@ -1,21 +1,16 @@
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { UserButton } from '@clerk/react';
 import {
-  LogOut, Users, CreditCard,
+  Users, CreditCard,
   Wrench, LayoutDashboard, ShoppingCart,
   Truck, Settings, PackagePlus, RefreshCw
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const location = useLocation();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, roles: ['admin'] },
@@ -59,20 +54,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-
         <div className="p-6 border-t border-zinc-100 bg-zinc-50/50 space-y-4">
           <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-lg bg-white shadow-sm border border-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-900">
-              {user?.email?.charAt(0).toUpperCase()}
-            </div>
+            <UserButton />
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-zinc-900 truncate uppercase tracking-widest">{user?.email?.split('@')[0]}</div>
               <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{user?.role}</div>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 w-full px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-            <LogOut size={16} /> Sign Out
-          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto bg-zinc-50">

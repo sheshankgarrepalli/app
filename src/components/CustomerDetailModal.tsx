@@ -23,7 +23,7 @@ export default function CustomerDetailModal({ isOpen, onClose, customer }: Custo
 
     const fetchHistory = async () => {
         try {
-            const res = await axios.get(`http://localhost:8000/api/crm/${customer.crm_id}/history`, {
+            const res = await axios.get(`/api/crm/${customer.crm_id}/history`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setHistory(res.data);

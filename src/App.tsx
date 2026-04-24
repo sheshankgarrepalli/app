@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ClerkLoading, useUser } from '@clerk/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AxiosInterceptor } from './api/AxiosInterceptor';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import CRMDirectory from './pages/CRMDirectory';
@@ -17,62 +19,111 @@ import Layout from './components/Layout';
 import SystemAdmin from './pages/SystemAdmin';
 import ManualIntake from './pages/ManualIntake';
 import RapidAudit from './pages/RapidAudit';
+import { TransferDispatch } from './pages/TransferDispatch';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
-  const { user, token, isLoading } = useAuth();
-  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  if (!token) return <Navigate to="/login" />;
-  if (!user) return <div className="flex h-screen items-center justify-center">Initializing Session...</div>;
-  if (!allowedRoles.includes(user.role)) return <Navigate to="/" />;
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-gray-500 animate-pulse">Loading Security...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
+  
   return <Layout>{children}</Layout>;
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+    <Router>
+      <ClerkLoading>
+        <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-medium text-gray-500 animate-pulse">Initializing System...</p>
+          </div>
+        </div>
+      </ClerkLoading>
+      
+      <AuthProvider>
+        <AxiosInterceptor>
+          <AuthRoutes />
+        </AxiosInterceptor>
+      </AuthProvider>
+    </Router>
+  );
+}
 
-          <Route path="/" element={
-            <AuthWrapper />
-          } />
+function AuthRoutes() {
+  const { isSignedIn, isLoaded } = useUser();
 
-          <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+  if (!isLoaded) return null; // ClerkLoading handled above
 
-          <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><InventoryHub /></ProtectedRoute>} />
-          <Route path="/admin/finance" element={<ProtectedRoute allowedRoles={['admin']}><FinanceHub /></ProtectedRoute>} />
+  return (
+    <Routes>
+      {/* Public Login Route */}
+      <Route path="/login" element={
+        !isSignedIn ? <Login /> : <Navigate to="/" replace />
+      } />
 
-          <Route path="/admin/crm" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><CRMDirectory /></ProtectedRoute>} />
-          <Route path="/admin/wholesale-checkout" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><InvoicingSystem /></ProtectedRoute>} />
-          <Route path="/admin/manual-intake" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><ManualIntake /></ProtectedRoute>} />
-          <Route path="/admin/rapid-audit" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><RapidAudit /></ProtectedRoute>} />
-          <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
+      {/* Root Redirector */}
+      <Route path="/" element={
+        isSignedIn ? <AuthWrapper /> : <Navigate to="/login" replace />
+      } />
 
-          <Route path="/track" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c', 'technician']}><TrackDevice /></ProtectedRoute>} />
+      <Route path="/login/*" element={<Navigate to="/login" replace />} />
 
-          <Route path="/store/inventory" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><StoreInventory /></ProtectedRoute>} />
-          <Route path="/store/pos" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><InvoicingSystem /></ProtectedRoute>} />
+      {/* Protected Routes */}
+      <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><InventoryHub /></ProtectedRoute>} />
+      <Route path="/admin/finance" element={<ProtectedRoute allowedRoles={['admin']}><FinanceHub /></ProtectedRoute>} />
+      <Route path="/admin/crm" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><CRMDirectory /></ProtectedRoute>} />
+      <Route path="/admin/wholesale-checkout" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><InvoicingSystem /></ProtectedRoute>} />
+      <Route path="/admin/manual-intake" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><ManualIntake /></ProtectedRoute>} />
+      <Route path="/admin/rapid-audit" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><RapidAudit /></ProtectedRoute>} />
+      <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
+      <Route path="/transfers/dispatch" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><TransferDispatch /></ProtectedRoute>} />
 
-          <Route path="/returns" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><Returns /></ProtectedRoute>} />
-          <Route path="/qc/triage" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><QCTriage /></ProtectedRoute>} />
-          <Route path="/repair/dashboard" element={<ProtectedRoute allowedRoles={['technician']}><RepairDashboard /></ProtectedRoute>} />
-          <Route path="/repair/kanban" element={<ProtectedRoute allowedRoles={['technician', 'admin']}><TechKanban /></ProtectedRoute>} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+      <Route path="/track" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c', 'technician']}><TrackDevice /></ProtectedRoute>} />
+
+      <Route path="/store/inventory" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><StoreInventory /></ProtectedRoute>} />
+      <Route path="/store/pos" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><InvoicingSystem /></ProtectedRoute>} />
+
+      <Route path="/returns" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><Returns /></ProtectedRoute>} />
+      <Route path="/qc/triage" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><QCTriage /></ProtectedRoute>} />
+      <Route path="/repair/dashboard" element={<ProtectedRoute allowedRoles={['technician']}><RepairDashboard /></ProtectedRoute>} />
+      <Route path="/repair/kanban" element={<ProtectedRoute allowedRoles={['technician', 'admin']}><TechKanban /></ProtectedRoute>} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
 function AuthWrapper() {
-  const { user, token, isLoading } = useAuth();
-  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  if (!token) return <Navigate to="/login" />;
-  if (!user) return <div className="flex h-screen items-center justify-center">Synchronizing Identity...</div>;
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Synchronizing Identity...</div>
+      </div>
+    );
+  }
 
-  if (user.role === 'admin') return <Navigate to="/admin/dashboard" />;
-  if (user.role === 'technician') return <Navigate to="/repair/dashboard" />;
-  return <Navigate to="/store/inventory" />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
+  if (user.role === 'technician') return <Navigate to="/repair/dashboard" replace />;
+  return <Navigate to="/store/inventory" replace />;
 }
 
 export default App;

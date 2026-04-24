@@ -37,7 +37,7 @@ export default function StoreInventory() {
 
   const handleReceiveBatch = async (transferId: string) => {
     try {
-      await axios.post(`http://localhost:8000/api/transfers/${transferId}/receive`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`/api/transfers/${transferId}/receive`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchInventory();
       fetchTransfers();
     } catch (err: any) {
@@ -47,11 +47,12 @@ export default function StoreInventory() {
 
   const incomingTransfers = transfers.filter(t => t.status === 'In_Transit' && t.destination_location_id === (user?.role === 'admin' ? t.destination_location_id : user?.role));
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isHydrated: boolean = true) => {
+    if (!isHydrated) return <span className="badge-glow badge-warning bg-amber-100 text-amber-700">Raw Intake</span>;
     if (status === 'Sellable') {
       return <span className="badge-glow badge-success">Sellable</span>;
     }
-    return <span className="badge-glow badge-neutral">{status.replace('_', ' ')}</span>;
+    return <span className="badge-glow badge-neutral">{status?.replace('_', ' ') || 'ACTIVE'}</span>;
   };
 
   return (
@@ -109,15 +110,15 @@ export default function StoreInventory() {
               ) : inventory.map((item: any) => (
                 <tr key={item.imei} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group">
                   <td className="px-8 py-5 font-mono font-bold text-zinc-900 tracking-widest uppercase text-xs">{item.imei}</td>
-                  <td className="px-8 py-5 text-zinc-700 font-semibold uppercase tracking-wider">{item.model_number}</td>
+                  <td className="px-8 py-5 text-zinc-700 font-semibold uppercase tracking-wider">{item.model_number || 'PENDING ID'}</td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-2 text-zinc-500 uppercase tracking-widest text-[10px] font-bold">
                       <MapPin size={12} className="text-zinc-300" />
-                      {item.location_id.replace('_', ' ')}
+                      {item.location_id?.replace('_', ' ')}
                     </div>
                   </td>
                   <td className="px-8 py-5">
-                    {getStatusBadge(item.device_status)}
+                    {getStatusBadge(item.device_status, item.is_hydrated)}
                   </td>
                   <td className="px-8 py-5 text-zinc-500 font-medium uppercase tracking-widest">
                     <div className="flex items-center gap-2">

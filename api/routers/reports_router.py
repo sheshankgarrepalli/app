@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 def get_dashboard(
     date_range: str = Query("Today"), 
     db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth.require_role(["admin"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
 ):
     now = datetime.utcnow()
     start_date = now

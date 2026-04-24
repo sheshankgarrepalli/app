@@ -23,7 +23,7 @@ export default function TrackDevice() {
   const performSearch = async (identifier: string) => {
     if (!identifier) return;
     try {
-      const res = await axios.get(`http://localhost:8000/api/track/?identifier=${identifier}`, {
+      const res = await axios.get(`/api/track/?identifier=${identifier}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResult(res.data);
@@ -109,35 +109,40 @@ export default function TrackDevice() {
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Brand</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model.brand}</div>
+                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.brand || 'Raw Asset'}</div>
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Model</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model.name}</div>
+                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.name || 'Pending Identification'}</div>
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Storage</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model.storage_gb}GB</div>
+                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.storage_gb ? `${result.device.model.storage_gb}GB` : 'N/A'}</div>
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Color</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model.color}</div>
+                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.color || 'N/A'}</div>
                   </div>
                 </div>
 
                 <div className="p-6 bg-zinc-50 border border-zinc-200 rounded-lg space-y-4 shadow-sm">
+                  {!result.device.is_hydrated && (
+                    <div className="bg-amber-50 border border-amber-200 p-3 rounded flex items-center gap-2 mb-2 animate-pulse">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">⚠️ Raw Asset: Specs Pending Binding</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-start">
                     <div>
                       <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Current Node</label>
                       <div className="text-xs font-bold uppercase flex items-center gap-2 text-zinc-900">
                         <MapPin size={14} className="text-zinc-400" />
-                        {result.device.location_id.replace('_', ' ')}
+                        {result.device.location_id?.replace('_', ' ')}
                       </div>
                     </div>
                     <div className="text-right">
                       <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Status</label>
-                      <span className="badge-glow badge-neutral">
-                        {result.device.device_status.replace('_', ' ')}
+                      <span className={`badge-glow ${result.device.is_hydrated ? 'badge-neutral' : 'badge-warning bg-amber-100 text-amber-700'}`}>
+                        {result.device.is_hydrated ? (result.device.device_status?.replace('_', ' ') || 'ACTIVE') : 'RAW'}
                       </span>
                     </div>
                   </div>

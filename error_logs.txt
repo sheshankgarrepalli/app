@@ -1,0 +1,8 @@
+Retrieving project…
+Resolving deployment "amafahelectronics.com"
+Streaming logs for deployment dpl_3wwURevGWn3sjMbsUq5DS64c4JV5 starting from 03:57:15.24
+
+waiting for new logs...
+WARNING! Command automatically interrupted after 5 minutes.
+
+Error: An unexpected error occurred in logs: AbortError: The user aborted a request.

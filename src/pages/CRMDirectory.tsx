@@ -28,7 +28,7 @@ export default function CRMDirectory() {
         e.stopPropagation();
         if (!confirm("Are you sure you want to deactivate this customer?")) return;
         try {
-            await axios.delete(`http://localhost:8000/api/crm/${crm_id}`, { headers: { Authorization: `Bearer ${token}` } });
+            await axios.delete(`/api/crm/${crm_id}`, { headers: { Authorization: `Bearer ${token}` } });
             fetchCustomers();
         } catch (err) {
             alert("Error deactivating customer");

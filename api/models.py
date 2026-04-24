@@ -1,11 +1,12 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, func
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, func, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 
 class RoleEnum(str, enum.Enum):
     admin = "admin"
+    owner = "owner"
     store_a = "store_a"
     store_b = "store_b"
     store_c = "store_c"
@@ -16,6 +17,7 @@ class DeviceStatus(str, enum.Enum):
     In_QC = "In_QC"
     In_Repair = "In_Repair"
     In_Transit = "In_Transit"
+    Pending_Acknowledgment = "Pending_Acknowledgment"
     Sold = "Sold"
     Transit_to_Repair = "Transit_to_Repair"
     Transit_to_Main_Bin = "Transit_to_Main_Bin"
@@ -24,6 +26,12 @@ class DeviceStatus(str, enum.Enum):
 class TransferType(str, enum.Enum):
     Restock = "Restock"
     Repair_Routing = "Repair_Routing"
+
+class ManifestStatus(str, enum.Enum):
+    Preparing = "Preparing"
+    In_Transit = "In_Transit"
+    Pending_Acknowledgment = "Pending_Acknowledgment"
+    Completed = "Completed"
 
 class CustomerType(str, enum.Enum):
     Retail = "Retail"
@@ -38,8 +46,8 @@ class StoreLocation(Base):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    clerk_id = Column(String, unique=True, index=True, nullable=True)
     email = Column(String, unique=True, index=True)
-    password_hash = Column(String)
     role = Column(Enum(RoleEnum))
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
     
@@ -105,18 +113,40 @@ class TransferOrder(Base):
     created_at = Column(DateTime, default=func.now())
     status = Column(String, default="In_Transit") 
 
+class TransferManifest(Base):
+    __tablename__ = "transfer_manifests"
+    manifest_id = Column(String, primary_key=True, index=True)
+    origin_id = Column(String, nullable=False)
+    destination_id = Column(String, nullable=False)
+    courier_name = Column(String, nullable=True)
+    status = Column(Enum(ManifestStatus), default=ManifestStatus.Preparing)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    items = relationship("ManifestItem", back_populates="manifest")
+
+class ManifestItem(Base):
+    __tablename__ = "manifest_items"
+    id = Column(Integer, primary_key=True, index=True)
+    manifest_id = Column(String, ForeignKey("transfer_manifests.manifest_id"))
+    imei = Column(String, ForeignKey("device_inventory.imei"))
+    
+    manifest = relationship("TransferManifest", back_populates="items")
+    device = relationship("DeviceInventory")
+
 class DeviceInventory(Base):
     __tablename__ = "device_inventory"
     imei = Column(String, primary_key=True, index=True)
     serial_number = Column(String, nullable=True)
-    model_number = Column(String, ForeignKey("phone_models.model_number"))
+    model_number = Column(String, ForeignKey("phone_models.model_number"), nullable=True)
+    is_hydrated = Column(Boolean, default=False, nullable=False)
     
     location_id = Column(String, index=True, nullable=False) 
     sub_location_bin = Column(String, nullable=True)          
-    device_status = Column(Enum(DeviceStatus), default=DeviceStatus.Sellable)
+    device_status = Column(Enum(DeviceStatus), default=DeviceStatus.Sellable, nullable=True)
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
     
-    cost_basis = Column(Float, nullable=False, default=0.0)
+    cost_basis = Column(Float, nullable=True, default=0.0)
     assigned_transfer_order_id = Column(String, ForeignKey("transfer_orders.id"), nullable=True)
     assigned_technician_id = Column(String, ForeignKey("users.email"), nullable=True)
     sold_to_crm_id = Column(String, ForeignKey("unified_customers.crm_id"), nullable=True)

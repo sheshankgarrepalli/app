@@ -52,7 +52,8 @@ export default function CentralInventory() {
   const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
   const paginatedItems = filteredInventory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isHydrated: boolean = true) => {
+    if (!isHydrated) return <span className="badge-glow badge-warning bg-amber-100 text-amber-700">Raw Intake</span>;
     switch (status) {
       case 'Sellable':
         return <span className="badge-glow badge-success">Sellable</span>;
@@ -63,7 +64,7 @@ export default function CentralInventory() {
       case 'In_QC':
         return <span className="badge-glow badge-warning">In QC</span>;
       default:
-        return <span className="badge-glow badge-neutral">{status.replace('_', ' ')}</span>;
+        return <span className="badge-glow badge-neutral">{status?.replace('_', ' ') || 'ACTIVE'}</span>;
     }
   };
 
@@ -117,6 +118,7 @@ export default function CentralInventory() {
               <option value="Warehouse_Alpha">Warehouse</option>
               <option value="Store_A">Store A</option>
               <option value="Store_B">Store B</option>
+              <option value="Store_C">Store C</option>
             </select>
           </div>
         </div>
@@ -142,8 +144,8 @@ export default function CentralInventory() {
               ) : paginatedItems.map(item => (
                 <tr key={item.imei} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="text-zinc-900 font-bold text-xs uppercase tracking-tight">{item.model_number}</div>
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{item.model.brand}</div>
+                    <div className="text-zinc-900 font-bold text-xs uppercase tracking-tight">{item.model_number || 'PENDING ID'}</div>
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{item.model?.brand || 'RAW ASSET'}</div>
                   </td>
                   <td className="px-6 py-4">
                     <button onClick={() => handleViewTracker(item.imei)} className="text-zinc-900 hover:underline block truncate font-mono text-xs font-bold tracking-widest">
@@ -153,17 +155,17 @@ export default function CentralInventory() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      <span className="bg-zinc-50 text-zinc-600 px-2 py-0.5 rounded text-[10px] font-bold border border-zinc-200 uppercase">{item.model.storage_gb}GB</span>
-                      <span className="bg-zinc-50 text-zinc-600 px-2 py-0.5 rounded text-[10px] font-bold border border-zinc-200 uppercase">{item.model.color}</span>
+                      <span className="bg-zinc-50 text-zinc-600 px-2 py-0.5 rounded text-[10px] font-bold border border-zinc-200 uppercase">{item.model?.storage_gb ? `${item.model.storage_gb}GB` : 'N/A'}</span>
+                      <span className="bg-zinc-50 text-zinc-600 px-2 py-0.5 rounded text-[10px] font-bold border border-zinc-200 uppercase">{item.model?.color || 'N/A'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {getStatusBadge(item.device_status)}
+                    {getStatusBadge(item.device_status, item.is_hydrated)}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 text-zinc-700 font-bold uppercase text-[10px] tracking-widest">
                       <MapPin size={12} className="text-zinc-400" />
-                      {item.location_id.replace('_', ' ')}
+                      {item.location_id?.replace('_', ' ')}
                     </div>
                     <div className="text-[10px] text-zinc-400 font-bold mt-0.5 ml-5 uppercase tracking-widest">{item.sub_location_bin || 'UNBINNED'}</div>
                   </td>

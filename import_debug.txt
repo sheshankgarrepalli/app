@@ -1,0 +1,59 @@
+Retrieving project…
+Resolving deployment "amafahelectronics.com"
+Streaming logs for deployment dpl_C25HMnntW3nFq6bqqRU6jLm2tAZJ starting from 03:36:10.70
+
+waiting for new logs...
+03:36:06.21  🚫  POST  ---  www.amafahelectronics.com  ƒ  /api/auth/login
+-------------------------------------------------------------------------
+could not import "api/main.py":
+Traceback (most recent call last):
+File "/var/task/_vendor/vercel_runtime/vc_init.py", line 471, in <module>
+__vc_module = import_module(_entrypoint_modname, _entrypoint_abs)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/var/task/_vendor/vercel_runtime/resolver.py", line 24, in import_module
+spec.loader.exec_module(mod)
+File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+File "/var/task/api/main.py", line 22, in <module>
+raise e
+File "/var/task/api/main.py", line 13, in <module>
+from routers import (
+File "/var/task/api/routers/pos_router.py", line 12, in <module>
+import pdf_worker
+File "/var/task/api/pdf_worker.py", line 5, in <module>
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+ModuleNotFoundError: No module named 'jinja2'
+could not import "api/main.py":
+Traceback (most recent call last):
+File "/var/task/_vendor/vercel_runtime/vc_init.py", line 471, in <module>
+__vc_module = import_module(_entrypoint_modname, _entrypoint_abs)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/var/task/_vendor/vercel_runtime/resolver.py", line 24, in import_module
+spec.loader.exec_module(mod)
+File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+File "/var/task/api/main.py", line 22, in <module>
+raise e
+File "/var/task/api/main.py", line 13, in <module>
+from routers import (
+File "/var/task/api/routers/pos_router.py", line 12, in <module>
+import pdf_worker
+File "/var/task/api/pdf_worker.py", line 5, in <module>
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+ModuleNotFoundError: No module named 'jinja2'
+DATABASE_URL protocol: postgresql
+DATABASE_URL host: ep-blue-dream-amvx67o4-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require
+IMPORT ERROR IN MAIN.PY: No module named 'jinja2'
+Traceback (most recent call last):
+File "/var/task/api/main.py", line 13, in <module>
+from routers import (
+File "/var/task/api/routers/pos_router.py", line 12, in <module>
+import pdf_worker
+File "/var/task/api/pdf_worker.py", line 5, in <module>
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+ModuleNotFoundError: No module named 'jinja2'
+Python process exited with exit status: 1. The logs above can help with debugging the issue.
+
+waiting for new logs...
+WARNING! Command automatically interrupted after 5 minutes.
+

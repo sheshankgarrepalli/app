@@ -39,7 +39,7 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
         setIsSubmitting(true);
         setError('');
         try {
-            await axios.put(`http://localhost:8000/api/inventory/${device.imei}`, formData, {
+            await axios.put(`/api/inventory/${device.imei}`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             onSuccess();

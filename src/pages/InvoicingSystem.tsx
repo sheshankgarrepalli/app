@@ -76,7 +76,7 @@ export default function InvoicingSystem() {
 
     const loadInvoice = async (id: string) => {
         try {
-            const res = await axios.get(`http://localhost:8000/api/pos/invoices`, {
+            const res = await axios.get(`/api/pos/invoices`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const invoice = res.data.find((inv: any) => inv.invoice_number === id);
@@ -104,7 +104,7 @@ export default function InvoicingSystem() {
     const fetchNextNumber = async () => {
         try {
             const typeParam = txType === 'Transfer' ? 'transfer' : 'invoice';
-            const res = await axios.get(`http://localhost:8000/api/pos/next-number?type=${typeParam}`, {
+            const res = await axios.get(`/api/pos/next-number?type=${typeParam}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNextNumber(res.data.next);
@@ -144,7 +144,7 @@ export default function InvoicingSystem() {
         if (searchTimeout.current) clearTimeout(searchTimeout.current);
         searchTimeout.current = setTimeout(async () => {
             try {
-                const res = await axios.get(`http://localhost:8000/api/crm/?search=${customerSearch}`, {
+                const res = await axios.get(`/api/crm/?search=${customerSearch}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setCustomerResults(res.data);
@@ -168,7 +168,7 @@ export default function InvoicingSystem() {
 
             try {
                 setErrorStatus(null);
-                const res = await axios.get(`http://localhost:8000/api/inventory/${imei}`, {
+                const res = await axios.get(`/api/inventory/${imei}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -249,7 +249,7 @@ export default function InvoicingSystem() {
         setIsProcessing(true);
         try {
             let endpoint = editingInvoiceId
-                ? `http://localhost:8000/api/pos/invoices/${editingInvoiceId}`
+                ? `/api/pos/invoices/${editingInvoiceId}`
                 : (import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/pos/wholesale';
 
             let method = editingInvoiceId ? 'put' : 'post';

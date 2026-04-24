@@ -30,7 +30,7 @@ export default function QCTriage() {
         setErrorStatus('');
         setDevice(null);
         try {
-            const res = await axios.get(`http://localhost:8000/api/inventory/${imei}`, {
+            const res = await axios.get(`/api/inventory/${imei}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setDevice(res.data);

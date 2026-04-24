@@ -66,11 +66,18 @@ export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Sanitize payload: Empty strings for optional dates must be null to satisfy Pydantic
+        const payload = {
+            ...form,
+            tax_exempt_expiry: form.tax_exempt_expiry || null
+        };
+
         try {
             if (isEdit) {
-                await axios.put(`http://localhost:8000/api/crm/${customer.crm_id}`, form, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.put(`/api/crm/${customer.crm_id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
             } else {
-                await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/crm/', form, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/crm/', payload, { headers: { Authorization: `Bearer ${token}` } });
             }
             onSuccess();
         } catch (err: any) {

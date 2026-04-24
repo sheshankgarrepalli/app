@@ -2,7 +2,9 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")
+from config import settings
+
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 # Fix for SQLAlchemy 1.4+ which requires 'postgresql+psycopg2://' or similar
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
@@ -10,6 +12,8 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
 
 print(f"DATABASE_URL protocol: {SQLALCHEMY_DATABASE_URL.split(':')[0]}")
 print(f"DATABASE_URL host: {SQLALCHEMY_DATABASE_URL.split('@')[-1] if '@' in SQLALCHEMY_DATABASE_URL else 'local'}")
+
+from sqlalchemy.pool import NullPool
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
@@ -22,8 +26,7 @@ else:
     
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        pool_pre_ping=True,
-        pool_recycle=3600,
+        poolclass=NullPool,
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

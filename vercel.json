@@ -1,5 +1,9 @@
 {
+  "version": 2,
+  "framework": "vite",
   "rewrites": [
+    { "source": "/api/health", "destination": "/api/main.py" },
+    { "source": "/api/debug/packages", "destination": "/api/debug.py" },
     { "source": "/api/test", "destination": "/api/test.py" },
     { "source": "/api/(.*)", "destination": "/api/main.py" },
     { "source": "/(.*)", "destination": "/index.html" }

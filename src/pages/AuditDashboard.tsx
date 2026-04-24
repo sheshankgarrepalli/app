@@ -37,7 +37,7 @@ export default function AuditDashboard() {
 
         setLoading(true);
         try {
-            const res = await axios.post(`http://localhost:8000/api/inventory/audit/reconcile`, {
+            const res = await axios.post(`/api/inventory/audit/reconcile`, {
                 location_id: location,
                 scanned_imeis_list: scannedList
             }, { headers: { Authorization: `Bearer ${token}` } });
@@ -55,7 +55,7 @@ export default function AuditDashboard() {
         if (!confirm("Are you sure you want to finalize this audit? This action cannot be reversed.")) return;
 
         try {
-            const res = await axios.post(`http://localhost:8000/api/inventory/audit/finalize`, {
+            const res = await axios.post(`/api/inventory/audit/finalize`, {
                 location_id: location,
                 report: report
             }, { headers: { Authorization: `Bearer ${token}` } });

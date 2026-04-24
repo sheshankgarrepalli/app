@@ -26,7 +26,7 @@ export default function RepairDashboard() {
 
   const handleCompleteRepair = async (imei: string) => {
     try {
-      await axios.post(`http://localhost:8000/api/inventory/repair/${imei}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`/api/inventory/repair/${imei}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchInventory();
     } catch (err: any) {
       console.error("Complete repair error:", err.response?.data);

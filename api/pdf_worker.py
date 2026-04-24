@@ -5,7 +5,11 @@ import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # Ensure that the weasyprint module is imported AFTER the ENV vars are set
-import weasyprint
+try:
+    import weasyprint
+except ImportError:
+    weasyprint = None
+    print("Warning: weasyprint not installed. PDF generation will be disabled.")
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 

@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/react';
 
 interface User {
-  id: number;
+  id: string;
   email: string;
   role: string;
   store_id: string | null;
@@ -11,55 +11,58 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string, role: string) => void;
-  logout: () => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
+  const { getToken, isLoaded: isAuthLoaded } = useClerkAuth();
+  
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (token && token !== 'undefined' && token !== 'null') {
-      setIsLoading(true);
-      axios.get((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => {
-          setUser(res.data);
-        })
-        .catch((err) => {
-          console.error("Auth check failed:", err);
-          logout();
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
+    const syncAuth = async () => {
+      if (!isUserLoaded || !isAuthLoaded) return;
+
+      if (clerkUser) {
+        try {
+          const jwt = await getToken();
+          setToken(jwt);
+
+          // Extract role and store_id from Clerk public metadata
+          const role = (clerkUser.publicMetadata.role as string) || 'store_a';
+          const store_id = (clerkUser.publicMetadata.store_id as string) || null;
+          const email = clerkUser.primaryEmailAddress?.emailAddress || '';
+
+          setUser({
+            id: clerkUser.id,
+            email,
+            role,
+            store_id
+          });
+          
+          // JWT is now handled by AxiosInterceptor
+        } catch (error) {
+          console.error("Failed to sync Clerk auth:", error);
+          setToken(null);
+          setUser(null);
+        }
+      } else {
+        setToken(null);
+        setUser(null);
+      }
       setIsLoading(false);
-      setUser(null);
-    }
-  }, [token]);
+    };
 
-  const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setIsLoading(true); // Trigger re-fetch of user info
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setIsLoading(false);
-  };
+    syncAuth();
+  }, [clerkUser, isUserLoaded, isAuthLoaded, getToken]);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

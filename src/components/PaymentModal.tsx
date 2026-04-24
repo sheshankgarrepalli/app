@@ -25,7 +25,7 @@ export default function PaymentModal({ isOpen, onClose, invoice, onSuccess }: Pa
         setError(null);
 
         try {
-            await axios.post(`http://localhost:8000/api/pos/invoices/${invoice.invoice_number}/pay`, {
+            await axios.post(`/api/pos/invoices/${invoice.invoice_number}/pay`, {
                 amount_paid: parseFloat(amount),
                 payment_method: method
             }, {
