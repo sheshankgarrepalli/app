@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+import { useAuth } from '@clerk/react';
 import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Scan, Layers, LayoutList, Zap } from 'lucide-react';
 
 interface ManualIntakeForm {
@@ -17,7 +17,7 @@ interface ManualIntakeForm {
 type IntakeMode = 'standard' | 'batch' | 'quick';
 
 export default function ManualIntake() {
-    const { token } = useAuth();
+    const { getToken } = useAuth();
     const [mode, setMode] = useState<IntakeMode>('quick'); // Default to Quick Intake (Blind Scan)
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -53,7 +53,8 @@ export default function ManualIntake() {
     useEffect(() => {
         const fetchModels = async () => {
             try {
-                const res = await axios.get((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/models/', {
+                const token = await getToken();
+                const res = await api.get('/api/models/', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setModels(res.data);
@@ -62,7 +63,7 @@ export default function ManualIntake() {
             }
         };
         fetchModels();
-    }, [token]);
+    }, [getToken]);
 
     // Re-focus logic
     useEffect(() => {
@@ -101,16 +102,16 @@ export default function ManualIntake() {
         setError(null);
         setSuccess(false);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-            
             if (mode === 'quick') {
                 // High-speed blind intake
-                await axios.post(apiUrl + '/api/inventory/bulk-intake', {
+                const token = await getToken();
+                await api.post('/api/inventory/bulk-intake', {
                     imeis: scannedItems.map(i => i.imei)
                 }, { headers: { Authorization: `Bearer ${token}` } });
             } else if (mode === 'batch') {
                 // Batch metadata intake
-                await axios.post(apiUrl + '/api/inventory/batch-manual', {
+                const token = await getToken();
+                await api.post('/api/inventory/batch-manual', {
                     devices: scannedItems.map(i => ({
                         imei: i.imei,
                         model_number: i.model_number,
@@ -120,9 +121,10 @@ export default function ManualIntake() {
                 }, { headers: { Authorization: `Bearer ${token}` } });
             } else {
                 // Standard mode (from form)
+                const token = await getToken();
                 const data = handleSubmit((d) => d)();
                 if (!data) return;
-                await axios.post(apiUrl + '/api/inventory/batch-manual', data, {
+                await api.post('/api/inventory/batch-manual', data, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             }

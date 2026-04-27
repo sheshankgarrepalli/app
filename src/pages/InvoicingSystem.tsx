@@ -107,9 +107,10 @@ export default function InvoicingSystem() {
             const res = await axios.get(`/api/pos/next-number?type=${typeParam}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setNextNumber(res.data.next);
+            setNextNumber(res.data.next_number);
         } catch (err) {
             console.error("Failed to fetch next number", err);
+            setNextNumber("INV-SYNCING");
         }
     };
 
@@ -179,8 +180,8 @@ export default function InvoicingSystem() {
                     const basePrice = txType === 'Transfer' ? 0 : device.cost_basis * 1.5;
                     setScannedDevices(prev => [...prev, {
                         imei: device.imei,
-                        model: device.model.name,
-                        brand: device.model.brand,
+                        model: device.model?.name || device.model_number,
+                        brand: device.model?.brand || "Generic",
                         price: basePrice,
                         cost_basis: device.cost_basis
                     }]);
@@ -389,7 +390,7 @@ export default function InvoicingSystem() {
                                 className="input-stark w-full py-3 text-xs font-bold uppercase tracking-widest"
                             >
                                 <option value="">Select Destination...</option>
-                                {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                                {locations.map(loc => <option key={loc?.id} value={loc?.id}>{loc?.name || "Unknown Store"}</option>)}
                             </select>
                         ) : (
                             <div className="relative group">
@@ -409,12 +410,12 @@ export default function InvoicingSystem() {
                                     <div className="absolute top-full left-0 right-0 bg-white border border-zinc-200 shadow-xl z-50 mt-1 rounded-lg overflow-hidden">
                                         {customerResults.map(c => (
                                             <button
-                                                key={c.crm_id}
-                                                onClick={() => { setSelectedCustomer(c); setCustomerSearch(c.company_name || c.name); }}
-                                                className="w-full text-left p-3 hover:bg-zinc-50 border-b border-zinc-100 last:border-0 transition-colors"
+                                                key={c?.crm_id}
+                                                onClick={() => { setSelectedCustomer(c); setCustomerSearch(c?.company_name || c?.name || "N/A"); }}
+                                                className="w-full p-4 hover:bg-zinc-50 border-b border-zinc-100 last:border-0 text-left transition-colors flex justify-between items-center"
                                             >
-                                                <div className="font-bold text-sm text-zinc-900">{c.company_name || c.name}</div>
-                                                <div className="text-[10px] font-semibold text-zinc-500 mt-1 uppercase tracking-widest">{c.phone} • {c.crm_id}</div>
+                                                <div className="font-bold text-sm text-zinc-900">{c?.company_name || c?.name || "Unknown Entity"}</div>
+                                                <div className="text-[10px] font-semibold text-zinc-500 mt-1 uppercase tracking-widest">{c?.phone} • {c?.crm_id}</div>
                                             </button>
                                         ))}
                                     </div>

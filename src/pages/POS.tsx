@@ -260,8 +260,8 @@ export default function POS() {
                       </button>
                     </div>
                     {b2bCustomer && (
-                      <div className="text-xs font-semibold text-zinc-900 animate-in fade-in duration-300 px-1">
-                        Verified: <span className="text-zinc-500">{b2bCustomer.company_name || b2bCustomer.name}</span>
+                      <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] font-semibold uppercase tracking-widest">
+                        Verified: <span className="text-zinc-500">{b2bCustomer?.company_name || b2bCustomer?.name || "Unknown"}</span>
                       </div>
                     )}
                   </div>

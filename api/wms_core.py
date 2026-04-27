@@ -4,18 +4,19 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from models import DeviceInventory, UnifiedCustomer, TransferOrder, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction, PaymentMethodEnum
 
-def _log_history(db: Session, imei: str, action_type: str, employee_id: str, new_status: str, previous_status: str = None, notes: str = None):
+def _log_history(db: Session, imei: str, action_type: str, employee_id: str, new_status: str, previous_status: str = None, notes: str = None, org_id: str = None):
     log = DeviceHistoryLog(
         imei=imei,
         action_type=action_type,
         employee_id=employee_id,
         previous_status=previous_status,
         new_status=new_status,
-        notes=notes
+        notes=notes,
+        org_id=org_id
     )
     db.add(log)
 
-def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employee_id: str, fulfillment_method: str = "Walk-in", shipping_address: str = None, payment_method: str = "Cash", is_estimate: bool = False, upfront_payment: float = 0.0) -> Dict[str, Any]:
+def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employee_id: str, org_id: str, fulfillment_method: str = "Walk-in", shipping_address: str = None, payment_method: str = "Cash", is_estimate: bool = False, upfront_payment: float = 0.0) -> Dict[str, Any]:
     try:
         customer = db.query(UnifiedCustomer).filter(UnifiedCustomer.crm_id == crm_id).first()
         if not customer:
@@ -60,7 +61,7 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             customer.current_balance += unpaid_balance
 
         # Create Invoice Record
-        last_invoice = db.query(Invoice).order_by(Invoice.id.desc()).first()
+        last_invoice = db.query(Invoice).filter(Invoice.org_id == org_id).order_by(Invoice.id.desc()).first()
         next_id = last_invoice.id + 1 if last_invoice else 1
         prefix = "EST" if is_estimate else "INV"
         invoice_number = f"{prefix}-{next_id:04d}"
@@ -87,7 +88,8 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             shipping_address=shipping_address,
             status=status,
             is_estimate=1 if is_estimate else 0,
-            due_date=due_date
+            due_date=due_date,
+            org_id=org_id
         )
         db.add(db_invoice)
         db.flush() # Get ID
@@ -102,7 +104,8 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             payment_rec = PaymentTransaction(
                 invoice_id=db_invoice.id,
                 amount=upfront_payment,
-                payment_method=p_method
+                payment_method=p_method,
+                org_id=org_id
             )
             db.add(payment_rec)
 
@@ -112,9 +115,9 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
                 prev_status = device.device_status.value
                 device.device_status = DeviceStatus.Sold
                 device.sold_to_crm_id = crm_id
-                _log_history(db, device.imei, "Wholesale_Bulk_Sold", employee_id, device.device_status.value, prev_status, f"Sold to {crm_id} via {payment_method}")
+                _log_history(db, device.imei, "Wholesale_Bulk_Sold", employee_id, device.device_status.value, prev_status, f"Sold to {crm_id} via {payment_method}", org_id=org_id)
             else:
-                _log_history(db, device.imei, "Estimate_Created", employee_id, device.device_status.value, device.device_status.value, f"Included in Estimate {invoice_number}")
+                _log_history(db, device.imei, "Estimate_Created", employee_id, device.device_status.value, device.device_status.value, f"Included in Estimate {invoice_number}", org_id=org_id)
 
             # Find the line for this device to get the final price
             line = next(l for l in invoice_lines if l["imei"] == device.imei)
@@ -159,7 +162,7 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
         db.rollback()
         raise e
 
-def create_transfer_order(db: Session, imei_list: List[str], destination_location_id: str, transfer_type: str, employee_id: str) -> str:
+def create_transfer_order(db: Session, imei_list: List[str], destination_location_id: str, transfer_type: str, employee_id: str, org_id: str) -> str:
     try:
         devices = db.query(DeviceInventory).filter(DeviceInventory.imei.in_(imei_list)).all()
         if len(devices) != len(imei_list):
@@ -176,7 +179,8 @@ def create_transfer_order(db: Session, imei_list: List[str], destination_locatio
         new_to = TransferOrder(
             id=transfer_order_id,
             transfer_type=t_type,
-            destination_location_id=destination_location_id
+            destination_location_id=destination_location_id,
+            org_id=org_id
         )
         db.add(new_to)
         
@@ -189,7 +193,7 @@ def create_transfer_order(db: Session, imei_list: List[str], destination_locatio
             device.sub_location_bin = None
             device.assigned_transfer_order_id = transfer_order_id
             
-            _log_history(db, device.imei, "Transferred_Out", employee_id, device.device_status.value, prev_status, f"Added to TO {transfer_order_id}")
+            _log_history(db, device.imei, "Transferred_Out", employee_id, device.device_status.value, prev_status, f"Added to TO {transfer_order_id}", org_id=org_id)
 
         db.commit()
         return transfer_order_id
@@ -220,7 +224,7 @@ def receive_transfer_order(db: Session, transfer_order_id: str, employee_id: str
             device.assigned_transfer_order_id = None
             device.sub_location_bin = "Receiving_Bay"
             
-            _log_history(db, device.imei, "Transfer_Received", employee_id, device.device_status.value, prev_status, f"Received via TO {transfer_order_id}")
+            _log_history(db, device.imei, "Transfer_Received", employee_id, device.device_status.value, prev_status, f"Received via TO {transfer_order_id}", org_id=device.org_id)
             
             received_imeis.append(device.imei)
 
@@ -252,7 +256,7 @@ def update_device_internal_status(db: Session, imei: str, new_bin: str, new_stat
         device.sub_location_bin = new_bin
         device.device_status = parsed_status
         
-        _log_history(db, device.imei, "Internal_Routing", employee_id, device.device_status.value, prev_status, f"Moved to bin: {new_bin}")
+        _log_history(db, device.imei, "Internal_Routing", employee_id, device.device_status.value, prev_status, f"Moved to bin: {new_bin}", org_id=device.org_id)
         
         db.commit()
         db.refresh(device)
@@ -280,7 +284,7 @@ def assign_to_repair(db: Session, imei: str, technician_id: str, current_employe
         device.device_status = DeviceStatus.In_Repair
         device.assigned_technician_id = technician_id
         
-        _log_history(db, device.imei, "Sent_To_Repair", current_employee_id, device.device_status.value, prev_status, f"Assigned to Technician {technician_id}")
+        _log_history(db, device.imei, "Sent_To_Repair", current_employee_id, device.device_status.value, prev_status, f"Assigned to Technician {technician_id}", org_id=device.org_id)
         
         db.commit()
         db.refresh(device)
@@ -303,7 +307,7 @@ def complete_repair(db: Session, imei: str, current_employee_id: str):
         device.assigned_technician_id = None
         device.sub_location_bin = "Main_Floor"
         
-        _log_history(db, device.imei, "Repair_Completed", current_employee_id, device.device_status.value, prev_status, f"Repair completed by {current_employee_id}, routed to Main_Floor")
+        _log_history(db, device.imei, "Repair_Completed", current_employee_id, device.device_status.value, prev_status, f"Repair completed by {current_employee_id}, routed to Main_Floor", org_id=device.org_id)
         
         db.commit()
         db.refresh(device)
@@ -353,7 +357,7 @@ def generate_audit_report(db: Session, location_id: str, scanned_imeis_list: Lis
         db.rollback()
         raise e
 
-def finalize_audit(db: Session, location_id: str, current_employee_id: str, report: dict):
+def finalize_audit(db: Session, location_id: str, current_employee_id: str, org_id: str, report: dict):
     try:
         audit_id = f"AUD-{uuid.uuid4().hex[:8].upper()}"
         
@@ -370,7 +374,8 @@ def finalize_audit(db: Session, location_id: str, current_employee_id: str, repo
             total_scanned=len(matched_list) + len(unexpected_list),
             total_missing=len(missing_list),
             total_unexpected=len(unexpected_list),
-            status="Finalized"
+            status="Finalized",
+            org_id=org_id
         )
         db.add(new_audit)
         

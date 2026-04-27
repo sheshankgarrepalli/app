@@ -33,10 +33,12 @@ def fast_receive(request: schemas.FastReceiveRequest, db: Session = Depends(get_
         cost_basis=request.inventory.cost_basis or 0.0,
         org_id=current_user.current_org_id
     )
+    # Strictly force assignment as requested
+    db_inventory.org_id = current_user.current_org_id
     db.add(db_inventory)
     
     # Log the receipt
-    wms_core._log_history(db, request.inventory.imei, "Received", current_user.email, "Sellable", None, "Fast Received")
+    wms_core._log_history(db, request.inventory.imei, "Received", current_user.email, "Sellable", None, "Fast Received", org_id=current_user.current_org_id)
     
     db.commit()
     db.refresh(db_inventory)
@@ -178,7 +180,7 @@ def audit_finalize(
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
     try:
-        res = wms_core.finalize_audit(db, request.location_id, current_user.email, request.report.model_dump())
+        res = wms_core.finalize_audit(db, request.location_id, current_user.email, current_user.current_org_id, request.report.model_dump())
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -215,6 +217,7 @@ def batch_manual_intake(
                 cost_basis=dev.acquisition_cost or 0.0,
                 org_id=current_user.current_org_id
             )
+            db_device.org_id = current_user.current_org_id
             db.add(db_device)
             results.append(db_device)
 
@@ -225,6 +228,8 @@ def batch_manual_intake(
                     amount=dev.acquisition_cost,
                     org_id=current_user.current_org_id
                 )
+                # Strictly force assignment
+                db_ledger.org_id = current_user.current_org_id
                 db.add(db_ledger)
 
         # Step 2: Flush to the database to satisfy Foreign Key constraints for the logs
@@ -239,7 +244,8 @@ def batch_manual_intake(
                 current_user.email, 
                 "Sellable" if dev.model_number else "Pending",
                 None, 
-                f"Asset ingested via bulk workflow"
+                f"Asset ingested via bulk workflow",
+                org_id=current_user.current_org_id
             )
 
         db.commit()
@@ -286,8 +292,10 @@ def bulk_blind_intake(
                 store_id=current_user.store_id,
                 device_status=None, # Raw state
                 is_hydrated=False,
-                cost_basis=0.0
+                cost_basis=0.0,
+                org_id=current_user.current_org_id
             )
+            db_device.org_id = current_user.current_org_id
             db.add(db_device)
             results.append(db_device)
 
@@ -295,7 +303,7 @@ def bulk_blind_intake(
 
         for imei in new_imeis:
             wms_core._log_history(
-                db, imei, "Blind Scan", current_user.email, "Raw", None, "Initial IMEI Registration"
+                db, imei, "Blind Scan", current_user.email, "Raw", None, "Initial IMEI Registration", org_id=current_user.current_org_id
             )
 
         db.commit()
@@ -333,7 +341,7 @@ def bind_specs_to_imeis(
             bound_count += 1
             
             wms_core._log_history(
-                db, imei, "Data Binding", current_user.email, "Sellable", "Raw", f"Specs bound from sheet by {current_user.email}"
+                db, imei, "Data Binding", current_user.email, "Sellable", "Raw", f"Specs bound from sheet by {current_user.email}", org_id=current_user.current_org_id
             )
 
     db.commit()
@@ -365,7 +373,7 @@ def batch_reconcile(
                 if ledger:
                     ledger.amount = dev.acquisition_cost
                 else:
-                    db.add(models.DeviceCostLedger(imei=dev.imei, cost_type="Base_Acquisition", amount=dev.acquisition_cost))
+                    db.add(models.DeviceCostLedger(imei=dev.imei, cost_type="Base_Acquisition", amount=dev.acquisition_cost, org_id=current_user.current_org_id))
             
             if dev.condition:
                 # We can map condition to status or notes if needed

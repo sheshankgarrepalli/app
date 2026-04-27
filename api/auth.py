@@ -78,8 +78,8 @@ async def get_current_user(
     Asynchronous dependency to verify Clerk JWT using httpx to bypass Vercel socket issues.
     """
     token = credentials.credentials
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing token")
+    if not token or token.lower() in ["undefined", "null", "none"]:
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization token")
 
     try:
         # 1. Get Key ID (kid) from unverified header
@@ -120,6 +120,11 @@ async def get_current_user(
         role = public_metadata.get("role") or private_metadata.get("role") or "store_a"
         store_id = public_metadata.get("store_id") or private_metadata.get("store_id")
         org_id = payload.get("org_id")
+        
+        # THE MASTER OVERRIDE: If Clerk fails to provide the org_id, force it.
+        if not org_id:
+            org_id = "org_3Com6Msekl6q0o4KuRxiKybuhTU"
+            print(f"WARNING: Clerk org_id missing for {email}. Forced fallback to {org_id}", file=sys.stderr)
 
         # Database operations are blocking; in a high-traffic app, use an async driver.
         # Here we rely on FastAPI's handling of async dependencies.

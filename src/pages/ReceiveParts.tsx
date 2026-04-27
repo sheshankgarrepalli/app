@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+import { useAuth } from '@clerk/react';
 import { Package, CheckCircle2 } from 'lucide-react';
 
 export default function ReceiveParts() {
-    const { token } = useAuth();
+    const { getToken, isLoaded } = useAuth();
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [models, setModels] = useState<any[]>([]);
     const [recentIntakes, setRecentIntakes] = useState<any[]>([]);
@@ -24,15 +24,18 @@ export default function ReceiveParts() {
     const qualities = ["OEM", "Aftermarket", "Premium"];
 
     useEffect(() => {
-        fetchInitialData();
-    }, []);
+        if (isLoaded) {
+            fetchInitialData();
+        }
+    }, [isLoaded]);
 
     const fetchInitialData = async () => {
         try {
+            const token = await getToken();
             const [supRes, modRes, invRes] = await Promise.all([
-                axios.get((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/parts/suppliers', { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/models/', { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/parts/', { headers: { Authorization: `Bearer ${token}` } })
+                api.get('/api/parts/suppliers', { headers: { Authorization: `Bearer ${token}` } }),
+                api.get('/api/models/', { headers: { Authorization: `Bearer ${token}` } }),
+                api.get('/api/parts/', { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setSuppliers(supRes.data);
             setModels(modRes.data);
@@ -46,7 +49,8 @@ export default function ReceiveParts() {
         e.preventDefault();
         setIsProcessing(true);
         try {
-            await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/parts/receive', {
+            const token = await getToken();
+            await api.post('/api/parts/receive', {
                 ...formData,
                 supplier_id: parseInt(formData.supplier_id),
                 qty: parseInt(formData.qty)

@@ -42,7 +42,8 @@ def import_auction_devices(req: DeviceImportRequest, db: Session = Depends(get_d
             condition=row.grade,
             device_status="In_QC",
             location="Warehouse",
-            cost_basis=row.cost
+            cost_basis=row.cost,
+            org_id=current_user.current_org_id
         )
         
         if not spec:
@@ -54,7 +55,8 @@ def import_auction_devices(req: DeviceImportRequest, db: Session = Depends(get_d
         ledger_entry = DeviceCostLedger(
             imei=row.imei,
             cost_type="Base_Acquisition",
-            amount=row.cost
+            amount=row.cost,
+            org_id=current_user.current_org_id
         )
         ledger_entries.append(ledger_entry)
         

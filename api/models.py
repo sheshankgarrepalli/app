@@ -59,6 +59,7 @@ class User(Base):
 class PhoneModel(Base):
     __tablename__ = "phone_models"
     model_number = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
     brand = Column(String)
     name = Column(String)
     color = Column(String)

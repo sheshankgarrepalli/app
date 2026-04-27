@@ -1,25 +1,33 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+import { useAuth } from '@clerk/react';
 import { TrendingUp, Package, MapPin } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { token } = useAuth();
+  const { getToken, isLoaded } = useAuth();
   const [dateRange, setDateRange] = useState('Today');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setError(null);
-    axios.get(`/api/reports/dashboard?date_range=${dateRange}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => setData(res.data))
-      .catch(err => {
+    if (!isLoaded) return;
+    
+    const fetchDashboard = async () => {
+      try {
+        setError(null);
+        const token = await getToken();
+        const res = await api.get(`/api/reports/dashboard?date_range=${dateRange}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setData(res.data);
+      } catch (err: any) {
         console.error("Dashboard Load Error", err);
-        setError("Failed to load dashboard data. Please verify database connection.");
-      });
-  }, [dateRange, token]);
+        setError(err.response?.data?.detail || "Failed to load dashboard data. Please verify database connection.");
+      }
+    };
+
+    fetchDashboard();
+  }, [dateRange, getToken, isLoaded]);
 
   if (error) return (
     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8 bg-rose-50 border border-rose-200 rounded-lg m-8">

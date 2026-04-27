@@ -44,6 +44,7 @@ def create_customer(customer: schemas.UnifiedCustomerCreate, db: Session = Depen
             customer_data["name"] = f"{first} {last}".strip() or "Unknown Customer"
             
     new_customer = models.UnifiedCustomer(crm_id=crm_id, org_id=current_user.current_org_id, **customer_data)
+    new_customer.org_id = current_user.current_org_id
     db.add(new_customer)
     db.commit()
     db.refresh(new_customer)

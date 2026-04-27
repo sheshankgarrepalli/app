@@ -26,6 +26,8 @@ def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), curren
         status=RepairStatus.In_Repair,
         org_id=current_user.current_org_id
     )
+    # Strictly force assignment
+    ticket.org_id = current_user.current_org_id
     db.add(ticket)
     
     # Update Device Status
@@ -78,6 +80,8 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
                     amount=part.moving_average_cost,
                     org_id=current_user.current_org_id
                 )
+                # Strictly force assignment
+                ledger_entry.org_id = current_user.current_org_id
                 db.add(ledger_entry)
                 
                 # 5. Update Device Cost Basis
@@ -96,6 +100,8 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
                     amount=labor_rate.fee_amount,
                     org_id=current_user.current_org_id
                 )
+                # Strictly force assignment
+                labor_entry.org_id = current_user.current_org_id
                 db.add(labor_entry)
                 device.cost_basis += labor_rate.fee_amount
 

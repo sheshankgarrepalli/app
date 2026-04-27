@@ -19,10 +19,20 @@ def normalize_device_model(raw_model: str) -> str:
         
     return raw_model[:5].upper()
 
+@router.get("", include_in_schema=False)
+@router.get("/", response_model=List[schemas.PhoneModelOut])
+def get_models(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.PhoneModel).filter(
+        models.PhoneModel.org_id == current_user.current_org_id
+    ).all()
+
 @router.get("/{model_number}", response_model=schemas.PhoneModelOut)
-def get_model(model_number: str, db: Session = Depends(get_db)):
+def get_model(model_number: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     model_number = normalize_device_model(model_number)
-    db_model = db.query(models.PhoneModel).filter(models.PhoneModel.model_number == model_number).first()
+    db_model = db.query(models.PhoneModel).filter(
+        models.PhoneModel.model_number == model_number,
+        models.PhoneModel.org_id == current_user.current_org_id
+    ).first()
     if not db_model:
         raise HTTPException(status_code=404, detail="Model not found")
     return db_model
@@ -30,6 +40,7 @@ def get_model(model_number: str, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.PhoneModelOut)
 def create_model(model: schemas.PhoneModelCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
     db_model = models.PhoneModel(**model.model_dump())
+    db_model.org_id = current_user.current_org_id
     db.add(db_model)
     try:
          db.commit()

@@ -86,7 +86,8 @@ def dispatch_transfer(req: schemas.TransferDispatchRequest, db: Session = Depend
         # Manifest Item
         m_item = models.ManifestItem(
             manifest_id=manifest_id,
-            imei=imei
+            imei=imei,
+            org_id=current_user.current_org_id
         )
         db.add(m_item)
         
@@ -162,7 +163,7 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
 @router.post("/")
 def create_transfer(transfer: schemas.TransferOrderCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     try:
-        to_id = wms_core.create_transfer_order(db, transfer.imei_list, transfer.destination_location_id, transfer.transfer_type, current_user.email)
+        to_id = wms_core.create_transfer_order(db, transfer.imei_list, transfer.destination_location_id, transfer.transfer_type, current_user.email, org_id=current_user.current_org_id)
         return {"transfer_order_id": to_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

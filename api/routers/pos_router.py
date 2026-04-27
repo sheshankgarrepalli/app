@@ -87,6 +87,7 @@ def retail_checkout(
         payment_status=models.PaymentStatus.Paid_in_Full if total_payments >= total - 0.01 else models.PaymentStatus.Partial_Layaway,
         org_id=current_user.current_org_id
     )
+    db_invoice.org_id = current_user.current_org_id
     db.add(db_invoice)
     db.flush()
     
@@ -121,6 +122,7 @@ def retail_checkout(
             reference_id=p.reference_id,
             org_id=current_user.current_org_id
         )
+        db_payment.org_id = current_user.current_org_id
         db.add(db_payment)
         
     db.commit()
@@ -188,6 +190,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         shipping_address=invoice.shipping_address,
         org_id=current_user.current_org_id
     )
+    db_invoice.org_id = current_user.current_org_id
     db.add(db_invoice)
     db.commit()
     db.refresh(db_invoice)
@@ -275,10 +278,12 @@ def wholesale_checkout(
             req.imei_list, 
             req.crm_id, 
             current_user.email,
-            req.fulfillment_method,
-            req.shipping_address,
-            req.payment_method or "Cash",
-            req.is_estimate or False
+            org_id=current_user.current_org_id,
+            fulfillment_method=req.fulfillment_method,
+            shipping_address=req.shipping_address,
+            payment_method=req.payment_method or "Cash",
+            is_estimate=req.is_estimate or False,
+            upfront_payment=req.upfront_payment or 0.0
         )
         pdf_bytes = pdf_worker.generate_wholesale_invoice_pdf(invoice_data) if hasattr(auth, 'pdf_worker') else generate_wholesale_invoice_pdf(invoice_data)
         
@@ -385,6 +390,7 @@ def process_payment(
         payment_method=payment.payment_method,
         reference_id=payment.reference_id
     )
+    db_payment.org_id = current_user.current_org_id
     db.add(db_payment)
     db.commit()
     db.refresh(invoice)
@@ -692,16 +698,32 @@ def get_client_statement(
 
 @router.get("/next-number")
 def get_next_number(type: str = Query("invoice"), db: Session = Depends(get_db)):
-    if type == "transfer":
-        last = db.query(models.TransferOrder).order_by(models.TransferOrder.id.desc()).first()
-        # id is like TO-XXXX (string) usually, but models.py says id is String.
-        # Let's count existing if it's not strictly numeric.
-        count = db.query(models.TransferOrder).count()
-        return {"next": f"TO-{(count + 1):04d}"}
-    else:
-        last = db.query(models.Invoice).order_by(models.Invoice.id.desc()).first()
-        next_id = last.id + 1 if last else 1
-        return {"next": f"INV-{next_id:04d}"}
+    prefix = "INV" if type.lower() == "invoice" else "TO"
+    safe_default = f"{prefix}-1000"
+
+    try:
+        # Attempt to query the database for the latest record
+        if type.lower() == "invoice":
+            last_record = db.query(models.Invoice).order_by(models.Invoice.id.desc()).first()
+            if last_record and last_record.invoice_number:
+                parts = last_record.invoice_number.split("-")
+                if len(parts) == 2 and parts[1].isdigit():
+                    next_num = int(parts[1]) + 1
+                    return {"next_number": f"{prefix}-{next_num}"}
+        elif type.lower() == "transfer":
+            last_record = db.query(models.TransferOrder).order_by(models.TransferOrder.id.desc()).first()
+            if last_record and last_record.id: # id is the TO number in this model
+                parts = last_record.id.split("-")
+                if len(parts) == 2 and parts[1].isdigit():
+                    next_num = int(parts[1]) + 1
+                    return {"next_number": f"{prefix}-{next_num}"}
+
+        return {"next_number": safe_default}
+
+    except Exception as e:
+        import sys
+        print(f"CRITICAL ERROR in next-number generation: {e}", file=sys.stderr)
+        return {"next_number": safe_default}
 
 @router.get("/locations")
 def get_locations(current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):

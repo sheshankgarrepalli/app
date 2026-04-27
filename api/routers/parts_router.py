@@ -33,6 +33,7 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
             moving_average_cost=0.0,
             org_id=current_user.current_org_id
         )
+        part.org_id = current_user.current_org_id
         db.add(part)
     
     # Update Stock
@@ -46,6 +47,7 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
         is_priced=0,
         org_id=current_user.current_org_id
     )
+    intake.org_id = current_user.current_org_id
     db.add(intake)
     db.commit()
     db.refresh(intake)
