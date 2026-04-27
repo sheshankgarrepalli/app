@@ -21,8 +21,8 @@ class DeviceStatus(str, enum.Enum):
     Pending_Acknowledgment = "Pending_Acknowledgment"
     Sold = "Sold"
     Transit_to_Repair = "Transit_to_Repair"
-    Transit_to_Main_Bin = "Transit_to_Main_Bin"
     Transit_to_QC = "Transit_to_QC"
+    Reserved_Layaway = "Reserved_Layaway"
 
 class TransferType(str, enum.Enum):
     Restock = "Restock"
@@ -183,6 +183,13 @@ class PaymentMethodEnum(str, enum.Enum):
     Wire = "Wire"
     Store_Credit = "Store Credit"
     On_Terms = "On Terms"
+    Zelle = "Zelle"
+
+class PaymentStatus(str, enum.Enum):
+    Unpaid = "Unpaid"
+    Partial_Layaway = "Partial/Layaway"
+    Paid_in_Full = "Paid_in_Full"
+    Refunded = "Refunded"
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -206,6 +213,7 @@ class Invoice(Base):
     fulfillment_method = Column(String, default="Walk-in")
     shipping_address = Column(String, nullable=True)
     status = Column(Enum(InvoiceStatus), default=InvoiceStatus.Unpaid)
+    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.Unpaid)
     is_estimate = Column(Integer, default=0) # 0=Invoice, 1=Estimate
     due_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now())
@@ -227,6 +235,7 @@ class InvoiceItem(Base):
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    org_id = Column(String, index=True, nullable=False)
     invoice_id = Column(Integer, ForeignKey("invoices.id"))
     amount = Column(Float, nullable=False, default=0.0)
     payment_method = Column(Enum(PaymentMethodEnum), nullable=False)

@@ -3,7 +3,7 @@ import { X, Plus, Trash2, AlertCircle } from 'lucide-react';
 
 interface PaymentLine {
     id: string;
-    method: 'Cash' | 'Credit Card' | 'Wire' | 'Store Credit' | 'On Terms';
+    method: 'Cash' | 'Credit Card' | 'Wire' | 'Store Credit' | 'On Terms' | 'Zelle';
     amount: number;
     reference_id?: string;
 }
@@ -30,8 +30,9 @@ export default function CheckoutModal({ isOpen, onClose, totalAmount, onComplete
     const totalTendered = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     const remainingBalance = Math.max(0, totalAmount - totalTendered);
     
-    // Strict match validation allowing small floating point drift
-    const isCompleteEnabled = Math.abs(totalTendered - totalAmount) < 0.01;
+    // Allow partial payments for layaway, but prevent overpayment
+    const isOverpaid = totalTendered > totalAmount + 0.01;
+    const isCompleteEnabled = !isOverpaid && payments.length > 0;
 
     const handleAddPayment = () => {
         setPayments([...payments, { id: Math.random().toString(), method: 'Credit Card', amount: parseFloat(remainingBalance.toFixed(2)) }]);
@@ -94,6 +95,7 @@ export default function CheckoutModal({ isOpen, onClose, totalAmount, onComplete
                                             <option value="Wire">Wire</option>
                                             <option value="Store Credit">Store Credit</option>
                                             <option value="On Terms">On Terms</option>
+                                            <option value="Zelle">Zelle</option>
                                         </select>
                                     </div>
                                     <div className="flex-1 relative">
@@ -129,12 +131,12 @@ export default function CheckoutModal({ isOpen, onClose, totalAmount, onComplete
                 </div>
 
                 <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex gap-4 items-center">
-                    {!isCompleteEnabled && (
+                    {isOverpaid && (
                         <div className="flex-1 flex items-center gap-2 text-rose-600 text-xs font-semibold">
-                            <AlertCircle size={14} /> Exact total matching required
+                            <AlertCircle size={14} /> Total tendered exceeds amount due
                         </div>
                     )}
-                    <div className={isCompleteEnabled ? 'flex-1' : ''}></div>
+                    {!isOverpaid && <div className="flex-1"></div>}
                     <button type="button" onClick={onClose} className="px-6 py-3 text-sm font-semibold text-zinc-600 hover:text-zinc-900 transition-colors">
                         Cancel
                     </button>
@@ -144,7 +146,12 @@ export default function CheckoutModal({ isOpen, onClose, totalAmount, onComplete
                         disabled={!isCompleteEnabled || isProcessing}
                         className="btn-primary px-8 py-3 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isProcessing ? 'Processing...' : 'Complete Sale'}
+                        {isProcessing 
+                            ? 'Processing...' 
+                            : remainingBalance > 0.01 
+                                ? 'Save as Layaway' 
+                                : 'Complete Sale & Release Devices'
+                        }
                     </button>
                 </div>
             </div>

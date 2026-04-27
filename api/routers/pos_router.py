@@ -48,7 +48,7 @@ def retail_checkout(
         if not db_store_inv:
             raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
         
-        db_store_inv.device_status = models.DeviceStatus.Sold
+        # device_status is set below based on total payments
         db_store_inv.sold_to_crm_id = customer_id
         
         applied_price = item.unit_price
@@ -64,10 +64,10 @@ def retail_checkout(
     tax_amount = subtotal * (final_tax_percent / 100)
     total = subtotal + tax_amount
     
-    # Strict Math Validation
+    # Strict Math Validation (Allow layaway)
     total_payments = sum(p.amount for p in req.payments)
-    if abs(total_payments - total) > 0.01:
-        raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) does not match invoice total ({total})")
+    if total_payments > total + 0.01:
+        raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
     
     last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id).order_by(models.Invoice.id.desc()).first()
     next_id = last_invoice.id + 1 if last_invoice else 1
@@ -83,7 +83,8 @@ def retail_checkout(
         total=total,
         fulfillment_method=req.fulfillment_method,
         shipping_address=req.shipping_address,
-        status=models.InvoiceStatus.Paid,
+        status=models.InvoiceStatus.Paid if total_payments >= total - 0.01 else models.InvoiceStatus.Partially_Paid,
+        payment_status=models.PaymentStatus.Paid_in_Full if total_payments >= total - 0.01 else models.PaymentStatus.Partial_Layaway,
         org_id=current_user.current_org_id
     )
     db.add(db_invoice)
@@ -97,6 +98,11 @@ def retail_checkout(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.org_id == current_user.current_org_id
         ).first()
+        if total_payments >= total - 0.01:
+            db_store_inv.device_status = models.DeviceStatus.Sold
+        else:
+            db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
+            
         db_store_inv.warranty_expiry_date = warranty_expiry
         
         db_item = models.InvoiceItem(
@@ -112,7 +118,8 @@ def retail_checkout(
             invoice_id=db_invoice.id,
             amount=p.amount,
             payment_method=p.payment_method,
-            reference_id=p.reference_id
+            reference_id=p.reference_id,
+            org_id=current_user.current_org_id
         )
         db.add(db_payment)
         
@@ -357,7 +364,7 @@ def convert_estimate(
         headers={"Content-Disposition": f"attachment; filename={invoice.invoice_number}.pdf"}
     )
 
-@router.post("/invoices/{invoice_id}/pay")
+@router.post("/invoices/{invoice_id}/payments")
 def process_payment(
     invoice_id: str,
     payment: schemas.PaymentSchema,
@@ -372,27 +379,56 @@ def process_payment(
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     db_payment = models.PaymentTransaction(
+        org_id=current_user.current_org_id,
         invoice_id=invoice.id,
         amount=payment.amount,
-        payment_method=payment.payment_method
+        payment_method=payment.payment_method,
+        reference_id=payment.reference_id
     )
     db.add(db_payment)
+    db.commit()
+    db.refresh(invoice)
     
-    # Update invoice status
-    total_paid = sum(p.amount for p in invoice.payments) + payment.amount
-    if total_paid >= invoice.total:
-        invoice.status = models.InvoiceStatus.Paid
-    elif total_paid > 0:
+    # Layaway State Machine
+    total_paid = sum(p.amount for p in invoice.payments)
+    
+    if total_paid < invoice.total:
+        invoice.payment_status = models.PaymentStatus.Partial_Layaway
         invoice.status = models.InvoiceStatus.Partially_Paid
+        for item in invoice.items:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == item.imei,
+                models.DeviceInventory.org_id == current_user.current_org_id
+            ).first()
+            if device and device.device_status != models.DeviceStatus.Reserved_Layaway:
+                prev_status = device.device_status.value if device.device_status else "Unknown"
+                device.device_status = models.DeviceStatus.Reserved_Layaway
+                wms_core._log_history(db, device.imei, "Layaway_Reserved", current_user.email, device.device_status.value, prev_status, f"Reserved for layaway on Invoice {invoice.invoice_number}")
+    else:
+        invoice.payment_status = models.PaymentStatus.Paid_in_Full
+        invoice.status = models.InvoiceStatus.Paid
+        for item in invoice.items:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == item.imei,
+                models.DeviceInventory.org_id == current_user.current_org_id
+            ).first()
+            if device and device.device_status != models.DeviceStatus.Sold:
+                prev_status = device.device_status.value if device.device_status else "Unknown"
+                device.device_status = models.DeviceStatus.Sold
+                wms_core._log_history(db, device.imei, "Invoice_Paid_Full", current_user.email, device.device_status.value, prev_status, f"Paid in full on Invoice {invoice.invoice_number}")
     
     # If it was "On Terms", update customer balance
-    if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
-        customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
-        customer.current_balance -= payment.amount
-        if customer.current_balance < 0: customer.current_balance = 0
+    if payment.payment_method == models.PaymentMethodEnum.On_Terms:
+        customer = db.query(models.UnifiedCustomer).filter(
+            models.UnifiedCustomer.crm_id == invoice.customer_id,
+            models.UnifiedCustomer.org_id == current_user.current_org_id
+        ).first()
+        if customer:
+            customer.current_balance -= payment.amount
+            if customer.current_balance < 0: customer.current_balance = 0
         
     db.commit()
-    return {"status": "success", "total_paid": total_paid, "invoice_status": invoice.status}
+    return {"status": "success", "total_paid": total_paid, "payment_status": invoice.payment_status}
 
 @router.put("/invoices/{invoice_id}")
 def update_invoice(

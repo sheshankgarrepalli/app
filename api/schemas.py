@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, date
-from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus, ManifestStatus, PaymentMethodEnum
+from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus, ManifestStatus, PaymentMethodEnum, PaymentStatus
 
 # --- ERP SCHEMAS ---
 
@@ -370,6 +370,7 @@ class InvoiceCreate(BaseModel):
     fulfillment_method: Optional[str] = "Walk-in"
     shipping_address: Optional[str] = None
     status: Optional[InvoiceStatus] = InvoiceStatus.Unpaid
+    payment_status: Optional[PaymentStatus] = PaymentStatus.Unpaid
     is_estimate: Optional[int] = 0
 
 class InvoiceOut(BaseModel):
@@ -384,6 +385,7 @@ class InvoiceOut(BaseModel):
     fulfillment_method: Optional[str]
     shipping_address: Optional[str]
     status: InvoiceStatus
+    payment_status: PaymentStatus
     is_estimate: int
     due_date: Optional[datetime]
     created_at: datetime
