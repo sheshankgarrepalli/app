@@ -142,8 +142,9 @@ class UserCreate(BaseModel):
 
 class UserOut(BaseModel):
     id: int
-    email: EmailStr
-    role: RoleEnum
+    email: str
+    role: str
+    store_id: Optional[str] = None
     class Config: from_attributes = True
 
 

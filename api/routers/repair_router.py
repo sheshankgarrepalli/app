@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/repair", tags=["Repair"])
 def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     device = db.query(DeviceInventory).filter(
         DeviceInventory.imei == req.imei,
-        DeviceInventory.org_id == current_user.current_org_id
+        DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -24,10 +24,10 @@ def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), curren
         symptoms=req.symptoms,
         notes=req.notes,
         status=RepairStatus.In_Repair,
-        org_id=current_user.current_org_id
+        org_id=getattr(current_user, 'current_org_id', None)
     )
     # Strictly force assignment
-    ticket.org_id = current_user.current_org_id
+    ticket.org_id = getattr(current_user, 'current_org_id', None)
     db.add(ticket)
     
     # Update Device Status
@@ -40,7 +40,7 @@ def triage_device(req: RepairTicketCreate, db: Session = Depends(get_db), curren
 def list_tickets(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(RepairTicket).filter(
         RepairTicket.status != RepairStatus.Completed,
-        RepairTicket.org_id == current_user.current_org_id
+        RepairTicket.org_id == getattr(current_user, 'current_org_id', None)
     ).all()
 
 @router.post("/complete")
@@ -48,14 +48,14 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
     ticket = db.query(RepairTicket).filter(
         RepairTicket.imei == req.imei, 
         RepairTicket.status == RepairStatus.In_Repair,
-        RepairTicket.org_id == current_user.current_org_id
+        RepairTicket.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Active repair ticket not found")
     
     device = db.query(DeviceInventory).filter(
         DeviceInventory.imei == req.imei,
-        DeviceInventory.org_id == current_user.current_org_id
+        DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     
     # --- THE GHOST ACCOUNTANT ---
@@ -78,10 +78,10 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
                     imei=device.imei,
                     cost_type=f"Part: {category}",
                     amount=part.moving_average_cost,
-                    org_id=current_user.current_org_id
+                    org_id=getattr(current_user, 'current_org_id', None)
                 )
                 # Strictly force assignment
-                ledger_entry.org_id = current_user.current_org_id
+                ledger_entry.org_id = getattr(current_user, 'current_org_id', None)
                 db.add(ledger_entry)
                 
                 # 5. Update Device Cost Basis
@@ -98,10 +98,10 @@ def complete_repair(req: RepairCompleteRequest, db: Session = Depends(get_db), c
                     imei=device.imei,
                     cost_type=f"Labor: {category}",
                     amount=labor_rate.fee_amount,
-                    org_id=current_user.current_org_id
+                    org_id=getattr(current_user, 'current_org_id', None)
                 )
                 # Strictly force assignment
-                labor_entry.org_id = current_user.current_org_id
+                labor_entry.org_id = getattr(current_user, 'current_org_id', None)
                 db.add(labor_entry)
                 device.cost_basis += labor_rate.fee_amount
 

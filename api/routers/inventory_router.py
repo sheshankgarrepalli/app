@@ -31,14 +31,14 @@ def fast_receive(request: schemas.FastReceiveRequest, db: Session = Depends(get_
         location_id=request.location_id,
         sub_location_bin="Receiving_Bay",
         cost_basis=request.inventory.cost_basis or 0.0,
-        org_id=current_user.current_org_id
+        org_id=getattr(current_user, 'current_org_id', None)
     )
     # Strictly force assignment as requested
-    db_inventory.org_id = current_user.current_org_id
+    db_inventory.org_id = getattr(current_user, 'current_org_id', None)
     db.add(db_inventory)
     
     # Log the receipt
-    wms_core._log_history(db, request.inventory.imei, "Received", current_user.email, "Sellable", None, "Fast Received", org_id=current_user.current_org_id)
+    wms_core._log_history(db, request.inventory.imei, "Received", current_user.email, "Sellable", None, "Fast Received", org_id=getattr(current_user, 'current_org_id', None))
     
     db.commit()
     db.refresh(db_inventory)
@@ -49,13 +49,13 @@ def get_central_inventory(db: Session = Depends(get_db), current_user: models.Us
     # Admins can see global central inventory, but we'll filter by Warehouse_Alpha by default
     return db.query(models.DeviceInventory).filter(
         models.DeviceInventory.location_id == "Warehouse_Alpha",
-        models.DeviceInventory.org_id == current_user.current_org_id
+        models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).all()
 
 @router.get("/store", response_model=List[schemas.DeviceInventoryOut])
 def get_store_inventory(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
-        stmt = db.query(models.DeviceInventory).filter(models.DeviceInventory.org_id == current_user.current_org_id)
+        stmt = db.query(models.DeviceInventory).filter(models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None))
         
         # Admin OR user with null store_id bypasses the filter
         if current_user.role == "admin" or not current_user.store_id:
@@ -85,7 +85,7 @@ def route_device_internally(
         
     return db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
-        models.DeviceInventory.org_id == current_user.current_org_id
+        models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
 
 @router.post("/repair/assign", response_model=schemas.DeviceInventoryOut)
@@ -116,7 +116,7 @@ def complete_repair(
 def get_technicians(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     return db.query(models.User).filter(
         models.User.role == models.RoleEnum.technician,
-        models.User.org_id == current_user.current_org_id
+        models.User.org_id == getattr(current_user, 'current_org_id', None)
     ).all()
 
 @router.post("/rapid-audit", response_model=schemas.AuditReportResponse)
@@ -132,7 +132,7 @@ def rapid_audit(
     try:
         expected_devices = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.location_id == location_id,
-            models.DeviceInventory.org_id == current_user.current_org_id,
+            models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None),
             models.DeviceInventory.device_status.in_([models.DeviceStatus.Sellable, models.DeviceStatus.In_QC])
         ).all()
         
@@ -180,7 +180,7 @@ def audit_finalize(
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
     try:
-        res = wms_core.finalize_audit(db, request.location_id, current_user.email, current_user.current_org_id, request.report.model_dump())
+        res = wms_core.finalize_audit(db, request.location_id, current_user.email, getattr(current_user, 'current_org_id', None), request.report.model_dump())
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -215,9 +215,9 @@ def batch_manual_intake(
                 store_id=current_user.store_id,
                 device_status=models.DeviceStatus.Sellable if dev.model_number else None,
                 cost_basis=dev.acquisition_cost or 0.0,
-                org_id=current_user.current_org_id
+                org_id=getattr(current_user, 'current_org_id', None)
             )
-            db_device.org_id = current_user.current_org_id
+            db_device.org_id = getattr(current_user, 'current_org_id', None)
             db.add(db_device)
             results.append(db_device)
 
@@ -226,10 +226,10 @@ def batch_manual_intake(
                     imei=dev.imei,
                     cost_type="Base_Acquisition",
                     amount=dev.acquisition_cost,
-                    org_id=current_user.current_org_id
+                    org_id=getattr(current_user, 'current_org_id', None)
                 )
                 # Strictly force assignment
-                db_ledger.org_id = current_user.current_org_id
+                db_ledger.org_id = getattr(current_user, 'current_org_id', None)
                 db.add(db_ledger)
 
         # Step 2: Flush to the database to satisfy Foreign Key constraints for the logs
@@ -245,7 +245,7 @@ def batch_manual_intake(
                 "Sellable" if dev.model_number else "Pending",
                 None, 
                 f"Asset ingested via bulk workflow",
-                org_id=current_user.current_org_id
+                org_id=getattr(current_user, 'current_org_id', None)
             )
 
         db.commit()
@@ -293,9 +293,9 @@ def bulk_blind_intake(
                 device_status=None, # Raw state
                 is_hydrated=False,
                 cost_basis=0.0,
-                org_id=current_user.current_org_id
+                org_id=getattr(current_user, 'current_org_id', None)
             )
-            db_device.org_id = current_user.current_org_id
+            db_device.org_id = getattr(current_user, 'current_org_id', None)
             db.add(db_device)
             results.append(db_device)
 
@@ -303,7 +303,7 @@ def bulk_blind_intake(
 
         for imei in new_imeis:
             wms_core._log_history(
-                db, imei, "Blind Scan", current_user.email, "Raw", None, "Initial IMEI Registration", org_id=current_user.current_org_id
+                db, imei, "Blind Scan", current_user.email, "Raw", None, "Initial IMEI Registration", org_id=getattr(current_user, 'current_org_id', None)
             )
 
         db.commit()
@@ -341,7 +341,7 @@ def bind_specs_to_imeis(
             bound_count += 1
             
             wms_core._log_history(
-                db, imei, "Data Binding", current_user.email, "Sellable", "Raw", f"Specs bound from sheet by {current_user.email}", org_id=current_user.current_org_id
+                db, imei, "Data Binding", current_user.email, "Sellable", "Raw", f"Specs bound from sheet by {current_user.email}", org_id=getattr(current_user, 'current_org_id', None)
             )
 
     db.commit()
@@ -373,7 +373,7 @@ def batch_reconcile(
                 if ledger:
                     ledger.amount = dev.acquisition_cost
                 else:
-                    db.add(models.DeviceCostLedger(imei=dev.imei, cost_type="Base_Acquisition", amount=dev.acquisition_cost, org_id=current_user.current_org_id))
+                    db.add(models.DeviceCostLedger(imei=dev.imei, cost_type="Base_Acquisition", amount=dev.acquisition_cost, org_id=getattr(current_user, 'current_org_id', None)))
             
             if dev.condition:
                 # We can map condition to status or notes if needed
@@ -388,7 +388,7 @@ def batch_reconcile(
 def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
-        models.DeviceInventory.org_id == current_user.current_org_id
+        models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")

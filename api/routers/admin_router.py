@@ -8,19 +8,19 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 @router.get("/rates", response_model=List[schemas.LaborRateConfigOut])
 def get_rates(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
-    return db.query(models.LaborRateConfig).filter(models.LaborRateConfig.org_id == current_user.current_org_id).all()
+    return db.query(models.LaborRateConfig).filter(models.LaborRateConfig.org_id == getattr(current_user, 'current_org_id', None)).all()
 
 @router.put("/rates/upsert", response_model=schemas.LaborRateConfigOut)
 def upsert_rate(req: schemas.LaborRateConfigBase, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     try:
         rate = db.query(models.LaborRateConfig).filter(
             models.LaborRateConfig.action_name == req.action_name,
-            models.LaborRateConfig.org_id == current_user.current_org_id
+            models.LaborRateConfig.org_id == getattr(current_user, 'current_org_id', None)
         ).first()
         if rate:
             rate.fee_amount = req.fee_amount
         else:
-            rate = models.LaborRateConfig(action_name=req.action_name, fee_amount=req.fee_amount, org_id=current_user.current_org_id)
+            rate = models.LaborRateConfig(action_name=req.action_name, fee_amount=req.fee_amount, org_id=getattr(current_user, 'current_org_id', None))
             db.add(rate)
         db.commit()
         db.refresh(rate)
@@ -49,7 +49,7 @@ def get_users(db: Session = Depends(get_db), current_user: models.User = Depends
 def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     if db.query(models.User).filter(
         models.User.email == req.email,
-        models.User.org_id == current_user.current_org_id
+        models.User.org_id == getattr(current_user, 'current_org_id', None)
     ).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     
@@ -57,7 +57,7 @@ def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_
         email=req.email,
         role=req.role,
         store_id=req.store_id,
-        org_id=current_user.current_org_id
+        org_id=getattr(current_user, 'current_org_id', None)
     )
     db.add(new_user)
     db.commit()
@@ -67,7 +67,7 @@ def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_
 @router.get("/stores", response_model=List[schemas.StoreLocationOut])
 def get_stores(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
     try:
-        return db.query(models.StoreLocation).filter(models.StoreLocation.org_id == current_user.current_org_id).all()
+        return db.query(models.StoreLocation).filter(models.StoreLocation.org_id == getattr(current_user, 'current_org_id', None)).all()
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -80,11 +80,11 @@ def get_stores(db: Session = Depends(get_db), current_user: models.User = Depend
 def create_store(req: schemas.StoreLocationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     if db.query(models.StoreLocation).filter(
         models.StoreLocation.id == req.id,
-        models.StoreLocation.org_id == current_user.current_org_id
+        models.StoreLocation.org_id == getattr(current_user, 'current_org_id', None)
     ).first():
         raise HTTPException(status_code=400, detail="Store ID already exists")
     
-    new_store = models.StoreLocation(id=req.id, name=req.name, address=req.address, org_id=current_user.current_org_id)
+    new_store = models.StoreLocation(id=req.id, name=req.name, address=req.address, org_id=getattr(current_user, 'current_org_id', None))
     db.add(new_store)
     db.commit()
     db.refresh(new_store)
@@ -101,8 +101,8 @@ def seed_rates(db: Session = Depends(get_db), current_user: models.User = Depend
     for name, fee in defaults:
         if not db.query(models.LaborRateConfig).filter(
             models.LaborRateConfig.action_name == name,
-            models.LaborRateConfig.org_id == current_user.current_org_id
+            models.LaborRateConfig.org_id == getattr(current_user, 'current_org_id', None)
         ).first():
-            db.add(models.LaborRateConfig(action_name=name, fee_amount=fee, org_id=current_user.current_org_id))
+            db.add(models.LaborRateConfig(action_name=name, fee_amount=fee, org_id=getattr(current_user, 'current_org_id', None)))
     db.commit()
     return {"status": "success"}

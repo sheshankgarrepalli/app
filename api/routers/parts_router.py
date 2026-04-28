@@ -23,7 +23,7 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
     # Ensure Part exists in inventory
     part = db.query(PartsInventory).filter(
         PartsInventory.sku == sku,
-        PartsInventory.org_id == current_user.current_org_id
+        PartsInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     if not part:
         part = PartsInventory(
@@ -31,9 +31,9 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
             part_name=f"{req.model_number} {req.category} ({req.quality})",
             current_stock_qty=0,
             moving_average_cost=0.0,
-            org_id=current_user.current_org_id
+            org_id=getattr(current_user, 'current_org_id', None)
         )
-        part.org_id = current_user.current_org_id
+        part.org_id = getattr(current_user, 'current_org_id', None)
         db.add(part)
     
     # Update Stock
@@ -45,9 +45,9 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
         qty=req.qty,
         supplier_id=req.supplier_id,
         is_priced=0,
-        org_id=current_user.current_org_id
+        org_id=getattr(current_user, 'current_org_id', None)
     )
-    intake.org_id = current_user.current_org_id
+    intake.org_id = getattr(current_user, 'current_org_id', None)
     db.add(intake)
     db.commit()
     db.refresh(intake)
@@ -57,7 +57,7 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db), curren
 def price_intake(req: PartPriceRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     intake = db.query(PartIntake).filter(
         PartIntake.id == req.intake_id,
-        PartIntake.org_id == current_user.current_org_id
+        PartIntake.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     if not intake:
         raise HTTPException(status_code=404, detail="Intake record not found")
@@ -67,7 +67,7 @@ def price_intake(req: PartPriceRequest, db: Session = Depends(get_db), current_u
     
     part = db.query(PartsInventory).filter(
         PartsInventory.sku == intake.sku,
-        PartsInventory.org_id == current_user.current_org_id
+        PartsInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).first()
     
     # MAC Calculation: (Old Value + New Value) / (Old Qty + New Qty)
@@ -89,7 +89,7 @@ def price_intake(req: PartPriceRequest, db: Session = Depends(get_db), current_u
 def list_unpriced(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(PartIntake).filter(
         PartIntake.is_priced == 0,
-        PartIntake.org_id == current_user.current_org_id
+        PartIntake.org_id == getattr(current_user, 'current_org_id', None)
     ).all()
 
 @router.get("/suppliers", response_model=List[SupplierOut])
@@ -133,4 +133,4 @@ def seed_mock_data(db: Session = Depends(get_db)):
 
 @router.get("/", response_model=List[PartsInventoryOut])
 def list_parts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(PartsInventory).filter(PartsInventory.org_id == current_user.current_org_id).all()
+    return db.query(PartsInventory).filter(PartsInventory.org_id == getattr(current_user, 'current_org_id', None)).all()
