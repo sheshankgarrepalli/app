@@ -78,18 +78,24 @@ def get_dashboard(
 
     # 6. Inventory velocity (avg days from intake to sale, last 90 days)
     velocity_cutoff = datetime.utcnow() - timedelta(days=90)
-    sold_recent = db.query(models.DeviceInventory).join(
+    sold_recent_rows = db.query(
+        models.DeviceInventory.received_date,
+        func.min(models.Invoice.created_at).label('sold_date')
+    ).join(
         models.InvoiceItem, models.InvoiceItem.imei == models.DeviceInventory.imei
-    ).join(models.Invoice).filter(
+    ).join(
+        models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
+    ).filter(
         models.Invoice.created_at >= velocity_cutoff,
-        models.DeviceInventory.org_id == org_id
-    ).all()
-    if sold_recent:
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceInventory.device_status == models.DeviceStatus.Sold
+    ).group_by(models.DeviceInventory.imei, models.DeviceInventory.received_date).all()
+    if sold_recent_rows:
         avg_days = sum(
-            (d.sold_date - d.received_date).days
-            if hasattr(d, 'sold_date') and d.sold_date else 0
-            for d in sold_recent
-        ) / len(sold_recent)
+            (sold_date - received_date).days
+            for received_date, sold_date in sold_recent_rows
+            if received_date and sold_date
+        ) / len(sold_recent_rows)
     else:
         avg_days = 0
 

@@ -30,7 +30,7 @@ def _sku(model: str, category: str, quality: str) -> str:
     return f"{model}-{cat_code}-{qual_code}"
 
 
-# ── Parts CRUD ──────────────────────────────────────────────────────────────
+# ── Static routes FIRST (before parameterized routes) ────────────────────────
 
 @router.get("/", response_model=List[PartsInventoryOut])
 def list_parts(search: str = "", low_stock_only: bool = False,
@@ -53,103 +53,21 @@ def create_part(req: PartCreateRequest, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     org_id = _get_org_id(current_user)
     sku = _sku(req.model_number, req.category, req.quality)
-
     existing = db.query(PartsInventory).filter(
         PartsInventory.sku == sku, PartsInventory.org_id == org_id
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"SKU {sku} already exists")
-
     landed = req.total_price + req.shipping_fees
     mac = landed / req.qty if req.qty > 0 else 0.0
-
     part = PartsInventory(
-        sku=sku,
-        org_id=org_id,
+        sku=sku, org_id=org_id,
         part_name=f"{req.model_number} {req.category} ({req.quality})",
-        current_stock_qty=req.qty,
-        moving_average_cost=mac,
-        low_stock_threshold=5
+        current_stock_qty=req.qty, moving_average_cost=mac, low_stock_threshold=5
     )
     db.add(part)
-
-    intake = PartIntake(
-        sku=sku, org_id=org_id, qty=req.qty,
-        total_price=landed, is_priced=1, supplier_id=req.supplier_id
-    )
-    db.add(intake)
-    db.commit()
-    db.refresh(part)
-    return part
-
-
-@router.get("/{sku}", response_model=PartDetailOut)
-def get_part(sku: str, db: Session = Depends(get_db),
-             current_user: User = Depends(get_current_user)):
-    org_id = _get_org_id(current_user)
-    part = db.query(PartsInventory).filter(
-        PartsInventory.sku == sku, PartsInventory.org_id == org_id
-    ).first()
-    if not part:
-        raise HTTPException(status_code=404, detail="Part not found")
-
-    intakes = db.query(PartIntake).filter(
-        PartIntake.sku == sku, PartIntake.org_id == org_id
-    ).order_by(desc(PartIntake.created_at)).all()
-
-    valuation = part.current_stock_qty * part.moving_average_cost
-    return PartDetailOut(
-        sku=part.sku, part_name=part.part_name,
-        current_stock_qty=part.current_stock_qty,
-        moving_average_cost=part.moving_average_cost,
-        low_stock_threshold=part.low_stock_threshold,
-        created_at=part.created_at,
-        intakes=intakes, total_valuation=valuation
-    )
-
-
-@router.put("/{sku}", response_model=PartsInventoryOut)
-def update_part(sku: str, req: PartUpdateRequest, db: Session = Depends(get_db),
-                current_user: User = Depends(get_current_user)):
-    org_id = _get_org_id(current_user)
-    part = db.query(PartsInventory).filter(
-        PartsInventory.sku == sku, PartsInventory.org_id == org_id
-    ).first()
-    if not part:
-        raise HTTPException(status_code=404, detail="Part not found")
-
-    if req.part_name is not None:
-        part.part_name = req.part_name
-    if req.low_stock_threshold is not None:
-        part.low_stock_threshold = req.low_stock_threshold
-
-    db.commit()
-    db.refresh(part)
-    return part
-
-
-# ── Intake / Receive ─────────────────────────────────────────────────────────
-
-@router.post("/{sku}/intake", response_model=PartsInventoryOut)
-def intake_stock(sku: str, req: PartIntakeRequest, db: Session = Depends(get_db),
-                 current_user: User = Depends(get_current_user)):
-    org_id = _get_org_id(current_user)
-    part = db.query(PartsInventory).filter(
-        PartsInventory.sku == sku, PartsInventory.org_id == org_id
-    ).first()
-    if not part:
-        raise HTTPException(status_code=404, detail="Part not found")
-
-    landed = req.total_price + req.shipping_fees
-    old_value = part.current_stock_qty * part.moving_average_cost
-    part.current_stock_qty += req.qty
-    part.moving_average_cost = (old_value + landed) / part.current_stock_qty
-
-    intake = PartIntake(
-        sku=sku, org_id=org_id, qty=req.qty,
-        total_price=landed, is_priced=1, supplier_id=req.supplier_id
-    )
-    db.add(intake)
+    db.add(PartIntake(sku=sku, org_id=org_id, qty=req.qty, total_price=landed,
+                      is_priced=1, supplier_id=req.supplier_id))
     db.commit()
     db.refresh(part)
     return part
@@ -158,10 +76,8 @@ def intake_stock(sku: str, req: PartIntakeRequest, db: Session = Depends(get_db)
 @router.post("/receive", response_model=PartIntakeOut)
 def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
-    """Legacy: quick intake by model+category+quality. Creates SKU if needed, leaves intake unpriced."""
     org_id = _get_org_id(current_user)
     sku = _sku(req.model_number, req.category, req.quality)
-
     part = db.query(PartsInventory).filter(
         PartsInventory.sku == sku, PartsInventory.org_id == org_id
     ).first()
@@ -172,13 +88,9 @@ def receive_parts(req: PartReceiveRequest, db: Session = Depends(get_db),
             current_stock_qty=0, moving_average_cost=0.0
         )
         db.add(part)
-
     part.current_stock_qty += req.qty
-
-    intake = PartIntake(
-        sku=sku, org_id=org_id, qty=req.qty,
-        supplier_id=req.supplier_id, is_priced=0
-    )
+    intake = PartIntake(sku=sku, org_id=org_id, qty=req.qty,
+                        supplier_id=req.supplier_id, is_priced=0)
     db.add(intake)
     db.commit()
     db.refresh(intake)
@@ -196,16 +108,13 @@ def price_intake(req: PartPriceRequest, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Intake record not found")
     if intake.is_priced == 1:
         raise HTTPException(status_code=400, detail="Intake already priced")
-
     part = db.query(PartsInventory).filter(
         PartsInventory.sku == intake.sku, PartsInventory.org_id == org_id
     ).first()
-
     old_qty = part.current_stock_qty - intake.qty
     total_old_value = old_qty * part.moving_average_cost
     landed = req.total_price + req.shipping_fees
     part.moving_average_cost = (total_old_value + landed) / part.current_stock_qty
-
     intake.total_price = req.total_price
     intake.is_priced = 1
     db.commit()
@@ -220,64 +129,6 @@ def list_unpriced(db: Session = Depends(get_db),
     return db.query(PartIntake).filter(
         PartIntake.is_priced == 0, PartIntake.org_id == org_id
     ).all()
-
-
-# ── Returns & Adjustments ────────────────────────────────────────────────────
-
-@router.post("/{sku}/return", response_model=PartsInventoryOut)
-def return_to_supplier(sku: str, req: PartReturnRequest,
-                       db: Session = Depends(get_db),
-                       current_user: User = Depends(get_current_user)):
-    org_id = _get_org_id(current_user)
-    part = db.query(PartsInventory).filter(
-        PartsInventory.sku == sku, PartsInventory.org_id == org_id
-    ).first()
-    if not part:
-        raise HTTPException(status_code=404, detail="Part not found")
-    if req.qty > part.current_stock_qty:
-        raise HTTPException(status_code=400, detail="Return qty exceeds stock")
-
-    part.current_stock_qty -= req.qty
-    # Reverse at current MAC: remove the value from inventory
-    # MAC stays the same (removing at average doesn't change the average)
-
-    intake = PartIntake(
-        sku=sku, org_id=org_id, qty=-req.qty,
-        total_price=-(req.qty * part.moving_average_cost),
-        is_priced=1, supplier_id=0
-    )
-    db.add(intake)
-    db.commit()
-    db.refresh(part)
-    return part
-
-
-@router.post("/{sku}/adjust", response_model=PartsInventoryOut)
-def adjust_stock(sku: str, req: StockAdjustRequest,
-                 db: Session = Depends(get_db),
-                 current_user: User = Depends(get_current_user)):
-    org_id = _get_org_id(current_user)
-    part = db.query(PartsInventory).filter(
-        PartsInventory.sku == sku, PartsInventory.org_id == org_id
-    ).first()
-    if not part:
-        raise HTTPException(status_code=404, detail="Part not found")
-    if req.new_qty < 0:
-        raise HTTPException(status_code=400, detail="Stock cannot be negative")
-
-    delta = req.new_qty - part.current_stock_qty
-    part.current_stock_qty = req.new_qty
-
-    # Log the adjustment as an intake record for audit
-    intake = PartIntake(
-        sku=sku, org_id=org_id, qty=delta,
-        total_price=delta * part.moving_average_cost if delta > 0 else 0,
-        is_priced=1, supplier_id=0
-    )
-    db.add(intake)
-    db.commit()
-    db.refresh(part)
-    return part
 
 
 # ── Suppliers ────────────────────────────────────────────────────────────────
@@ -351,8 +202,6 @@ def update_labor_rate(rate_id: int, req: LaborRateConfigUpdate,
     return cfg
 
 
-# ── Seed ─────────────────────────────────────────────────────────────────────
-
 @router.post("/seed")
 def seed_mock_data(db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
@@ -363,17 +212,14 @@ def seed_mock_data(db: Session = Depends(get_db),
             Supplier.name == s_name, Supplier.org_id == org_id
         ).first():
             db.add(Supplier(name=s_name, org_id=org_id))
-
     if not db.query(UnifiedCustomer).filter(
         UnifiedCustomer.company_name == "Wholesale Partner X"
     ).first():
         db.add(UnifiedCustomer(
             crm_id=f"CRM-{uuid.uuid4().hex[:8].upper()}",
-            customer_type=CustomerType.Wholesale,
-            company_name="Wholesale Partner X",
+            customer_type=CustomerType.Wholesale, company_name="Wholesale Partner X",
             phone="555-0101", credit_limit=5000.0, payment_terms_days=15
         ))
-
     models_list = ["A2848", "A2651", "A2633", "A2482", "A2341"]
     for m in models_list:
         for cat, code in [("Screen", "SCR"), ("Battery", "BAT")]:
@@ -382,13 +228,10 @@ def seed_mock_data(db: Session = Depends(get_db),
                 PartsInventory.sku == sku, PartsInventory.org_id == org_id
             ).first():
                 db.add(PartsInventory(
-                    sku=sku, org_id=org_id,
-                    part_name=f"{m} {cat} (OEM)",
+                    sku=sku, org_id=org_id, part_name=f"{m} {cat} (OEM)",
                     current_stock_qty=10,
                     moving_average_cost=45.0 if cat == "Screen" else 15.0
                 ))
-
-    # Default labor rates
     defaults = [("QC_Standard", 5.0), ("Repair_Screen", 25.0), ("Repair_Battery", 15.0),
                 ("Repair_Charge_Port", 20.0), ("Repair_Camera", 30.0),
                 ("Repair_Back_Glass", 40.0), ("Repair_Speaker", 15.0)]
@@ -397,6 +240,110 @@ def seed_mock_data(db: Session = Depends(get_db),
             LaborRateConfig.action_name == action, LaborRateConfig.org_id == org_id
         ).first():
             db.add(LaborRateConfig(action_name=action, fee_amount=fee, org_id=org_id))
-
     db.commit()
     return {"status": "success", "message": "Mock data seeded"}
+
+
+# ── Parameterized SKU routes LAST ────────────────────────────────────────────
+
+@router.get("/{sku}", response_model=PartDetailOut)
+def get_part(sku: str, db: Session = Depends(get_db),
+             current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == sku, PartsInventory.org_id == org_id
+    ).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+    intakes = db.query(PartIntake).filter(
+        PartIntake.sku == sku, PartIntake.org_id == org_id
+    ).order_by(desc(PartIntake.created_at)).all()
+    valuation = part.current_stock_qty * part.moving_average_cost
+    return PartDetailOut(
+        sku=part.sku, part_name=part.part_name,
+        current_stock_qty=part.current_stock_qty,
+        moving_average_cost=part.moving_average_cost,
+        low_stock_threshold=part.low_stock_threshold,
+        created_at=part.created_at, intakes=intakes, total_valuation=valuation
+    )
+
+
+@router.put("/{sku}", response_model=PartsInventoryOut)
+def update_part(sku: str, req: PartUpdateRequest, db: Session = Depends(get_db),
+                current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == sku, PartsInventory.org_id == org_id
+    ).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+    if req.part_name is not None:
+        part.part_name = req.part_name
+    if req.low_stock_threshold is not None:
+        part.low_stock_threshold = req.low_stock_threshold
+    db.commit()
+    db.refresh(part)
+    return part
+
+
+@router.post("/{sku}/intake", response_model=PartsInventoryOut)
+def intake_stock(sku: str, req: PartIntakeRequest, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == sku, PartsInventory.org_id == org_id
+    ).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+    landed = req.total_price + req.shipping_fees
+    old_value = part.current_stock_qty * part.moving_average_cost
+    part.current_stock_qty += req.qty
+    part.moving_average_cost = (old_value + landed) / part.current_stock_qty
+    db.add(PartIntake(sku=sku, org_id=org_id, qty=req.qty,
+                      total_price=landed, is_priced=1, supplier_id=req.supplier_id))
+    db.commit()
+    db.refresh(part)
+    return part
+
+
+@router.post("/{sku}/return", response_model=PartsInventoryOut)
+def return_to_supplier(sku: str, req: PartReturnRequest,
+                       db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == sku, PartsInventory.org_id == org_id
+    ).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+    if req.qty > part.current_stock_qty:
+        raise HTTPException(status_code=400, detail="Return qty exceeds stock")
+    part.current_stock_qty -= req.qty
+    db.add(PartIntake(sku=sku, org_id=org_id, qty=-req.qty,
+                      total_price=-(req.qty * part.moving_average_cost),
+                      is_priced=1, supplier_id=0))
+    db.commit()
+    db.refresh(part)
+    return part
+
+
+@router.post("/{sku}/adjust", response_model=PartsInventoryOut)
+def adjust_stock(sku: str, req: StockAdjustRequest,
+                 db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    part = db.query(PartsInventory).filter(
+        PartsInventory.sku == sku, PartsInventory.org_id == org_id
+    ).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part not found")
+    if req.new_qty < 0:
+        raise HTTPException(status_code=400, detail="Stock cannot be negative")
+    delta = req.new_qty - part.current_stock_qty
+    part.current_stock_qty = req.new_qty
+    db.add(PartIntake(sku=sku, org_id=org_id, qty=delta,
+                      total_price=delta * part.moving_average_cost if delta > 0 else 0,
+                      is_priced=1, supplier_id=0))
+    db.commit()
+    db.refresh(part)
+    return part
