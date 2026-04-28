@@ -9,11 +9,13 @@ router = APIRouter(prefix="/api/track", tags=["track"])
 @router.get("/", response_model=schemas.DeviceJourneyOut)
 def track_device(identifier: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
     try:
+        org_id = getattr(current_user, 'current_org_id', None)
         stmt = db.query(models.DeviceInventory).filter(
             (models.DeviceInventory.imei == identifier) |
-            (models.DeviceInventory.serial_number == identifier),
-            models.DeviceInventory.org_id == current_user.current_org_id
+            (models.DeviceInventory.serial_number == identifier)
         )
+        if org_id:
+            stmt = stmt.filter(models.DeviceInventory.org_id == org_id)
         
         # Admin/Technician bypass store filter, others only see their store
         if current_user.role not in ["admin", "technician"] and current_user.store_id:

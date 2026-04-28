@@ -20,9 +20,10 @@ def retail_checkout(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
     customer_id = req.customer_id
     if not customer_id and req.customer:
-        db_customer = models.UnifiedCustomer(org_id=current_user.current_org_id, **req.customer.model_dump())
+        db_customer = models.UnifiedCustomer(org_id=org_id, **req.customer.model_dump())
         db_customer.crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
         db.add(db_customer)
         db.flush()
@@ -34,15 +35,15 @@ def retail_checkout(
         
     customer_db_obj = db.query(models.UnifiedCustomer).filter(
         models.UnifiedCustomer.crm_id == customer_id,
-        models.UnifiedCustomer.org_id == current_user.current_org_id
+        models.UnifiedCustomer.org_id == org_id
     ).first()
-    
+
     subtotal = 0.0
     for item in req.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.location_id == current_user.role,
-            models.DeviceInventory.org_id == current_user.current_org_id,
+            models.DeviceInventory.org_id == org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
         ).first()
         if not db_store_inv:
@@ -69,7 +70,7 @@ def retail_checkout(
     if total_payments > total + 0.01:
         raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
     
-    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id).order_by(models.Invoice.id.desc()).first()
+    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
     next_id = last_invoice.id + 1 if last_invoice else 1
     invoice_number = f"INV-{next_id:04d}"
     
@@ -85,9 +86,9 @@ def retail_checkout(
         shipping_address=req.shipping_address,
         status=models.InvoiceStatus.Paid if total_payments >= total - 0.01 else models.InvoiceStatus.Partially_Paid,
         payment_status=models.PaymentStatus.Paid_in_Full if total_payments >= total - 0.01 else models.PaymentStatus.Partial_Layaway,
-        org_id=current_user.current_org_id
+        org_id=org_id
     )
-    db_invoice.org_id = current_user.current_org_id
+    db_invoice.org_id = org_id
     db.add(db_invoice)
     db.flush()
     
@@ -97,7 +98,7 @@ def retail_checkout(
     for item in req.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
-            models.DeviceInventory.org_id == current_user.current_org_id
+            models.DeviceInventory.org_id == org_id
         ).first()
         if total_payments >= total - 0.01:
             db_store_inv.device_status = models.DeviceStatus.Sold
@@ -120,9 +121,9 @@ def retail_checkout(
             amount=p.amount,
             payment_method=p.payment_method,
             reference_id=p.reference_id,
-            org_id=current_user.current_org_id
+            org_id=org_id
         )
-        db_payment.org_id = current_user.current_org_id
+        db_payment.org_id = org_id
         db.add(db_payment)
         
     db.commit()
@@ -131,9 +132,10 @@ def retail_checkout(
 
 @router.post("/invoice", response_model=schemas.InvoiceOut)
 def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
     customer_id = invoice.customer_id
     if not customer_id and invoice.customer:
-        db_customer = models.UnifiedCustomer(org_id=current_user.current_org_id, **invoice.customer.model_dump())
+        db_customer = models.UnifiedCustomer(org_id=org_id, **invoice.customer.model_dump())
         db_customer.crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
         db.add(db_customer)
         db.commit()
@@ -145,7 +147,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         
     customer_db_obj = db.query(models.UnifiedCustomer).filter(
         models.UnifiedCustomer.crm_id == customer_id,
-        models.UnifiedCustomer.org_id == current_user.current_org_id
+        models.UnifiedCustomer.org_id == org_id
     ).first()
     
     subtotal = 0.0
@@ -153,7 +155,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.location_id == current_user.role,
-            models.DeviceInventory.org_id == current_user.current_org_id,
+            models.DeviceInventory.org_id == org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
         ).first()
         if not db_store_inv:
@@ -174,7 +176,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     tax_amount = subtotal * (final_tax_percent / 100)
     total = subtotal + tax_amount
     
-    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id).order_by(models.Invoice.id.desc()).first()
+    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
     next_id = last_invoice.id + 1 if last_invoice else 1
     invoice_number = f"INV-{next_id:04d}"
     
@@ -188,9 +190,9 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         total=total,
         fulfillment_method=invoice.fulfillment_method,
         shipping_address=invoice.shipping_address,
-        org_id=current_user.current_org_id
+        org_id=org_id
     )
-    db_invoice.org_id = current_user.current_org_id
+    db_invoice.org_id = org_id
     db.add(db_invoice)
     db.commit()
     db.refresh(db_invoice)
@@ -201,7 +203,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     for item in invoice.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
-            models.DeviceInventory.org_id == current_user.current_org_id
+            models.DeviceInventory.org_id == org_id
         ).first()
         db_store_inv.warranty_expiry_date = warranty_expiry
         
@@ -219,20 +221,21 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
 
 @router.post("/wholesale")
 def wholesale_checkout(
-    req: schemas.BulkCheckoutRequest, 
-    db: Session = Depends(get_db), 
+    req: schemas.BulkCheckoutRequest,
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
     """
     Direct endpoint for Wholesale POS: Processes checkout and returns binary PDF.
     """
+    org_id = getattr(current_user, 'current_org_id', None)
     try:
         invoice_data = wms_core.process_bulk_checkout(
             db, 
             req.imei_list, 
             req.crm_id, 
             current_user.email,
-            org_id=current_user.current_org_id,
+            org_id=org_id,
             fulfillment_method=req.fulfillment_method,
             shipping_address=req.shipping_address,
             payment_method=req.payment_method or "Cash",
@@ -259,10 +262,11 @@ def convert_estimate(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
         models.Invoice.invoice_number == invoice_id,
         models.Invoice.is_estimate == 1,
-        models.Invoice.org_id == current_user.current_org_id
+        models.Invoice.org_id == org_id
     ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Estimate not found")
@@ -272,7 +276,7 @@ def convert_estimate(
     imeis = [item.imei for item in items]
     devices = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei.in_(imeis),
-        models.DeviceInventory.org_id == current_user.current_org_id
+        models.DeviceInventory.org_id == org_id
     ).all()
     
     for device in devices:
@@ -289,7 +293,7 @@ def convert_estimate(
     # Update B2B Credit Ledger if needed
     customer = db.query(models.UnifiedCustomer).filter(
         models.UnifiedCustomer.crm_id == invoice.customer_id,
-        models.UnifiedCustomer.org_id == current_user.current_org_id
+        models.UnifiedCustomer.org_id == org_id
     ).first()
     if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
         if customer.current_balance + invoice.total > customer.credit_limit:
@@ -340,21 +344,22 @@ def process_payment(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
         models.Invoice.invoice_number == invoice_id,
-        models.Invoice.org_id == current_user.current_org_id
+        models.Invoice.org_id == org_id
     ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     db_payment = models.PaymentTransaction(
-        org_id=current_user.current_org_id,
+        org_id=org_id,
         invoice_id=invoice.id,
         amount=payment.amount,
         payment_method=payment.payment_method,
         reference_id=payment.reference_id
     )
-    db_payment.org_id = current_user.current_org_id
+    db_payment.org_id = org_id
     db.add(db_payment)
     db.commit()
     db.refresh(invoice)
@@ -368,7 +373,7 @@ def process_payment(
         for item in invoice.items:
             device = db.query(models.DeviceInventory).filter(
                 models.DeviceInventory.imei == item.imei,
-                models.DeviceInventory.org_id == current_user.current_org_id
+                models.DeviceInventory.org_id == org_id
             ).first()
             if device and device.device_status != models.DeviceStatus.Reserved_Layaway:
                 prev_status = device.device_status.value if device.device_status else "Unknown"
@@ -380,7 +385,7 @@ def process_payment(
         for item in invoice.items:
             device = db.query(models.DeviceInventory).filter(
                 models.DeviceInventory.imei == item.imei,
-                models.DeviceInventory.org_id == current_user.current_org_id
+                models.DeviceInventory.org_id == org_id
             ).first()
             if device and device.device_status != models.DeviceStatus.Sold:
                 prev_status = device.device_status.value if device.device_status else "Unknown"
@@ -392,14 +397,14 @@ def process_payment(
     if payment.payment_method == models.PaymentMethodEnum.On_Terms:
         customer = db.query(models.UnifiedCustomer).filter(
             models.UnifiedCustomer.crm_id == invoice.customer_id,
-            models.UnifiedCustomer.org_id == current_user.current_org_id
+            models.UnifiedCustomer.org_id == org_id
         ).first()
         if customer:
             customer.current_balance += payment.amount
     else:
         customer = db.query(models.UnifiedCustomer).filter(
             models.UnifiedCustomer.crm_id == invoice.customer_id,
-            models.UnifiedCustomer.org_id == current_user.current_org_id
+            models.UnifiedCustomer.org_id == org_id
         ).first()
         if customer:
             customer.current_balance -= payment.amount
@@ -416,9 +421,10 @@ def update_invoice(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
         models.Invoice.invoice_number == invoice_id,
-        models.Invoice.org_id == current_user.current_org_id
+        models.Invoice.org_id == org_id
     ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -496,13 +502,14 @@ def process_returns(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
     results = []
     total_credit_applied = 0.0
     
     for imei in req.imei_list:
         # Find original sale
         item = db.query(models.InvoiceItem).filter(models.InvoiceItem.imei == imei).join(models.Invoice).filter(
-            models.Invoice.org_id == current_user.current_org_id
+            models.Invoice.org_id == org_id
         ).order_by(models.Invoice.created_at.desc()).first()
         if not item:
             results.append({"imei": imei, "status": "Error", "message": "No sale record found"})
@@ -516,7 +523,7 @@ def process_returns(
 
         device = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == imei,
-            models.DeviceInventory.org_id == current_user.current_org_id
+            models.DeviceInventory.org_id == org_id
         ).first()
         prev_status = device.device_status.value
         device.device_status = models.DeviceStatus.In_QC
@@ -526,7 +533,7 @@ def process_returns(
         return_value = item.unit_price
         customer = db.query(models.UnifiedCustomer).filter(
             models.UnifiedCustomer.crm_id == invoice.customer_id,
-            models.UnifiedCustomer.org_id == current_user.current_org_id
+            models.UnifiedCustomer.org_id == org_id
         ).first()
         if customer and customer.pricing_tier > 0:
             return_value = return_value * (1.0 - customer.pricing_tier)
@@ -557,7 +564,10 @@ def list_invoices(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     try:
-        stmt = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id)
+        org_id = getattr(current_user, 'current_org_id', None)
+        stmt = db.query(models.Invoice)
+        if org_id:
+            stmt = stmt.filter(models.Invoice.org_id == org_id)
 
         # Admin bypasses the store filter
         if current_user.role != "admin":
@@ -578,7 +588,7 @@ def list_invoices(
             # Also check serial number via DeviceInventory
             imei_from_serial = db.query(models.DeviceInventory.imei).filter(
                 models.DeviceInventory.serial_number == query,
-                models.DeviceInventory.org_id == current_user.current_org_id
+                models.DeviceInventory.org_id == org_id
             ).scalar()
             if imei_from_serial:
                 conditions.append(models.InvoiceItem.imei == imei_from_serial)
@@ -601,9 +611,10 @@ def get_client_statement(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
     customer = db.query(models.UnifiedCustomer).filter(
         models.UnifiedCustomer.crm_id == crm_id,
-        models.UnifiedCustomer.org_id == current_user.current_org_id
+        models.UnifiedCustomer.org_id == org_id
     ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -611,7 +622,7 @@ def get_client_statement(
     query = db.query(models.Invoice).filter(
         models.Invoice.customer_id == crm_id,
         models.Invoice.is_estimate == 0,
-        models.Invoice.org_id == current_user.current_org_id
+        models.Invoice.org_id == org_id
     )
     if start_date:
         query = query.filter(models.Invoice.created_at >= start_date)

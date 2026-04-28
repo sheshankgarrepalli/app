@@ -32,7 +32,11 @@ def upsert_rate(req: schemas.LaborRateConfigBase, db: Session = Depends(get_db),
 @router.get("/users", response_model=List[schemas.UserOut])
 def get_users(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     try:
-        return db.query(models.User).filter(models.User.org_id == current_user.current_org_id).all()
+        org_id = getattr(current_user, 'current_org_id', None)
+        query = db.query(models.User)
+        if org_id:
+            query = query.filter(models.User.org_id == org_id)
+        return query.all()
     except Exception as e:
         import traceback
         traceback.print_exc()
