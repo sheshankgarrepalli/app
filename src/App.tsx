@@ -21,6 +21,12 @@ import ManualIntake from './pages/ManualIntake';
 import RapidAudit from './pages/RapidAudit';
 import { TransferDispatch } from './pages/TransferDispatch';
 import TeamSettings from './pages/Settings/TeamSettings';
+import PartsInventory from './pages/PartsInventory';
+import PartDetail from './pages/PartDetail';
+import Suppliers from './pages/Suppliers';
+import LaborRates from './pages/LaborRates';
+import ReceiveParts from './pages/ReceiveParts';
+import PartsPricing from './pages/PartsPricing';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -108,6 +114,13 @@ function AuthRoutes() {
       <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
       <Route path="/admin/team" element={<ProtectedRoute allowedRoles={['admin']}><TeamSettings /></ProtectedRoute>} />
       <Route path="/transfers/dispatch" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c']}><TransferDispatch /></ProtectedRoute>} />
+
+      <Route path="/admin/parts" element={<ProtectedRoute allowedRoles={['admin']}><PartsInventory /></ProtectedRoute>} />
+      <Route path="/admin/parts/:sku" element={<ProtectedRoute allowedRoles={['admin']}><PartDetail /></ProtectedRoute>} />
+      <Route path="/admin/receive-parts" element={<ProtectedRoute allowedRoles={['admin']}><ReceiveParts /></ProtectedRoute>} />
+      <Route path="/admin/parts-pricing" element={<ProtectedRoute allowedRoles={['admin']}><PartsPricing /></ProtectedRoute>} />
+      <Route path="/admin/suppliers" element={<ProtectedRoute allowedRoles={['admin']}><Suppliers /></ProtectedRoute>} />
+      <Route path="/admin/labor-rates" element={<ProtectedRoute allowedRoles={['admin']}><LaborRates /></ProtectedRoute>} />
 
       <Route path="/track" element={<ProtectedRoute allowedRoles={['admin', 'store_a', 'store_b', 'store_c', 'technician']}><TrackDevice /></ProtectedRoute>} />
 

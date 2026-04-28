@@ -739,3 +739,147 @@ def get_locations(current_user: models.User = Depends(auth.require_role(["admin"
         {"id": "store_b", "name": "Store B (Uptown)"},
         {"id": "store_c", "name": "Store C (Plaza)"}
     ]
+
+
+# ── Returns, Corrections & Void (Module 5) ───────────────────────────────────
+
+@router.post("/invoices/{invoice_id}/void")
+def void_invoice(invoice_id: int, reason: str = "", db: Session = Depends(get_db),
+                 current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.id == invoice_id, models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status == models.InvoiceStatus.Voided:
+        raise HTTPException(status_code=400, detail="Invoice already voided")
+
+    invoice.status = models.InvoiceStatus.Voided
+    invoice.payment_status = models.PaymentStatus.Voided
+
+    # Restore devices to Sellable
+    items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice_id
+    ).all()
+    for item in items:
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == item.imei,
+            models.DeviceInventory.org_id == org_id
+        ).first()
+        if device and device.device_status == models.DeviceStatus.Sold:
+            old_status = device.device_status
+            device.device_status = models.DeviceStatus.Sellable
+            db.add(models.DeviceHistoryLog(
+                imei=device.imei, org_id=org_id,
+                action_type="Invoice Voided", employee_id=current_user.email,
+                previous_status=old_status, new_status=models.DeviceStatus.Sellable,
+                notes=f"Invoice #{invoice_id} voided. Reason: {reason}"
+            ))
+
+    db.commit()
+    return {"status": "voided", "invoice_id": invoice_id, "restored_devices": len(items)}
+
+
+@router.put("/invoices/{invoice_id}/correct")
+def correct_invoice(invoice_id: int, notes: str = "", db: Session = Depends(get_db),
+                    current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.id == invoice_id, models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Re-derive model numbers from IMEIs
+    items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice_id
+    ).all()
+    corrections = []
+    for item in items:
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == item.imei,
+            models.DeviceInventory.org_id == org_id
+        ).first()
+        if device and device.model_number and item.model_number != device.model_number:
+            old_model = item.model_number
+            item.model_number = device.model_number
+            corrections.append({"imei": item.imei, "old": old_model, "new": device.model_number})
+
+    if notes:
+        invoice.notes = (invoice.notes or '') + f" [Corrected: {notes}]"
+
+    db.add(models.DeviceHistoryLog(
+        imei="SYSTEM", org_id=org_id,
+        action_type="Invoice Corrected", employee_id=current_user.email,
+        previous_status="", new_status="",
+        notes=f"Invoice #{invoice_id} corrected. {len(corrections)} model(s) fixed. {notes}"
+    ))
+
+    db.commit()
+    return {"status": "corrected", "invoice_id": invoice_id, "corrections": corrections}
+
+
+@router.post("/invoices/{invoice_id}/refund")
+def refund_invoice(invoice_id: int, reason: str = "", db: Session = Depends(get_db),
+                   current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.id == invoice_id, models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Reverse sale on all devices
+    items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice_id
+    ).all()
+    for item in items:
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == item.imei,
+            models.DeviceInventory.org_id == org_id
+        ).first()
+        if device and device.device_status == models.DeviceStatus.Sold:
+            old_status = device.device_status
+            device.device_status = models.DeviceStatus.Sellable
+            device.cost_basis = max(0, device.cost_basis - (item.unit_price * 0.1))
+            db.add(models.DeviceHistoryLog(
+                imei=device.imei, org_id=org_id,
+                action_type="Refund", employee_id=current_user.email,
+                previous_status=old_status, new_status=models.DeviceStatus.Sellable,
+                notes=f"Invoice #{invoice_id} refunded. Reason: {reason}"
+            ))
+
+    invoice.status = models.InvoiceStatus.Refunded
+    invoice.payment_status = models.PaymentStatus.Refunded
+
+    db.commit()
+    return {"status": "refunded", "invoice_id": invoice_id, "devices_restored": len(items)}
+
+
+# ── Employee Error Dashboard ─────────────────────────────────────────────────
+
+@router.get("/employee-errors")
+def employee_error_report(db: Session = Depends(get_db),
+                          current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    logs = db.query(models.DeviceHistoryLog).filter(
+        models.DeviceHistoryLog.org_id == org_id,
+        models.DeviceHistoryLog.action_type.in_(["Invoice Voided", "Invoice Corrected", "Refund"])
+    ).order_by(models.DeviceHistoryLog.timestamp.desc()).limit(200).all()
+
+    by_employee = {}
+    for log in logs:
+        emp = log.employee_id
+        if emp not in by_employee:
+            by_employee[emp] = {"employee": emp, "voids": 0, "corrections": 0, "refunds": 0, "recent": []}
+        if log.action_type == "Invoice Voided":
+            by_employee[emp]["voids"] += 1
+        elif log.action_type == "Invoice Corrected":
+            by_employee[emp]["corrections"] += 1
+        elif log.action_type == "Refund":
+            by_employee[emp]["refunds"] += 1
+        if len(by_employee[emp]["recent"]) < 5:
+            by_employee[emp]["recent"].append({"action": log.action_type, "notes": log.notes, "date": str(log.timestamp)})
+
+    return list(by_employee.values())

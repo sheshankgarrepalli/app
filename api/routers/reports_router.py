@@ -1,89 +1,164 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from datetime import datetime, timedelta
 from collections import defaultdict
 import models, auth
 from database import get_db
+import io, csv
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
+DATE_PRESETS = {
+    "Today": lambda now: now.replace(hour=0, minute=0, second=0, microsecond=0),
+    "This Week": lambda now: (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0),
+    "This Month": lambda now: now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
+    "3 Months": lambda now: now - timedelta(days=90),
+    "6 Months": lambda now: now - timedelta(days=180),
+    "All Time": lambda now: datetime(2000, 1, 1),
+}
+
+
+def _resolve_start(date_range: str) -> datetime:
+    now = datetime.utcnow()
+    fn = DATE_PRESETS.get(date_range, DATE_PRESETS["Today"])
+    return fn(now)
+
+
 @router.get("/dashboard")
 def get_dashboard(
-    date_range: str = Query("Today"), 
-    db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
+        date_range: str = Query("Today"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
 ):
+    org_id = getattr(current_user, 'current_org_id', None)
+    start = _resolve_start(date_range)
     now = datetime.utcnow()
-    start_date = now
-    
-    if date_range == "Today":
-        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif date_range == "This Week":
-        start_date = now - timedelta(days=now.weekday())
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif date_range == "This Month":
-        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    elif date_range == "3 Months":
-        start_date = now - timedelta(days=90)
-    elif date_range == "6 Months":
-        start_date = now - timedelta(days=180)
-        
-    # 1. Total Sold (Count of items, not invoices)
-    # Joining with Invoice to filter by created_at
+
+    # 1. Total sold
     total_sold = db.query(models.InvoiceItem).join(models.Invoice).filter(
-        models.Invoice.created_at >= start_date,
-        models.Invoice.org_id == getattr(current_user, 'current_org_id', None)
+        models.Invoice.created_at >= start, models.Invoice.org_id == org_id
     ).count()
-    
-    # 2. Sales by Location (Count of items per store)
-    # Robust handling of store IDs using defaultdict
-    location_query = db.query(
-        models.Invoice.store_id, 
-        func.count(models.InvoiceItem.id)
+
+    # 2. Sales by location
+    loc_rows = db.query(
+        models.Invoice.store_id, func.count(models.InvoiceItem.id)
     ).join(models.InvoiceItem).filter(
-        models.Invoice.created_at >= start_date,
-        models.Invoice.org_id == getattr(current_user, 'current_org_id', None)
+        models.Invoice.created_at >= start, models.Invoice.org_id == org_id
     ).group_by(models.Invoice.store_id).all()
-    
-    sales_by_location = defaultdict(int)
-    # Initialize default stores for UI consistency
-    for s in ["store_a", "store_b", "store_c"]:
-        sales_by_location[s] = 0
-        
-    for store_id, count in location_query:
-        # Clean up key name for UI (e.g. Warehouse_Alpha -> Warehouse Alpha)
-        clean_key = store_id.replace("_", " ").title() if store_id else "Unknown"
-        sales_by_location[store_id] = count
-        
-    # 3. Warehouse Outflow (Count of items in Transfer Orders)
-    # TransferOrder model has no items relationship in models.py? 
-    # Let's check: models says TransferOrder id is String, DeviceInventory has assigned_transfer_order_id.
-    warehouse_outflow = db.query(models.DeviceInventory).filter(
-        models.DeviceInventory.assigned_transfer_order_id.isnot(None),
-        models.DeviceInventory.received_date >= start_date # Approximate if created_at is missing on DeviceInventory
-    ).count()
-    # Actually models.TransferOrder has created_at
+    sales_by_location = defaultdict(int, {s: 0 for s in ["store_a", "store_b", "store_c"]})
+    for sid, cnt in loc_rows:
+        sales_by_location[sid] = cnt
+
+    # 3. Warehouse outflow
     warehouse_outflow = db.query(models.TransferOrder).filter(
-        models.TransferOrder.created_at >= start_date,
-        models.TransferOrder.org_id == getattr(current_user, 'current_org_id', None)
+        models.TransferOrder.created_at >= start, models.TransferOrder.org_id == org_id
     ).count()
-    
-    # 4. Top Selling Models
-    top_models = db.query(
-        models.InvoiceItem.model_number, 
-        func.count(models.InvoiceItem.id).label('count')
-    ).join(models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id) \
-     .filter(models.Invoice.created_at >= start_date, models.Invoice.org_id == getattr(current_user, 'current_org_id', None)) \
-     .group_by(models.InvoiceItem.model_number) \
-     .order_by(func.count(models.InvoiceItem.id).desc()) \
-     .limit(5).all()
-     
-    top_models_list = [{"model_number": m[0], "count": m[1]} for m in top_models]
-    
+
+    # 4. Top models
+    top = db.query(
+        models.InvoiceItem.model_number, func.count(models.InvoiceItem.id)
+    ).join(models.Invoice).filter(
+        models.Invoice.created_at >= start, models.Invoice.org_id == org_id
+    ).group_by(models.InvoiceItem.model_number).order_by(func.count(models.InvoiceItem.id).desc()).limit(5).all()
+    top_models = [{"model_number": m[0], "count": m[1]} for m in top]
+
+    # 5. Gross margin (all-time sold devices: sale price minus cost_basis)
+    sold_devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.device_status == models.DeviceStatus.Sold,
+        models.DeviceInventory.org_id == org_id
+    ).all()
+    total_cost = sum(d.cost_basis for d in sold_devices)
+    total_revenue = db.query(func.sum(models.Invoice.total)).filter(
+        models.Invoice.org_id == org_id
+    ).scalar() or 0
+    margin = total_revenue - total_cost
+    margin_pct = (margin / total_revenue * 100) if total_revenue > 0 else 0
+
+    # 6. Inventory velocity (avg days from intake to sale, last 90 days)
+    velocity_cutoff = datetime.utcnow() - timedelta(days=90)
+    sold_recent = db.query(models.DeviceInventory).join(
+        models.InvoiceItem, models.InvoiceItem.imei == models.DeviceInventory.imei
+    ).join(models.Invoice).filter(
+        models.Invoice.created_at >= velocity_cutoff,
+        models.DeviceInventory.org_id == org_id
+    ).all()
+    if sold_recent:
+        avg_days = sum(
+            (d.sold_date - d.received_date).days
+            if hasattr(d, 'sold_date') and d.sold_date else 0
+            for d in sold_recent
+        ) / len(sold_recent)
+    else:
+        avg_days = 0
+
+    # 7. Shrinkage (scrapped / total)
+    total_devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.org_id == org_id
+    ).count()
+    scrapped = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.device_status == models.DeviceStatus.Scrapped,
+        models.DeviceInventory.org_id == org_id
+    ).count()
+    shrinkage_pct = (scrapped / total_devices * 100) if total_devices > 0 else 0
+
+    # 8. Parts consumption (total consumed in period)
+    parts_cost = db.query(func.sum(models.DeviceCostLedger.amount)).filter(
+        models.DeviceCostLedger.cost_type.like("Part:%"),
+        models.DeviceCostLedger.created_at >= start,
+        models.DeviceCostLedger.org_id == org_id
+    ).scalar() or 0
+
+    # 9. Active repairs
+    active_repairs = db.query(models.RepairTicket).filter(
+        models.RepairTicket.status.in_([
+            models.RepairStatus.Pending_Triage,
+            models.RepairStatus.In_Repair,
+            models.RepairStatus.Awaiting_Parts
+        ]),
+        models.RepairTicket.org_id == org_id
+    ).count()
+
+    # 10. Low stock parts
+    low_stock = db.query(models.PartsInventory).filter(
+        models.PartsInventory.current_stock_qty <= models.PartsInventory.low_stock_threshold,
+        models.PartsInventory.org_id == org_id
+    ).count()
+
     return {
         "total_sold": total_sold,
         "sales_by_location": dict(sales_by_location),
         "warehouse_outflow": warehouse_outflow,
-        "top_selling_models": top_models_list
+        "top_selling_models": top_models,
+        "gross_margin": round(margin, 2),
+        "gross_margin_pct": round(margin_pct, 1),
+        "total_revenue": round(total_revenue, 2),
+        "total_cost": round(total_cost, 2),
+        "inventory_velocity_days": round(avg_days, 1),
+        "shrinkage_pct": round(shrinkage_pct, 2),
+        "parts_cost_consumed": round(parts_cost, 2),
+        "active_repairs": active_repairs,
+        "low_stock_parts": low_stock,
+        "total_devices": total_devices,
     }
+
+
+@router.get("/dashboard/export")
+def export_dashboard_csv(
+        date_range: str = Query("This Month"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
+):
+    data = get_dashboard(date_range, db, current_user)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Metric", "Value"])
+    for k, v in data.items():
+        w.writerow([k, v])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=dashboard_export.csv"}
+    )

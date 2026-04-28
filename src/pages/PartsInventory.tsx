@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Search, Plus } from 'lucide-react';
 
 export default function PartsInventory() {
     const { token } = useAuth();
+    const navigate = useNavigate();
     const [parts, setParts] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function PartsInventory() {
                         />
                     </div>
                     <button
-                        onClick={() => window.location.href = '/admin/receive-parts'}
+                        onClick={() => navigate('/admin/receive-parts')}
                         className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-semibold uppercase tracking-widest"
                     >
                         <Plus size={16} /> Intake
@@ -85,7 +87,9 @@ export default function PartsInventory() {
                             ) : filteredParts.length === 0 ? (
                                 <tr><td colSpan={6} className="py-32 text-center text-zinc-300 font-semibold uppercase tracking-widest">No components identified</td></tr>
                             ) : filteredParts.map(part => (
-                                <tr key={part.sku} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group">
+                                <tr key={part.sku}
+                                    onClick={() => navigate(`/admin/parts/${part.sku}`)}
+                                    className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group cursor-pointer">
                                     <td className="px-8 py-5 font-mono text-zinc-900 font-bold tracking-widest uppercase text-xs">{part.sku}</td>
                                     <td className="px-8 py-5 uppercase tracking-wider text-zinc-700 font-semibold">{part.part_name}</td>
                                     <td className="px-8 py-5 text-center text-zinc-900 font-bold">{part.current_stock_qty}</td>

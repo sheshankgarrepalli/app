@@ -5,7 +5,8 @@ import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization }
 import {
   Users, CreditCard,
   Wrench, LayoutDashboard, ShoppingCart,
-  Truck, Settings, PackagePlus, RefreshCw
+  Truck, Settings, PackagePlus, RefreshCw,
+  Cpu, Factory, DollarSign
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { id: 'inventory', label: 'Logistics', path: '/admin/inventory', icon: Truck, roles: ['admin'] },
     { id: 'audit', label: 'Rapid Audit', path: '/admin/rapid-audit', icon: RefreshCw, roles: ['admin', 'store_a', 'store_b', 'store_c'] },
     { id: 'intake', label: 'Manual Intake', path: '/admin/manual-intake', icon: PackagePlus, roles: ['admin', 'store_a', 'store_b', 'store_c'] },
+    { id: 'parts', label: 'Parts', path: '/admin/parts', icon: Cpu, roles: ['admin'] },
+    { id: 'suppliers', label: 'Suppliers', path: '/admin/suppliers', icon: Factory, roles: ['admin'] },
+    { id: 'labor', label: 'Labor Rates', path: '/admin/labor-rates', icon: DollarSign, roles: ['admin'] },
     { id: 'repair', label: 'Repairs', path: '/repair/kanban', icon: Wrench, roles: ['admin', 'technician'] },
     { id: 'crm', label: 'CRM', path: '/admin/crm', icon: Users, roles: ['admin', 'store_a', 'store_b', 'store_c'] },
     { id: 'finance', label: 'Finance', path: '/admin/finance', icon: CreditCard, roles: ['admin'] },

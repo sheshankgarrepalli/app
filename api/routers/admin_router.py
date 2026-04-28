@@ -106,3 +106,60 @@ def seed_rates(db: Session = Depends(get_db), current_user: models.User = Depend
             db.add(models.LaborRateConfig(action_name=name, fee_amount=fee, org_id=getattr(current_user, 'current_org_id', None)))
     db.commit()
     return {"status": "success"}
+
+
+# ── Pricing Config ───────────────────────────────────────────────────────────
+
+@router.get("/pricing", response_model=schemas.PricingConfigOut)
+def get_pricing_config(db: Session = Depends(get_db),
+                       current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    cfg = db.query(models.PricingConfig).filter(
+        models.PricingConfig.org_id == org_id
+    ).first()
+    if not cfg:
+        cfg = models.PricingConfig(org_id=org_id)
+        db.add(cfg)
+        db.commit()
+        db.refresh(cfg)
+    return cfg
+
+
+@router.put("/pricing", response_model=schemas.PricingConfigOut)
+def update_pricing_config(req: schemas.PricingConfigUpdate,
+                          db: Session = Depends(get_db),
+                          current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    cfg = db.query(models.PricingConfig).filter(
+        models.PricingConfig.org_id == org_id
+    ).first()
+    if not cfg:
+        cfg = models.PricingConfig(org_id=org_id)
+        db.add(cfg)
+
+    if req.pricing_tier is not None:
+        cfg.pricing_tier = req.pricing_tier
+    if req.applies_to is not None:
+        cfg.applies_to = req.applies_to
+    if req.default_markup_percent is not None:
+        cfg.default_markup_percent = req.default_markup_percent
+
+    db.commit()
+    db.refresh(cfg)
+    return cfg
+
+
+# ── Audit Log ────────────────────────────────────────────────────────────────
+
+@router.get("/audit-log")
+def get_audit_log(limit: int = 100, imei_filter: str = "",
+                  db: Session = Depends(get_db),
+                  current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    q = db.query(models.DeviceHistoryLog).filter(
+        models.DeviceHistoryLog.org_id == org_id
+    )
+    if imei_filter:
+        q = q.filter(models.DeviceHistoryLog.imei.ilike(f"%{imei_filter}%"))
+    return q.order_by(models.DeviceHistoryLog.timestamp.desc()).limit(limit).all()
+

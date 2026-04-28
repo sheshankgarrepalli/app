@@ -48,19 +48,39 @@ class RepairTicketBase(BaseModel):
     symptoms: Optional[str] = None
     notes: Optional[str] = None
 
-class RepairTicketCreate(RepairTicketBase): pass
+class RepairTicketCreate(RepairTicketBase):
+    pass
+
+class RepairTicketUpdate(BaseModel):
+    status: Optional[RepairStatus] = None
+    assigned_tech_id: Optional[str] = None
+    symptoms: Optional[str] = None
+    notes: Optional[str] = None
 
 class RepairTicketOut(RepairTicketBase):
     id: int
     status: RepairStatus
     assigned_tech_id: Optional[str]
+    device_model: Optional[str] = None
+    device_status: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime]
+    consumed_parts: List[dict] = []
     class Config: from_attributes = True
+
+class RepairConsumePartRequest(BaseModel):
+    part_sku: str
+    qty: int = 1
 
 class RepairCompleteRequest(BaseModel):
     imei: str
-    work_completed: List[str] # List of repair categories
+    work_completed: List[str] = []
+
+class RepairScrapRequest(BaseModel):
+    reason: str = ""
+
+class RepairAssignRequest(BaseModel):
+    technician_id: str
 
 # --- NEW ERP SCHEMAS ---
 
@@ -99,11 +119,47 @@ class PartPriceRequest(BaseModel):
     total_price: float
     shipping_fees: float = 0.0
 
+class PartCreateRequest(BaseModel):
+    model_number: str
+    category: str
+    quality: str
+    supplier_id: int
+    qty: int
+    total_price: float = 0.0
+    shipping_fees: float = 0.0
+
+class PartUpdateRequest(BaseModel):
+    part_name: Optional[str] = None
+    low_stock_threshold: Optional[int] = None
+
+class PartIntakeRequest(BaseModel):
+    qty: int
+    supplier_id: int
+    total_price: float
+    shipping_fees: float = 0.0
+
+class PartReturnRequest(BaseModel):
+    qty: int
+    reason: str = ""
+
+class StockAdjustRequest(BaseModel):
+    new_qty: int
+    reason: str = ""
+
+class PartDetailOut(PartsInventoryBase):
+    created_at: datetime
+    intakes: List[PartIntakeOut] = []
+    total_valuation: float = 0.0
+    class Config: from_attributes = True
+
 class LaborRateConfigBase(BaseModel):
     action_name: str
     fee_amount: float
 
 class LaborRateConfigCreate(LaborRateConfigBase): pass
+
+class LaborRateConfigUpdate(BaseModel):
+    fee_amount: float
 
 class LaborRateConfigOut(LaborRateConfigBase):
     id: int
@@ -415,6 +471,23 @@ class AuditFinalizeRequest(BaseModel):
     report: AuditReportResponse
     location_id: str
 
+class PricingConfigBase(BaseModel):
+    pricing_tier: float = 0.0
+    applies_to: str = "Both"
+    default_markup_percent: float = 20.0
+
+class PricingConfigCreate(PricingConfigBase): pass
+
+class PricingConfigUpdate(BaseModel):
+    pricing_tier: Optional[float] = None
+    applies_to: Optional[str] = None
+    default_markup_percent: Optional[float] = None
+
+class PricingConfigOut(PricingConfigBase):
+    id: int
+    org_id: Optional[str] = None
+    class Config: from_attributes = True
+
 class StoreLocationBase(BaseModel):
     id: str
     name: str
@@ -424,3 +497,8 @@ class StoreLocationCreate(StoreLocationBase): pass
 
 class StoreLocationOut(StoreLocationBase):
     class Config: from_attributes = True
+
+class OrgSettingsRequest(BaseModel):
+    default_tax_rate: Optional[float] = None
+    currency: Optional[str] = None
+    timezone: Optional[str] = None

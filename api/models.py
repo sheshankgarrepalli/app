@@ -22,7 +22,10 @@ class DeviceStatus(str, enum.Enum):
     Sold = "Sold"
     Transit_to_Repair = "Transit_to_Repair"
     Transit_to_QC = "Transit_to_QC"
+    Transit_to_Main_Bin = "Transit_to_Main_Bin"
     Reserved_Layaway = "Reserved_Layaway"
+    Scrapped = "Scrapped"
+    Awaiting_Parts = "Awaiting_Parts"
 
 class TransferType(str, enum.Enum):
     Restock = "Restock"
@@ -191,6 +194,7 @@ class PaymentStatus(str, enum.Enum):
     Partial_Layaway = "Partial/Layaway"
     Paid_in_Full = "Paid_in_Full"
     Refunded = "Refunded"
+    Voided = "Voided"
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -199,6 +203,8 @@ class InvoiceStatus(str, enum.Enum):
     Partially_Paid = "Partially_Paid"
     Paid = "Paid"
     Overdue = "Overdue"
+    Voided = "Voided"
+    Refunded = "Refunded"
 
 class Invoice(Base):
     __tablename__ = "invoices"
@@ -273,6 +279,7 @@ class InventoryAuditItem(Base):
 class RepairStatus(enum.Enum):
     Pending_Triage = "Pending_Triage"
     In_Repair = "In_Repair"
+    Awaiting_Parts = "Awaiting_Parts"
     Completed = "Completed"
     Cancelled = "Cancelled"
 
@@ -317,7 +324,8 @@ class RepairTicket(Base):
 class Supplier(Base):
     __tablename__ = "suppliers"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
+    org_id = Column(String, index=True, nullable=True)
+    name = Column(String, nullable=False)
 
 class PartIntake(Base):
     __tablename__ = "part_intakes"
@@ -343,3 +351,11 @@ class LaborRateConfig(Base):
     org_id = Column(String, index=True, nullable=True)
     action_name = Column(String, unique=True, nullable=False) # e.g., 'QC_Standard', 'Repair_Screen'
     fee_amount = Column(Float, nullable=False, default=0.0)
+
+class PricingConfig(Base):
+    __tablename__ = "pricing_config"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    pricing_tier = Column(Float, default=0.0)
+    applies_to = Column(String, default="Both")  # Retail, Wholesale, Both
+    default_markup_percent = Column(Float, default=20.0)
