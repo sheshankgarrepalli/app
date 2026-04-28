@@ -138,6 +138,7 @@ class DeviceBulkCreate(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     role: RoleEnum
+    store_id: Optional[str] = None
 
 class UserOut(BaseModel):
     id: int

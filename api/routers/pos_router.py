@@ -217,52 +217,6 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     db.refresh(db_invoice)
     return db_invoice
 
-@router.post("/returns")
-def process_returns(req: schemas.RMARequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
-    customer = db.query(models.UnifiedCustomer).filter(
-        models.UnifiedCustomer.crm_id == req.customer_id,
-        models.UnifiedCustomer.org_id == current_user.current_org_id
-    ).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-        
-    devices = db.query(models.DeviceInventory).filter(
-        models.DeviceInventory.imei.in_(req.imei_list),
-        models.DeviceInventory.org_id == current_user.current_org_id
-    ).all()
-    if len(devices) != len(req.imei_list):
-        raise HTTPException(status_code=400, detail="One or more IMEIs not found")
-        
-    total_refund = 0.0
-    for device in devices:
-        if device.sold_to_crm_id != req.customer_id:
-            raise HTTPException(status_code=400, detail=f"Device {device.imei} was not sold to this customer")
-            
-        # Move back to inventory
-        prev_status = device.device_status.value
-        device.device_status = models.DeviceStatus.In_QC
-        device.location_id = "Warehouse_Alpha"
-        device.sold_to_crm_id = None
-        device.warranty_expiry_date = None
-        
-        # Calculate refund (simplified: find last invoice item price)
-        last_item = db.query(models.InvoiceItem).filter(models.InvoiceItem.imei == device.imei).order_by(models.InvoiceItem.id.desc()).first()
-        if last_item:
-            # Apply pricing tier if it was applied during sale
-            price = last_item.unit_price
-            if customer.pricing_tier > 0:
-                price = price * (1.0 - customer.pricing_tier)
-            total_refund += price
-            
-        wms_core._log_history(db, device.imei, "RMA_Return", current_user.email, device.device_status.value, prev_status, f"Returned via RMA from {req.customer_id}")
-        
-    if customer.customer_type == models.CustomerType.Wholesale:
-        customer.current_balance -= total_refund
-        if customer.current_balance < 0: customer.current_balance = 0
-        
-    db.commit()
-    return {"status": "success", "refund_processed": total_refund, "new_balance": customer.current_balance}
-
 @router.post("/wholesale")
 def wholesale_checkout(
     req: schemas.BulkCheckoutRequest, 
@@ -305,14 +259,21 @@ def convert_estimate(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
-    invoice = db.query(models.Invoice).filter(models.Invoice.invoice_number == invoice_id, models.Invoice.is_estimate == 1).first()
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.is_estimate == 1,
+        models.Invoice.org_id == current_user.current_org_id
+    ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Estimate not found")
-    
+
     # Check if devices are still sellable
     items = db.query(models.InvoiceItem).filter(models.InvoiceItem.invoice_id == invoice.id).all()
     imeis = [item.imei for item in items]
-    devices = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei.in_(imeis)).all()
+    devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei.in_(imeis),
+        models.DeviceInventory.org_id == current_user.current_org_id
+    ).all()
     
     for device in devices:
         if device.device_status != models.DeviceStatus.Sellable:
@@ -326,7 +287,10 @@ def convert_estimate(
         wms_core._log_history(db, device.imei, "Estimate_Converted", current_user.email, device.device_status.value, prev_status, f"Converted from Estimate {invoice.invoice_number}")
     
     # Update B2B Credit Ledger if needed
-    customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == invoice.customer_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
         if customer.current_balance + invoice.total > customer.credit_limit:
             raise HTTPException(status_code=400, detail="Credit limit exceeded")
@@ -423,15 +387,24 @@ def process_payment(
                 device.device_status = models.DeviceStatus.Sold
                 wms_core._log_history(db, device.imei, "Invoice_Paid_Full", current_user.email, device.device_status.value, prev_status, f"Paid in full on Invoice {invoice.invoice_number}")
     
-    # If it was "On Terms", update customer balance
+    # If it was "On Terms", increase customer balance (charging to account)
+    # For other payment methods, decrease balance (paying down the tab)
     if payment.payment_method == models.PaymentMethodEnum.On_Terms:
         customer = db.query(models.UnifiedCustomer).filter(
             models.UnifiedCustomer.crm_id == invoice.customer_id,
             models.UnifiedCustomer.org_id == current_user.current_org_id
         ).first()
         if customer:
+            customer.current_balance += payment.amount
+    else:
+        customer = db.query(models.UnifiedCustomer).filter(
+            models.UnifiedCustomer.crm_id == invoice.customer_id,
+            models.UnifiedCustomer.org_id == current_user.current_org_id
+        ).first()
+        if customer:
             customer.current_balance -= payment.amount
-            if customer.current_balance < 0: customer.current_balance = 0
+            if customer.current_balance < 0:
+                customer.current_balance = 0
         
     db.commit()
     return {"status": "success", "total_paid": total_paid, "payment_status": invoice.payment_status}
@@ -443,10 +416,13 @@ def update_invoice(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
-    invoice = db.query(models.Invoice).filter(models.Invoice.invoice_number == invoice_id).first()
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == current_user.current_org_id
+    ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
     if invoice.status not in [models.InvoiceStatus.Unpaid, models.InvoiceStatus.Draft]:
         raise HTTPException(status_code=400, detail=f"Cannot edit invoice with status {invoice.status.value}")
 
@@ -525,7 +501,9 @@ def process_returns(
     
     for imei in req.imei_list:
         # Find original sale
-        item = db.query(models.InvoiceItem).filter(models.InvoiceItem.imei == imei).join(models.Invoice).order_by(models.Invoice.created_at.desc()).first()
+        item = db.query(models.InvoiceItem).filter(models.InvoiceItem.imei == imei).join(models.Invoice).filter(
+            models.Invoice.org_id == current_user.current_org_id
+        ).order_by(models.Invoice.created_at.desc()).first()
         if not item:
             results.append({"imei": imei, "status": "Error", "message": "No sale record found"})
             continue
@@ -536,16 +514,20 @@ def process_returns(
         if days_since_sale > 15 and not req.override_policy:
             raise HTTPException(status_code=400, detail=f"Return Period Expired: Exceeds 15 Days (Sold {days_since_sale} days ago)")
 
-        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == imei).first()
+        device = db.query(models.DeviceInventory).filter(
+            models.DeviceInventory.imei == imei,
+            models.DeviceInventory.org_id == current_user.current_org_id
+        ).first()
         prev_status = device.device_status.value
         device.device_status = models.DeviceStatus.In_QC
         device.location_id = "Warehouse_Alpha"
         device.sold_to_crm_id = None
-        
-        # Credit Logic
+
         return_value = item.unit_price
-        # Apply pricing tier if it was applied during sale
-        customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
+        customer = db.query(models.UnifiedCustomer).filter(
+            models.UnifiedCustomer.crm_id == invoice.customer_id,
+            models.UnifiedCustomer.org_id == current_user.current_org_id
+        ).first()
         if customer and customer.pricing_tier > 0:
             return_value = return_value * (1.0 - customer.pricing_tier)
         
@@ -575,8 +557,8 @@ def list_invoices(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     try:
-        stmt = db.query(models.Invoice)
-        
+        stmt = db.query(models.Invoice).filter(models.Invoice.org_id == current_user.current_org_id)
+
         # Admin bypasses the store filter
         if current_user.role != "admin":
             if not current_user.store_id:
@@ -586,16 +568,21 @@ def list_invoices(
         if query:
             # Search by Invoice Number, Customer Name, or Device Identifier (IMEI/Serial)
             stmt = stmt.join(models.UnifiedCustomer, isouter=True).join(models.InvoiceItem, isouter=True)
-            stmt = stmt.filter(
-                (models.Invoice.invoice_number.ilike(f"%{query}%")) |
-                (models.UnifiedCustomer.name.ilike(f"%{query}%")) |
-                (models.UnifiedCustomer.company_name.ilike(f"%{query}%")) |
-                (models.InvoiceItem.imei == query)
-            )
-            # Also check serial number via DeviceInventory join if needed
-            serial_match = db.query(models.DeviceInventory.imei).filter(models.DeviceInventory.serial_number == query).first()
-            if serial_match:
-                stmt = stmt.filter((models.InvoiceItem.imei == query) | (models.InvoiceItem.imei == serial_match[0]))
+            from sqlalchemy import or_
+            conditions = [
+                models.Invoice.invoice_number.ilike(f"%{query}%"),
+                models.UnifiedCustomer.name.ilike(f"%{query}%"),
+                models.UnifiedCustomer.company_name.ilike(f"%{query}%"),
+                models.InvoiceItem.imei == query
+            ]
+            # Also check serial number via DeviceInventory
+            imei_from_serial = db.query(models.DeviceInventory.imei).filter(
+                models.DeviceInventory.serial_number == query,
+                models.DeviceInventory.org_id == current_user.current_org_id
+            ).scalar()
+            if imei_from_serial:
+                conditions.append(models.InvoiceItem.imei == imei_from_serial)
+            stmt = stmt.filter(or_(*conditions))
 
         return stmt.order_by(models.Invoice.created_at.desc()).all()
     except Exception as e:
@@ -614,11 +601,18 @@ def get_client_statement(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
-    customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == crm_id).first()
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == crm_id,
+        models.UnifiedCustomer.org_id == current_user.current_org_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
-    query = db.query(models.Invoice).filter(models.Invoice.customer_id == crm_id, models.Invoice.is_estimate == 0)
+
+    query = db.query(models.Invoice).filter(
+        models.Invoice.customer_id == crm_id,
+        models.Invoice.is_estimate == 0,
+        models.Invoice.org_id == current_user.current_org_id
+    )
     if start_date:
         query = query.filter(models.Invoice.created_at >= start_date)
     if end_date:

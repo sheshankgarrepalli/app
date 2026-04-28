@@ -1,3 +1,4 @@
+import os
 import sys
 import base64
 import jwt
@@ -121,10 +122,12 @@ async def get_current_user(
         store_id = public_metadata.get("store_id") or private_metadata.get("store_id")
         org_id = payload.get("org_id")
         
-        # THE MASTER OVERRIDE: If Clerk fails to provide the org_id, force it.
+        # Fallback org_id from environment or raise a clear error
         if not org_id:
-            org_id = "org_3Com6Msekl6q0o4KuRxiKybuhTU"
-            print(f"WARNING: Clerk org_id missing for {email}. Forced fallback to {org_id}", file=sys.stderr)
+            org_id = os.getenv("DEFAULT_ORG_ID", "")
+            if not org_id:
+                print(f"CRITICAL AUTH ERROR: Clerk org_id missing for {email} and DEFAULT_ORG_ID not set.", file=sys.stderr)
+                raise HTTPException(status_code=401, detail="Organization context missing from token")
 
         # Database operations are blocking; in a high-traffic app, use an async driver.
         # Here we rely on FastAPI's handling of async dependencies.

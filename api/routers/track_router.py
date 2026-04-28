@@ -10,8 +10,9 @@ router = APIRouter(prefix="/api/track", tags=["track"])
 def track_device(identifier: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
     try:
         stmt = db.query(models.DeviceInventory).filter(
-            (models.DeviceInventory.imei == identifier) | 
-            (models.DeviceInventory.serial_number == identifier)
+            (models.DeviceInventory.imei == identifier) |
+            (models.DeviceInventory.serial_number == identifier),
+            models.DeviceInventory.org_id == current_user.current_org_id
         )
         
         # Admin/Technician bypass store filter, others only see their store
