@@ -40,7 +40,7 @@ export default function CheckoutCRMWidget({ onSelect }: { onSelect: (customer: a
           <div className="text-sm text-blue-700">Type: {selected.customer_type} | Discount: {(selected.pricing_tier * 100).toFixed(0)}%</div>
           {selected.tax_exempt_id && <div className="text-xs text-green-600 font-bold uppercase mt-1">Tax Exempt</div>}
         </div>
-        <button onClick={clearSelection} className="text-sm text-red-500 hover:text-red-700 font-medium px-3 py-1 bg-white rounded shadow-sm border border-red-100">Remove</button>
+        <button onClick={clearSelection} className="text-sm text-red-500 hover:text-red-700 font-medium px-3 py-1 bg-white dark:bg-[#141416] rounded shadow-sm border border-red-100">Remove</button>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export default function CheckoutCRMWidget({ onSelect }: { onSelect: (customer: a
         />
       </div>
       {matches.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#141416] border border-slate-200 rounded-lg shadow-xl overflow-hidden">
           {matches.map(c => (
             <div 
               key={c.crm_id} 
@@ -71,7 +71,7 @@ export default function CheckoutCRMWidget({ onSelect }: { onSelect: (customer: a
         </div>
       )}
       {query.trim() !== '' && matches.length === 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-sm text-slate-500 italic">
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#141416] border border-slate-200 rounded-lg shadow-xl p-3 text-sm text-slate-500 italic">
           No matching customers found. Proceed without CRM profile to register a new walk-in.
         </div>
       )}

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP — Point of Sale</title>
+<style>
+:root {
+  --navy: #1a1a2e; --accent: #e94560; --success: #0f3460; --bg: #f5f5f5;
+  --card: #ffffff; --text: #1f2937; --text-secondary: #6b7280; --border: #e5e7eb;
+  --sidebar-width: 240px; --topbar-height: 56px;
+  --green: #10b981; --amber: #f59e0b; --blue: #3b82f6; --red: #ef4444; --purple: #8b5cf6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+.sidebar { width: var(--sidebar-width); background: var(--navy); color: #fff; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+.sidebar-logo { padding: 16px 20px; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo span { color: var(--accent); }
+.sidebar-nav { flex: 1; padding: 12px 0; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: rgba(255,255,255,0.65); font-size: 14px; cursor: pointer; transition: all 0.15s; text-decoration: none; border-left: 3px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
+.nav-icon { width: 20px; text-align: center; font-size: 16px; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
+.sidebar-footer { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: rgba(255,255,255,0.4); }
+
+.main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; }
+.topbar { height: var(--topbar-height); background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+.breadcrumbs { font-size: 13px; color: var(--text-secondary); }
+.breadcrumbs span { color: var(--text); font-weight: 500; }
+.topbar-spacer { flex: 1; }
+.store-select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--bg); cursor: pointer; font-family: inherit; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+
+.content { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 24px; }
+.page-title { font-size: 22px; font-weight: 700; }
+
+/* POS LAYOUT */
+.pos-layout { display: grid; grid-template-columns: 1fr 400px; gap: 16px; flex: 1; }
+
+/* IMEI SCAN AREA */
+.scan-section { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.scan-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.imei-input {
+  width: 100%; padding: 16px 20px; border: 2px solid var(--border); border-radius: var(--radius);
+  font-size: 24px; font-family: 'Courier New', monospace; letter-spacing: 2px; text-align: center;
+  transition: border-color 0.2s;
+}
+.imei-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+.imei-input::placeholder { letter-spacing: 0; font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.scan-hint { font-size: 12px; color: var(--text-secondary); text-align: center; }
+
+/* DEVICE DETAIL CARD */
+.device-card { background: #f9fafb; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.device-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+.device-info dt { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
+.device-info dd { font-weight: 500; }
+
+/* CART */
+.cart-section { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.cart-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; }
+.cart-body { flex: 1; padding: 0; overflow-y: auto; }
+.cart-item { display: flex; align-items: center; padding: 12px 16px; gap: 12px; border-bottom: 1px solid var(--border); }
+.cart-item:last-child { border-bottom: none; }
+.cart-item-info { flex: 1; }
+.cart-item-model { font-size: 13px; font-weight: 600; }
+.cart-item-imei { font-size: 12px; color: var(--text-secondary); font-family: monospace; }
+.cart-item-price { font-weight: 600; font-size: 14px; white-space: nowrap; }
+.cart-item-remove { border: none; background: none; cursor: pointer; color: var(--text-secondary); font-size: 18px; padding: 4px; border-radius: 4px; }
+.cart-item-remove:hover { color: var(--red); background: #fee2e2; }
+
+.cart-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+.cart-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+.cart-row.total { font-size: 18px; font-weight: 700; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.cart-row.tax-row { color: var(--text-secondary); }
+
+.payment-section { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #d63d52; }
+.btn-outline { background: var(--card); border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-block { width: 100%; justify-content: center; padding: 14px; font-size: 16px; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #059669; }
+
+/* RECENT INVOICES */
+.recent-section { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.recent-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 16px; font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: #f9fafb; }
+tr:last-child td { border-bottom: none; }
+.text-right { text-align: right; }
+
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-orange { background: #ffedd5; color: #9a3412; }
+
+@media (max-width: 1100px) { .pos-layout { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo { font-size: 0; padding: 16px 12px; }
+  .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+  .main { margin-left: 60px; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">AMAFAH<span>ERP</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard.html"><span class="nav-icon">&#9632;</span> Dashboard</a>
+    <a class="nav-item" href="inventory.html"><span class="nav-icon">&#9637;</span> Inventory</a>
+    <a class="nav-item active" href="pos.html"><span class="nav-icon">&#9644;</span> Checkout</a>
+    <a class="nav-item" href="repair.html"><span class="nav-icon">&#9851;</span> Repairs <span class="nav-badge">7</span></a>
+    <a class="nav-item" href="parts.html"><span class="nav-icon">&#9881;</span> Parts <span class="nav-badge">3</span></a>
+    <a class="nav-item" href="transfers.html"><span class="nav-icon">&#8660;</span> Transfers</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9783;</span> Reports</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9881;</span> Settings</a>
+  </nav>
+  <div class="sidebar-footer">v1.0.0</div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumbs">Home <span>&rsaquo; Checkout</span></div>
+    <div class="topbar-spacer"></div>
+    <select class="store-select"><option>Store A — Downtown</option></select>
+    <div class="avatar">S</div>
+  </header>
+
+  <main class="content">
+    <h1 class="page-title">Point of Sale</h1>
+
+    <div class="pos-layout">
+      <!-- LEFT: SCAN + CART -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- IMEI SCAN -->
+        <div class="scan-section">
+          <div class="scan-title">Scan or Enter IMEI</div>
+          <input class="imei-input" placeholder="Enter 15-digit IMEI..." value="" autofocus>
+          <div class="scan-hint">Use barcode scanner or type IMEI. Press Enter to add to cart.</div>
+        </div>
+
+        <!-- CART -->
+        <div class="cart-section" style="flex:1">
+          <div class="cart-header">Cart (3 items)</div>
+          <div class="cart-body">
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <div class="cart-item-model">iPhone 15 Pro Max (A2848)</div>
+                <div class="cart-item-imei">IMEI 356901087654321</div>
+              </div>
+              <div class="cart-item-price">$800.00</div>
+              <button class="cart-item-remove">&times;</button>
+            </div>
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <div class="cart-item-model">iPhone 14 Pro (A2651)</div>
+                <div class="cart-item-imei">IMEI 356812349870123</div>
+              </div>
+              <div class="cart-item-price">$600.00</div>
+              <button class="cart-item-remove">&times;</button>
+            </div>
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <div class="cart-item-model">iPhone 13 (A2633)</div>
+                <div class="cart-item-imei">IMEI 356703429871102</div>
+              </div>
+              <div class="cart-item-price">$420.00</div>
+              <button class="cart-item-remove">&times;</button>
+            </div>
+          </div>
+          <div class="cart-footer">
+            <div class="cart-row"><span>Subtotal</span><span>$1,820.00</span></div>
+            <div class="cart-row tax-row"><span>Tax (8.5%)</span><span>$154.70</span></div>
+            <div class="cart-row total"><span>Total Due</span><span>$1,974.70</span></div>
+            <div class="payment-section">
+              <button class="btn btn-success btn-block">&#10003; Checkout — $1,974.70</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline btn-block">Split Payment</button>
+                <button class="btn btn-outline btn-block">Layaway ($200 deposit)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: DEVICE DETAIL -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="device-card">
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px">Last Scanned Device</div>
+          <dl class="device-info">
+            <dt>IMEI</dt><dd style="font-family:monospace">356703429871102</dd>
+            <dt>Model</dt><dd>iPhone 13 (A2633)</dd>
+            <dt>Condition</dt><dd><span class="badge badge-green">Sellable</span></dd>
+            <dt>Color / Storage</dt><dd>Midnight / 128GB</dd>
+            <dt>Cost Basis</dt><dd>$320.00</dd>
+            <dt>List Price</dt><dd>$420.00</dd>
+            <dt>Days in Inventory</dt><dd>8 days</dd>
+            <dt>Location</dt><dd>Store A</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECENT INVOICES -->
+    <div class="recent-section" style="margin-top:0">
+      <div class="recent-header"><span>Recent Invoices</span><span style="font-size:12px;color:var(--text-secondary)">Store A — Today</span></div>
+      <div style="padding:0">
+        <table>
+          <thead><tr><th>Invoice</th><th>Customer</th><th>Items</th><th class="text-right">Total</th><th>Status</th><th class="text-right">Time</th></tr></thead>
+          <tbody>
+            <tr><td>INV-20260428-003</td><td>Walk-in Customer</td><td>1</td><td class="text-right">$800.00</td><td><span class="badge badge-blue">Paid</span></td><td class="text-right">2:15 PM</td></tr>
+            <tr><td>INV-20260428-002</td><td>John Smith</td><td>2</td><td class="text-right">$1,020.00</td><td><span class="badge badge-blue">Paid</span></td><td class="text-right">1:30 PM</td></tr>
+            <tr><td>INV-20260428-001</td><td>Wholesale Partner X</td><td>10</td><td class="text-right">$5,200.00</td><td><span class="badge badge-orange">Layaway</span></td><td class="text-right">10:15 AM</td></tr>
+            <tr><td>INV-20260427-008</td><td>Walk-in Customer</td><td>1</td><td class="text-right">$420.00</td><td><span class="badge badge-blue">Paid</span></td><td class="text-right">Yesterday</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

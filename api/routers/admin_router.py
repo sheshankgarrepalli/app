@@ -108,6 +108,53 @@ def seed_rates(db: Session = Depends(get_db), current_user: models.User = Depend
     return {"status": "success"}
 
 
+# ── Organization Settings ───────────────────────────────────────────────────
+
+@router.get("/org-settings", response_model=schemas.OrgSettingsOut)
+def get_org_settings(db: Session = Depends(get_db),
+                     current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organization context")
+    cfg = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    if not cfg:
+        cfg = models.OrganizationSettings(org_id=org_id)
+        db.add(cfg)
+        db.commit()
+        db.refresh(cfg)
+    return cfg
+
+
+@router.put("/org-settings", response_model=schemas.OrgSettingsOut)
+def update_org_settings(req: schemas.OrgSettingsRequest,
+                        db: Session = Depends(get_db),
+                        current_user: models.User = Depends(auth.require_role(["admin"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organization context")
+    cfg = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    if not cfg:
+        cfg = models.OrganizationSettings(org_id=org_id)
+        db.add(cfg)
+
+    if req.default_tax_rate is not None:
+        cfg.default_tax_rate = req.default_tax_rate
+    if req.currency is not None:
+        cfg.currency = req.currency
+    if req.timezone is not None:
+        cfg.timezone = req.timezone
+    if req.invoice_terms is not None:
+        cfg.invoice_terms = req.invoice_terms
+
+    db.commit()
+    db.refresh(cfg)
+    return cfg
+
+
 # ── Pricing Config ───────────────────────────────────────────────────────────
 
 @router.get("/pricing", response_model=schemas.PricingConfigOut)

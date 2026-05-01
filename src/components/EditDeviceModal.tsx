@@ -13,7 +13,6 @@ interface EditDeviceModalProps {
 export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: EditDeviceModalProps) {
     const { token } = useAuth();
     const [formData, setFormData] = useState({
-        device_status: '',
         location_id: '',
         sub_location_bin: '',
         notes: ''
@@ -24,7 +23,6 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
     useEffect(() => {
         if (device) {
             setFormData({
-                device_status: device.device_status,
                 location_id: device.location_id,
                 sub_location_bin: device.sub_location_bin || '',
                 notes: ''
@@ -51,18 +49,17 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
         }
     };
 
-    const statuses = ['Sellable', 'In_QC', 'In_Repair', 'Sold', 'RMA_Pending', 'Scrapped'];
-    const locations = ['Warehouse_Alpha', 'Store_A', 'Store_B', 'Store_C', 'Transit_to_QC', 'Transit_to_Repair'];
+    const locations = ['Warehouse_Alpha', 'Store_A', 'Store_B', 'Store_C'];
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-md rounded-lg shadow-2xl border border-zinc-200 overflow-hidden">
-                <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
+            <div className="bg-white dark:bg-[#141416] w-full max-w-md rounded-lg shadow-2xl border border-zinc-200 dark:border-[#1f1f21] overflow-hidden">
+                <div className="p-6 border-b border-zinc-100 dark:border-[#1a1a1c] flex justify-between items-center">
                     <div>
-                        <h2 className="text-lg font-bold text-zinc-900 uppercase tracking-tight">Edit Asset</h2>
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">IMEI: {device.imei}</p>
+                        <h2 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7] uppercase tracking-tight">Edit Asset</h2>
+                        <p className="text-[10px] font-bold text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-widest mt-1">IMEI: {device.imei}</p>
                     </div>
-                    <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                    <button onClick={onClose} className="text-zinc-400 dark:text-[#a1a1aa] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -70,21 +67,7 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Asset Status</label>
-                            <select
-                                value={formData.device_status}
-                                onChange={e => setFormData({ ...formData, device_status: e.target.value })}
-                                className="input-stark w-full py-2.5 text-xs font-bold uppercase tracking-widest"
-                                required
-                            >
-                                {statuses.map(s => (
-                                    <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Current Node (Location)</label>
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] ml-1">Current Node (Location)</label>
                             <select
                                 value={formData.location_id}
                                 onChange={e => setFormData({ ...formData, location_id: e.target.value })}
@@ -98,7 +81,7 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Sub-Location / Bin</label>
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] ml-1">Sub-Location / Bin</label>
                             <input
                                 type="text"
                                 value={formData.sub_location_bin}
@@ -109,7 +92,7 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Audit Notes</label>
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] ml-1">Audit Notes</label>
                             <textarea
                                 value={formData.notes}
                                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
@@ -120,7 +103,7 @@ export default function EditDeviceModal({ isOpen, onClose, device, onSuccess }: 
                     </div>
 
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-100 rounded-md flex items-center gap-2 text-rose-600 text-[10px] font-bold uppercase tracking-widest">
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-[10px] font-bold uppercase tracking-widest">
                             <AlertCircle size={14} /> {error}
                         </div>
                     )}

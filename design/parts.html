@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP — Parts Inventory</title>
+<style>
+:root {
+  --navy: #1a1a2e; --accent: #e94560; --success: #0f3460; --bg: #f5f5f5;
+  --card: #ffffff; --text: #1f2937; --text-secondary: #6b7280; --border: #e5e7eb;
+  --sidebar-width: 240px; --topbar-height: 56px;
+  --green: #10b981; --amber: #f59e0b; --blue: #3b82f6; --red: #ef4444; --purple: #8b5cf6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+.sidebar { width: var(--sidebar-width); background: var(--navy); color: #fff; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+.sidebar-logo { padding: 16px 20px; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo span { color: var(--accent); }
+.sidebar-nav { flex: 1; padding: 12px 0; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: rgba(255,255,255,0.65); font-size: 14px; cursor: pointer; transition: all 0.15s; text-decoration: none; border-left: 3px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
+.nav-icon { width: 20px; text-align: center; font-size: 16px; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
+.sidebar-footer { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: rgba(255,255,255,0.4); }
+
+.main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; }
+.topbar { height: var(--topbar-height); background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+.breadcrumbs { font-size: 13px; color: var(--text-secondary); }
+.breadcrumbs span { color: var(--text); font-weight: 500; }
+.topbar-spacer { flex: 1; }
+.store-select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--bg); cursor: pointer; font-family: inherit; }
+.topbar-btn { width: 36px; height: 36px; border: none; background: none; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); }
+.topbar-btn:hover { background: var(--bg); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+.content { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 22px; font-weight: 700; }
+
+/* TABS */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: -1px; }
+.tab { padding: 10px 20px; font-size: 14px; cursor: pointer; border: none; background: none; font-family: inherit; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.tab-badge { margin-left: 4px; background: var(--accent); color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 8px; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* CARDS */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.card-body { padding: 20px; }
+
+/* TABLE */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 16px; font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: #f9fafb; }
+tr:last-child td { border-bottom: none; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-amber { background: #fef3c7; color: #92400e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #d63d52; }
+.btn-outline { background: var(--card); border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-ghost { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 4px; }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn-danger { background: none; border: 1px solid var(--red); color: var(--red); }
+.btn-danger:hover { background: #fee2e2; }
+
+/* SEARCH */
+.search-bar { display: flex; gap: 8px; align-items: center; }
+.search-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; width: 280px; }
+.toggle-row { display: flex; gap: 12px; align-items: center; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+
+/* MODALS */
+.modal-checkbox { display: none; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; align-items: center; justify-content: center; }
+.modal-checkbox:checked + .modal-overlay { display: flex; }
+.modal { background: var(--card); border-radius: var(--radius); width: 520px; max-width: 90vw; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.modal-close { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
+.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.form-label { font-size: 13px; font-weight: 500; }
+.form-input, .form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* DETAIL PANEL */
+.detail-panel { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); margin-top: 16px; }
+.detail-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px; border-bottom: 1px solid var(--border); }
+.detail-actions { padding: 16px 20px; display: flex; gap: 8px; }
+
+.stock-ok { color: var(--green); }
+.stock-low { color: var(--amber); font-weight: 600; }
+.stock-out { color: var(--red); font-weight: 600; }
+
+@media (max-width: 1200px) { .detail-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo { font-size: 0; padding: 16px 12px; }
+  .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+  .main { margin-left: 60px; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">AMAFAH<span>ERP</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard.html"><span class="nav-icon">&#9632;</span> Dashboard</a>
+    <a class="nav-item" href="inventory.html"><span class="nav-icon">&#9637;</span> Inventory</a>
+    <a class="nav-item" href="pos.html"><span class="nav-icon">&#9644;</span> Checkout</a>
+    <a class="nav-item" href="repair.html"><span class="nav-icon">&#9851;</span> Repairs <span class="nav-badge">7</span></a>
+    <a class="nav-item active" href="parts.html"><span class="nav-icon">&#9881;</span> Parts <span class="nav-badge">3</span></a>
+    <a class="nav-item" href="transfers.html"><span class="nav-icon">&#8660;</span> Transfers</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9783;</span> Reports</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9881;</span> Settings</a>
+  </nav>
+  <div class="sidebar-footer">v1.0.0</div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumbs">Home <span>&rsaquo; Parts</span></div>
+    <div class="topbar-spacer"></div>
+    <select class="store-select"><option>All Locations</option></select>
+    <button class="topbar-btn">&#128276;</button>
+    <div class="avatar">S</div>
+  </header>
+
+  <main class="content">
+    <div class="page-header">
+      <h1 class="page-title">Parts Inventory</h1>
+      <div style="display:flex;gap:8px">
+        <label class="btn btn-primary" for="modal-receive">&#43; Receive Parts</label>
+        <label class="btn btn-outline" for="modal-new-part">&#43; New Part</label>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('inventory')">Inventory</button>
+      <button class="tab" onclick="switchTab('intake')">Intake History</button>
+      <button class="tab" onclick="switchTab('suppliers')">Suppliers</button>
+      <button class="tab" onclick="switchTab('labor')">Labor Rates</button>
+    </div>
+
+    <!-- TAB: INVENTORY -->
+    <div id="tab-inventory" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <div class="search-bar">
+            <input class="search-input" placeholder="Search by SKU or part name..." value="">
+            <label class="toggle"><input type="checkbox" id="lowstock-toggle" onchange="filterLowStock()"> Low stock only <span class="tab-badge">3</span></label>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>SKU</th><th>Part Name</th><th class="text-right">Stock Qty</th><th class="text-right">MAC</th><th class="text-right">Threshold</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr style="cursor:pointer" onclick="showDetail('A2848-SCR-OEM')">
+                <td style="font-family:monospace;font-size:12px">A2848-SCR-OEM</td>
+                <td>iPhone 15 Pro Max Screen (OEM)</td>
+                <td class="text-right">8</td><td class="text-right">$145.00</td><td class="text-right">5</td>
+                <td><span class="badge badge-green">In Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="showDetail('A2651-SCR-OEM')">
+                <td style="font-family:monospace;font-size:12px">A2651-SCR-OEM</td>
+                <td>iPhone 14 Pro Screen (OEM)</td>
+                <td class="text-right">12</td><td class="text-right">$125.00</td><td class="text-right">5</td>
+                <td><span class="badge badge-green">In Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+              <tr style="cursor:pointer;background:#fffbeb" onclick="showDetail('A2633-BAT-OEM')">
+                <td style="font-family:monospace;font-size:12px">A2633-BAT-OEM</td>
+                <td>iPhone 13 Battery (OEM)</td>
+                <td class="text-right stock-low">2</td><td class="text-right">$22.50</td><td class="text-right">5</td>
+                <td><span class="badge badge-amber">Low Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="showDetail('A2482-BAT-OEM')">
+                <td style="font-family:monospace;font-size:12px">A2482-BAT-OEM</td>
+                <td>iPhone 12 Pro Battery (OEM)</td>
+                <td class="text-right stock-low">3</td><td class="text-right">$18.50</td><td class="text-right">5</td>
+                <td><span class="badge badge-amber">Low Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="showDetail('A2341-CAM-OEM')">
+                <td style="font-family:monospace;font-size:12px">A2341-CAM-OEM</td>
+                <td>iPhone 11 Camera (OEM)</td>
+                <td class="text-right stock-out">0</td><td class="text-right">$55.00</td><td class="text-right">5</td>
+                <td><span class="badge badge-red">Out of Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="showDetail('A2848-BAT-PRM')">
+                <td style="font-family:monospace;font-size:12px">A2848-BAT-PRM</td>
+                <td>iPhone 15 Pro Max Battery (Premium)</td>
+                <td class="text-right">15</td><td class="text-right">$18.00</td><td class="text-right">5</td>
+                <td><span class="badge badge-green">In Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+              <tr style="cursor:pointer" onclick="showDetail('A2651-CAM-AFT')">
+                <td style="font-family:monospace;font-size:12px">A2651-CAM-AFT</td>
+                <td>iPhone 14 Pro Camera (Aftermarket)</td>
+                <td class="text-right">6</td><td class="text-right">$42.00</td><td class="text-right">5</td>
+                <td><span class="badge badge-green">In Stock</span></td>
+                <td><button class="btn btn-outline btn-sm">View</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DETAIL PANEL (hidden by default, toggled via JS) -->
+      <div id="sku-detail" class="detail-panel" style="display:none">
+        <div class="detail-header">
+          <div><strong id="detail-sku">A2848-SCR-OEM</strong> — <span id="detail-name">iPhone 15 Pro Max Screen (OEM)</span></div>
+          <button class="btn-ghost" onclick="hideDetail()" style="font-size:18px">&times;</button>
+        </div>
+        <div class="detail-grid">
+          <div><div style="font-size:12px;color:var(--text-secondary)">Current Stock</div><div style="font-size:20px;font-weight:700" id="detail-qty">8</div></div>
+          <div><div style="font-size:12px;color:var(--text-secondary)">Moving Average Cost</div><div style="font-size:20px;font-weight:700" id="detail-mac">$145.00</div></div>
+          <div><div style="font-size:12px;color:var(--text-secondary)">Total Valuation</div><div style="font-size:20px;font-weight:700" id="detail-valuation">$1,160.00</div></div>
+        </div>
+        <div class="detail-actions">
+          <label class="btn btn-primary btn-sm" for="modal-intake">&#43; Intake Stock</label>
+          <label class="btn btn-outline btn-sm" for="modal-return">&#8617; Return to Supplier</label>
+          <label class="btn btn-outline btn-sm" for="modal-adjust">&#9874; Adjust Stock</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: INTAKE HISTORY -->
+    <div id="tab-intake" class="tab-content">
+      <div class="card"><div class="card-body" style="padding:0">
+        <table><thead><tr><th>Date</th><th>SKU</th><th class="text-right">Qty</th><th class="text-right">Total Price</th><th>Supplier</th><th>Priced</th></tr></thead>
+        <tbody>
+          <tr><td>2026-04-28 14:22</td><td style="font-family:monospace;font-size:12px">A2848-SCR-OEM</td><td class="text-right">+5</td><td class="text-right">$725.00</td><td>MobileSentrix</td><td><span class="badge badge-green">Yes</span></td></tr>
+          <tr><td>2026-04-27 10:15</td><td style="font-family:monospace;font-size:12px">A2651-SCR-OEM</td><td class="text-right">+3</td><td class="text-right">$375.00</td><td>Phonelcdparts</td><td><span class="badge badge-green">Yes</span></td></tr>
+          <tr><td>2026-04-26 16:30</td><td style="font-family:monospace;font-size:12px">A2633-BAT-OEM</td><td class="text-right">-2</td><td class="text-right">-$45.00</td><td>Return</td><td><span class="badge badge-blue">N/A</span></td></tr>
+          <tr><td>2026-04-25 09:00</td><td style="font-family:monospace;font-size:12px">A2848-SCR-OEM</td><td class="text-right">+10</td><td class="text-right">$1,450.00</td><td>GadgetFix</td><td><span class="badge badge-amber">No</span></td></tr>
+        </tbody></table>
+      </div></div>
+    </div>
+
+    <!-- TAB: SUPPLIERS -->
+    <div id="tab-suppliers" class="tab-content">
+      <div class="card"><div class="card-header"><span>Suppliers</span><label class="btn btn-primary btn-sm" for="modal-supplier">&#43; Add Supplier</label></div>
+      <div class="card-body" style="padding:0">
+        <table><thead><tr><th>Name</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>MobileSentrix</td><td>2026-04-10</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Phonelcdparts</td><td>2026-04-10</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>GadgetFix</td><td>2026-04-12</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+        </tbody></table>
+      </div></div>
+    </div>
+
+    <!-- TAB: LABOR RATES -->
+    <div id="tab-labor" class="tab-content">
+      <div class="card"><div class="card-header"><span>Labor Rate Configuration</span><label class="btn btn-primary btn-sm" for="modal-labor">&#43; Add Rate</label></div>
+      <div class="card-body" style="padding:0">
+        <table><thead><tr><th>Action</th><th class="text-right">Fee</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>QC_Standard</td><td class="text-right">$5.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Repair_Screen</td><td class="text-right">$25.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Repair_Battery</td><td class="text-right">$15.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Repair_Charge_Port</td><td class="text-right">$20.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Repair_Camera</td><td class="text-right">$30.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Repair_Back_Glass</td><td class="text-right">$40.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+          <tr><td>Repair_Speaker</td><td class="text-right">$15.00</td><td><button class="btn btn-outline btn-sm">Edit</button></td></tr>
+        </tbody></table>
+      </div></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: Receive Parts -->
+<input type="checkbox" class="modal-checkbox" id="modal-receive">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Receive Parts<label class="modal-close" for="modal-receive">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">Model Number</label><select class="form-select"><option>A2848 — iPhone 15 Pro Max</option><option>A2651 — iPhone 14 Pro</option><option>A2633 — iPhone 13</option></select></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Category</label><select class="form-select"><option>Screen</option><option>Battery</option><option>Charge Port</option><option>Camera</option><option>Back Glass</option><option>Speaker</option></select></div>
+      <div class="form-group"><label class="form-label">Quality</label><select class="form-select"><option>OEM</option><option>Aftermarket</option><option>Premium</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Quantity</label><input class="form-input" type="number" value="1" min="1"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><select class="form-select"><option>MobileSentrix</option><option>Phonelcdparts</option><option>GadgetFix</option></select></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-receive">Cancel</label>
+    <button class="btn btn-primary">Receive</button>
+  </div>
+</div></div>
+
+<!-- MODAL: New Part -->
+<input type="checkbox" class="modal-checkbox" id="modal-new-part">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Create New Part SKU<label class="modal-close" for="modal-new-part">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">Model Number</label><input class="form-input" placeholder="e.g. A2848"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Category</label><select class="form-select"><option>Screen</option><option>Battery</option><option>Charge Port</option><option>Camera</option><option>Back Glass</option><option>Speaker</option></select></div>
+      <div class="form-group"><label class="form-label">Quality</label><select class="form-select"><option>OEM</option><option>Aftermarket</option><option>Premium</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Initial Qty</label><input class="form-input" type="number" value="1" min="1"></div>
+      <div class="form-group"><label class="form-label">Total Price</label><input class="form-input" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Shipping Fees</label><input class="form-input" type="number" step="0.01" value="0.00"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><select class="form-select"><option>MobileSentrix</option><option>Phonelcdparts</option></select></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-new-part">Cancel</label>
+    <button class="btn btn-primary">Create Part</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Intake Stock -->
+<input type="checkbox" class="modal-checkbox" id="modal-intake">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Intake Stock<label class="modal-close" for="modal-intake">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Quantity</label><input class="form-input" type="number" value="1" min="1"></div>
+      <div class="form-group"><label class="form-label">Total Price</label><input class="form-input" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Shipping Fees</label><input class="form-input" type="number" step="0.01" value="0.00"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><select class="form-select"><option>MobileSentrix</option><option>Phonelcdparts</option></select></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-intake">Cancel</label>
+    <button class="btn btn-primary">Intake</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Return to Supplier -->
+<input type="checkbox" class="modal-checkbox" id="modal-return">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Return to Supplier<label class="modal-close" for="modal-return">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">Quantity to Return</label><input class="form-input" type="number" value="1" min="1" max="8"></div>
+    <div class="form-group"><label class="form-label">Reason</label><select class="form-select"><option>Defective</option><option>Wrong Part</option><option>Overstock</option></select></div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-return">Cancel</label>
+    <button class="btn btn-danger">Return</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Adjust Stock -->
+<input type="checkbox" class="modal-checkbox" id="modal-adjust">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Adjust Stock<label class="modal-close" for="modal-adjust">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">New Stock Quantity</label><input class="form-input" type="number" value="8" min="0"></div>
+    <div class="form-group"><label class="form-label">Reason</label><input class="form-input" placeholder="e.g. Physical count reconciliation"></div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-adjust">Cancel</label>
+    <button class="btn btn-primary">Adjust</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Add Supplier -->
+<input type="checkbox" class="modal-checkbox" id="modal-supplier">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Add Supplier<label class="modal-close" for="modal-supplier">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">Supplier Name</label><input class="form-input" placeholder="e.g. Injured Gadgets"></div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-supplier">Cancel</label>
+    <button class="btn btn-primary">Add</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Add Labor Rate -->
+<input type="checkbox" class="modal-checkbox" id="modal-labor">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Add Labor Rate<label class="modal-close" for="modal-labor">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">Action Name</label><input class="form-input" placeholder="e.g. Repair_Microphone"></div>
+    <div class="form-group"><label class="form-label">Fee Amount</label><input class="form-input" type="number" step="0.01" placeholder="0.00"></div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-labor">Cancel</label>
+    <button class="btn btn-primary">Add</button>
+  </div>
+</div></div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+function showDetail(sku) {
+  document.getElementById('sku-detail').style.display = 'block';
+  document.getElementById('detail-sku').textContent = sku;
+}
+function hideDetail() { document.getElementById('sku-detail').style.display = 'none'; }
+function filterLowStock() {
+  const checked = document.getElementById('lowstock-toggle').checked;
+  document.querySelectorAll('#tab-inventory tbody tr').forEach(tr => {
+    if (checked && !tr.querySelector('.badge-amber') && !tr.querySelector('.badge-red')) {
+      tr.style.display = 'none';
+    } else { tr.style.display = ''; }
+  });
+}
+</script>
+</body>
+</html>

@@ -2,48 +2,50 @@ import { useState, useEffect } from 'react';
 import UserManagement from './UserManagement';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { Users, DollarSign, Edit2 } from 'lucide-react';
+import { Users, DollarSign, Edit2, FileText, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function SystemAdmin() {
     const [activeTab, setActiveTab] = useState('users');
 
     const tabs = [
         { id: 'users', label: 'User Management', icon: Users },
-        { id: 'labor', label: 'Labor & Fees Setup', icon: DollarSign }
+        { id: 'labor', label: 'Labor & Fees Setup', icon: DollarSign },
+        { id: 'billing', label: 'Billing & Invoicing', icon: FileText }
     ];
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="space-y-0">
+            <div className="page-header px-6 pt-6 pb-4">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">System Administration</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Global configurations & access control</p>
+                    <h1 className="page-title">System Administration</h1>
+                    <p className="text-xs text-[#6b7280] dark:text-[#71717a] mt-1">Global configurations & access control</p>
                 </div>
-            </header>
+            </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-8 bg-white border-b border-zinc-200">
-                    <div className="flex gap-12">
+            <div className="flex flex-col">
+                <div className="px-6 bg-white dark:bg-[#141416] border-b border-[#e5e7eb] dark:border-[#1f1f21]">
+                    <div className="flex gap-8">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`pt-6 pb-4 text-xs font-semibold uppercase tracking-[0.1em] transition-all relative flex items-center gap-2 ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'
+                                className={`pt-4 pb-3 text-xs font-semibold uppercase tracking-wider transition-all relative flex items-center gap-2 ${activeTab === tab.id ? 'text-[#1f2937] dark:text-[#e4e4e7]' : 'text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7]'
                                     }`}
                             >
                                 <tab.icon size={14} />
                                 {tab.label}
                                 {activeTab === tab.id && (
-                                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-zinc-900 animate-in fade-in slide-in-from-bottom-1" />
+                                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-accent" />
                                 )}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-auto">
+                <div>
                     {activeTab === 'users' && <UserManagement />}
                     {activeTab === 'labor' && <LaborRatesSetup />}
+                    {activeTab === 'billing' && <BillingSettings />}
                 </div>
             </div>
         </div>
@@ -89,46 +91,46 @@ function LaborRatesSetup() {
     };
 
     return (
-        <div className="p-8 max-w-5xl">
-            <header className="mb-8">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 mb-1">Dynamic Labor Fees</h2>
-                <p className="text-sm text-zinc-400">Configure technician and QC rates per action</p>
-            </header>
+        <div className="p-6 max-w-5xl space-y-6">
+            <div>
+                <h2 className="text-sm font-semibold text-[#1f2937] dark:text-[#e4e4e7] mb-1">Dynamic Labor Fees</h2>
+                <p className="text-xs text-[#6b7280] dark:text-[#71717a]">Configure technician and QC rates per action</p>
+            </div>
 
-            <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-zinc-50/50 border-b border-zinc-200">
-                        <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">
-                            <th className="px-8 py-4">Action Specification</th>
-                            <th className="px-8 py-4 text-right w-48">Fee Amount</th>
-                            <th className="px-8 py-4 text-right w-32">Actions</th>
+            <div className="card overflow-hidden">
+                <table className="table-standard">
+                    <thead>
+                        <tr>
+                            <th>Action Specification</th>
+                            <th className="text-right">Fee Amount</th>
+                            <th className="text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="text-sm">
+                    <tbody>
                         {rates.map(rate => (
-                            <tr key={rate.id} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group">
-                                <td className="px-8 py-5 uppercase tracking-wider text-zinc-900 font-semibold">{rate.action_name.replace('_', ' ')}</td>
-                                <td className="px-8 py-5 text-right">
+                            <tr key={rate.id} className="group">
+                                <td className="text-[#1f2937] dark:text-[#e4e4e7] font-semibold">{rate.action_name.replace('_', ' ')}</td>
+                                <td className="text-right">
                                     {editingId === rate.id ? (
                                         <div className="flex justify-end items-center gap-2">
-                                            <span className="text-zinc-400 text-sm">$</span>
+                                            <span className="text-[#9ca3af] dark:text-[#52525b] text-sm">$</span>
                                             <input
                                                 type="number"
                                                 value={editValue}
                                                 onChange={e => setEditValue(e.target.value)}
-                                                className="w-24 bg-transparent border-b border-zinc-900 outline-none text-right font-bold text-zinc-900 text-sm py-0.5"
+                                                className="w-24 bg-transparent border-b border-accent outline-none text-right font-bold text-[#1f2937] dark:text-[#e4e4e7] text-sm py-0.5"
                                                 autoFocus
                                             />
                                         </div>
                                     ) : (
-                                        <span className="text-zinc-900 font-bold text-sm">${rate.fee_amount.toFixed(2)}</span>
+                                        <span className="text-[#1f2937] dark:text-[#e4e4e7] font-bold text-sm">${rate.fee_amount.toFixed(2)}</span>
                                     )}
                                 </td>
-                                <td className="px-8 py-5 text-right">
+                                <td className="text-right">
                                     {editingId === rate.id ? (
-                                        <button onClick={() => handleUpdate(rate.action_name)} className="text-emerald-600 hover:text-emerald-700 transition-colors font-bold uppercase tracking-widest text-[10px]">Save</button>
+                                        <button onClick={() => handleUpdate(rate.action_name)} className="text-emerald-600 hover:text-emerald-700 transition-colors font-bold text-xs">Save</button>
                                     ) : (
-                                        <button onClick={() => { setEditingId(rate.id); setEditValue(rate.fee_amount.toString()); }} className="text-zinc-300 hover:text-zinc-900 transition-colors opacity-0 group-hover:opacity-100"><Edit2 size={16} /></button>
+                                        <button onClick={() => { setEditingId(rate.id); setEditValue(rate.fee_amount.toString()); }} className="text-[#9ca3af] dark:text-[#52525b] hover:text-[#1f2937] dark:text-[#e4e4e7] transition-colors opacity-0 group-hover:opacity-100"><Edit2 size={16} /></button>
                                     )}
                                 </td>
                             </tr>
@@ -139,10 +141,124 @@ function LaborRatesSetup() {
 
             <button
                 onClick={() => axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/admin/rates/seed', {}, { headers: { Authorization: `Bearer ${token}` } }).then(fetchRates)}
-                className="mt-8 text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors"
+                className="text-xs font-semibold text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7] transition-colors"
             >
                 Initialize Default Rates
             </button>
+        </div>
+    );
+}
+
+function BillingSettings() {
+    const { token } = useAuth();
+    const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000');
+    const [invoiceTerms, setInvoiceTerms] = useState('');
+    const [originalTerms, setOriginalTerms] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [saved, setSaved] = useState(false);
+    const [defaultTax, setDefaultTax] = useState(8.5);
+
+    useEffect(() => {
+        fetchSettings();
+    }, []);
+
+    const fetchSettings = async () => {
+        setIsLoading(true);
+        try {
+            const res = await axios.get(`${API}/api/admin/org-settings`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setInvoiceTerms(res.data.invoice_terms || '');
+            setOriginalTerms(res.data.invoice_terms || '');
+            setDefaultTax(res.data.default_tax_rate || 8.5);
+        } catch (_) {
+            setError('Failed to load settings');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        setError('');
+        setSaved(false);
+        try {
+            await axios.put(`${API}/api/admin/org-settings`, {
+                invoice_terms: invoiceTerms,
+                default_tax_rate: defaultTax
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setOriginalTerms(invoiceTerms);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Save failed');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="p-6 max-w-4xl space-y-8">
+            <div>
+                <h2 className="text-sm font-bold text-[#1f2937] dark:text-[#e4e4e7] mb-1">Billing & Invoicing Settings</h2>
+                <p className="text-xs text-[#6b7280] dark:text-[#71717a]">Configure default tax rate and invoice terms that appear on all receipts</p>
+            </div>
+
+            <div className="space-y-8">
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-[#6b7280] dark:text-[#71717a]">Default Tax Rate (%)</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        value={defaultTax}
+                        onChange={e => setDefaultTax(parseFloat(e.target.value) || 0)}
+                        className="input-stark w-32 py-3 text-sm font-bold"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-[#6b7280] dark:text-[#71717a]">Invoice Terms & Conditions</label>
+                    <p className="text-[10px] text-[#9ca3af] dark:text-[#52525b]">These terms appear at the bottom of all customer receipts and invoices. Use clear, legally appropriate language.</p>
+                    {isLoading ? (
+                        <div className="py-8 text-center text-xs text-[#9ca3af] dark:text-[#52525b] animate-pulse">Loading settings...</div>
+                    ) : (
+                        <textarea
+                            value={invoiceTerms}
+                            onChange={e => setInvoiceTerms(e.target.value)}
+                            rows={8}
+                            className="input-stark w-full py-4 px-4 text-sm leading-relaxed resize-y font-medium"
+                            placeholder="All sales are final. 14-day warranty on defects. Layaway deposits are non-refundable."
+                        />
+                    )}
+                </div>
+
+                {error && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-xs font-bold uppercase tracking-wider">
+                        <AlertCircle size={14} /> {error}
+                    </div>
+                )}
+                {saved && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+                        <CheckCircle2 size={14} /> Settings saved
+                    </div>
+                )}
+
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving || isLoading || invoiceTerms === originalTerms}
+                    className="btn-primary py-3 px-8 text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    {isSaving ? 'Saving...' : (
+                        <>
+                            <Save size={14} /> Save Changes
+                        </>
+                    )}
+                </button>
+            </div>
         </div>
     );
 }

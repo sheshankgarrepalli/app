@@ -15,36 +15,36 @@ export default function FinanceHub() {
     ];
 
     return (
-        <div className="min-h-screen bg-zinc-50">
-            <div className="bg-white border-b border-zinc-200 px-8 pt-8">
-                <div className="flex gap-12">
+        <div className="space-y-0">
+            <div className="bg-white dark:bg-[#141416] border-b border-[#e5e7eb] dark:border-[#1f1f21] px-6 pt-6">
+                <div className="flex gap-8">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`pb-4 text-xs font-semibold uppercase tracking-[0.1em] transition-all relative ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'
-                                }`}
+                            className={`pb-3 text-xs font-semibold uppercase tracking-wider transition-all relative ${activeTab === tab.id ? 'text-[#1f2937] dark:text-[#e4e4e7]' : 'text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7]'
+                            }`}
                         >
                             {tab.label}
                             {activeTab === tab.id && (
-                                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-zinc-900 animate-in fade-in slide-in-from-bottom-1" />
+                                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-accent" />
                             )}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="p-0">
+            <div>
                 {activeTab === 'invoices' && <InvoicesDashboard />}
                 {activeTab === 'deep_search' && <InvoiceManagement />}
                 {activeTab === 'credit' && <CRMDirectory />}
                 {activeTab === 'profit' && (
-                    <div className="p-32 text-center text-zinc-300 uppercase tracking-[0.4em] font-bold">
+                    <div className="p-32 text-center text-[#9ca3af] dark:text-[#52525b] uppercase tracking-widest font-bold">
                         Profitability & COGS Engine Under Construction
                     </div>
                 )}
                 {activeTab === 'zreport' && (
-                    <div className="p-32 text-center text-zinc-300 uppercase tracking-[0.4em] font-bold">
+                    <div className="p-32 text-center text-[#9ca3af] dark:text-[#52525b] uppercase tracking-widest font-bold">
                         Daily Z-Report Module Under Construction
                     </div>
                 )}

@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import CentralInventory from './CentralInventory';
-import PartsInventory from './PartsInventory';
+import InventoryManager from './InventoryManager';
 import AuctionImporter from './AuctionImporter';
 import BulkTransfer from './BulkTransfer';
 import ReceiveInventory from './ReceiveInventory';
@@ -23,34 +23,34 @@ export default function InventoryHub() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-50">
-            <div className="bg-white border-b border-zinc-200 px-8 pt-8">
-                <div className="flex gap-12">
+        <div className="space-y-0">
+            <div className="bg-white dark:bg-[#0c0c0e] border-b border-[#e5e7eb] dark:border-[#1a1a1c] px-6 pt-6">
+                <div className="flex gap-8">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`pb-4 text-xs font-semibold uppercase tracking-[0.1em] transition-all relative ${activeTab === tab.id ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'
-                                }`}
+                            className={`pb-3 text-xs font-semibold uppercase tracking-wider transition-all relative ${
+                                activeTab === tab.id ? 'text-[#1f2937] dark:text-[#e4e4e7]' : 'text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:hover:text-[#e4e4e7]'
+                            }`}
                         >
                             {tab.label}
                             {activeTab === tab.id && (
-                                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-zinc-900 animate-in fade-in slide-in-from-bottom-1" />
+                                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-accent" />
                             )}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="p-0">
+            <div>
                 {activeTab === 'devices' && <CentralInventory />}
-                {activeTab === 'parts' && <PartsInventory />}
+                {activeTab === 'parts' && <InventoryManager />}
                 {activeTab === 'tracker' && <TrackDevice />}
                 {activeTab === 'import' && <AuctionImporter />}
                 {activeTab === 'routing' && (
-                    <div className="grid grid-cols-1 divide-y divide-zinc-200">
+                    <div>
                         <BulkTransfer />
-                        <div className="border-t-8 border-zinc-50" />
                         <ReceiveInventory />
                     </div>
                 )}

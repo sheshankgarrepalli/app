@@ -1,10 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-import models, schemas, auth
+import models, schemas, auth, state_machine
 import wms_core
 from database import get_db
 from datetime import datetime
+
+def _ensure_repair_ticket(db: Session, imei: str, org_id: str) -> models.RepairTicket | None:
+    """Create a RepairTicket if device is entering In_Repair and no active ticket exists."""
+    existing = db.query(models.RepairTicket).filter(
+        models.RepairTicket.imei == imei,
+        models.RepairTicket.status.in_([
+            models.RepairStatus.Pending_Triage,
+            models.RepairStatus.In_Repair,
+            models.RepairStatus.Awaiting_Parts
+        ]),
+        models.RepairTicket.org_id == org_id
+    ).first()
+    if existing:
+        return existing
+    ticket = models.RepairTicket(
+        imei=imei, org_id=org_id,
+        symptoms="", notes="Auto-created from inventory status change",
+        status=models.RepairStatus.Pending_Triage
+    )
+    db.add(ticket)
+    db.flush()
+    return ticket
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -392,4 +414,104 @@ def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: m
     ).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
+    return device
+
+
+@router.get("/{imei}/transitions")
+def get_allowed_transitions(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
+    device = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei == imei,
+        models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
+    ).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return state_machine.allowed_transitions(device)
+
+
+@router.post("/{imei}/transition", response_model=schemas.DeviceTransitionOut)
+def transition_device(imei: str, req: schemas.DeviceTransitionRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    device = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei == imei,
+        models.DeviceInventory.org_id == org_id
+    ).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    target = state_machine.parse_target(req.target)
+    if target is None:
+        raise HTTPException(status_code=400, detail=f"Invalid target status: '{req.target}'")
+
+    result = state_machine.execute_transition(
+        db, device, target,
+        employee_id=current_user.email,
+        location_id=req.location_id,
+        sub_location_bin=req.sub_location_bin,
+        notes=req.notes,
+        technician_id=req.technician_id,
+        transfer_id=req.transfer_id,
+        defects=req.defects,
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.errors[0] if result.errors else "Transition failed")
+
+    return result
+
+
+@router.put("/{imei}", response_model=schemas.DeviceInventoryOut)
+def update_device_by_imei(imei: str, req: schemas.DeviceUpdateRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    device = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.imei == imei,
+        models.DeviceInventory.org_id == org_id
+    ).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    changes = []
+
+    # Location/bin updates (no status change needed)
+    if req.location_id is not None:
+        old_loc = device.location_id
+        device.location_id = req.location_id
+        changes.append(f"location: {old_loc} -> {req.location_id}")
+
+    if req.sub_location_bin is not None:
+        old_bin = device.sub_location_bin
+        device.sub_location_bin = req.sub_location_bin.strip() if req.sub_location_bin else None
+        changes.append(f"bin: {old_bin} -> {req.sub_location_bin}")
+
+    # Status changes MUST go through the state machine
+    if req.device_status is not None:
+        target = state_machine.parse_target(req.device_status)
+        if target is None:
+            raise HTTPException(status_code=400, detail=f"Invalid device status '{req.device_status}'")
+
+        result = state_machine.execute_transition(
+            db, device, target,
+            employee_id=current_user.email,
+            location_id=req.location_id or device.location_id,
+            sub_location_bin=req.sub_location_bin or device.sub_location_bin,
+            notes=req.notes,
+        )
+
+        if not result.success:
+            raise HTTPException(status_code=400, detail=result.errors[0] if result.errors else "Transition failed")
+
+        changes.append(f"status: -> {target.value} (via state machine)")
+        if result.ticket_id:
+            changes.append(f"RepairTicket: #{result.ticket_id}")
+
+    if req.notes or changes:
+        wms_core._log_history(
+            db, imei, "Manual_Update", current_user.email,
+            device.device_status.value if device.device_status else "Unknown",
+            None,
+            f"Manual edit by {current_user.email}. Changes: {'; '.join(changes)}. Notes: {req.notes or 'N/A'}",
+            org_id=org_id
+        )
+        db.commit()
+        db.refresh(device)
+
     return device

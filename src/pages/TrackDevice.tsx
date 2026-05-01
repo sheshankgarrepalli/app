@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Search, Info, History, DollarSign, User, Clock, MapPin, Activity, ArrowRight } from 'lucide-react';
+import DeviceStatusTransition from '../components/DeviceStatusTransition';
 
 export default function TrackDevice() {
   const { token, user } = useAuth();
@@ -44,21 +45,21 @@ export default function TrackDevice() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-50">
-      <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+    <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+      <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
         <div>
-          <h1 className="text-lg font-bold text-zinc-900">Asset Intelligence</h1>
-          <p className="text-xs text-zinc-500 mt-1">Lifecycle tracking & cost reconciliation</p>
+          <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Asset Intelligence</h1>
+          <p className="text-xs text-zinc-500 dark:text-[#71717a] mt-1">Lifecycle tracking & cost reconciliation</p>
         </div>
       </header>
 
       <div className="flex-1 grid grid-cols-12 overflow-hidden">
         {/* LEFT COLUMN: SEARCH & OVERVIEW */}
-        <div className="col-span-4 bg-white border-r border-zinc-200 p-6 space-y-12 overflow-y-auto">
+        <div className="col-span-4 bg-white dark:bg-[#141416] border-r border-zinc-200 dark:border-[#1f1f21] p-6 space-y-12 overflow-y-auto">
           <section className="space-y-8">
             <div className="space-y-6">
               <form onSubmit={handleImeiSearch} className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 ml-1">IMEI Identifier</label>
+                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] ml-1">IMEI Identifier</label>
                 <div className="relative group">
                   <input
                     type="text"
@@ -67,7 +68,7 @@ export default function TrackDevice() {
                     onChange={e => setImei(e.target.value)}
                     className="input-stark w-full py-4 text-sm font-bold tracking-widest uppercase"
                   />
-                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-900 transition-colors">
+                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-[#a1a1aa] group-focus-within:text-zinc-900 dark:text-[#e4e4e7] transition-colors">
                     <Search size={18} />
                   </button>
                 </div>
@@ -75,12 +76,12 @@ export default function TrackDevice() {
 
               <div className="flex items-center gap-4">
                 <div className="h-px flex-1 bg-zinc-100"></div>
-                <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">OR</span>
+                <span className="text-[10px] font-bold text-zinc-300 dark:text-[#52525b] uppercase tracking-widest">OR</span>
                 <div className="h-px flex-1 bg-zinc-100"></div>
               </div>
 
               <form onSubmit={handleSerialSearch} className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 ml-1">Serial Number</label>
+                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] ml-1">Serial Number</label>
                 <div className="relative group">
                   <input
                     type="text"
@@ -89,7 +90,7 @@ export default function TrackDevice() {
                     onChange={e => setSerial(e.target.value)}
                     className="input-stark w-full py-4 text-sm font-bold tracking-widest uppercase"
                   />
-                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-900 transition-colors">
+                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-[#a1a1aa] group-focus-within:text-zinc-900 dark:text-[#e4e4e7] transition-colors">
                     <Search size={18} />
                   </button>
                 </div>
@@ -100,55 +101,53 @@ export default function TrackDevice() {
 
           {result && (
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-3 border-b border-zinc-100 pb-4">
-                <Info size={16} className="text-zinc-400" />
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Asset Specification</h2>
+              <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-[#1a1a1c] pb-4">
+                <Info size={16} className="text-zinc-400 dark:text-[#a1a1aa]" />
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Asset Specification</h2>
               </div>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Brand</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.brand || 'Raw Asset'}</div>
+                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Brand</label>
+                    <div className="text-sm font-bold uppercase text-zinc-900 dark:text-[#e4e4e7]">{result.device.model?.brand || 'Unbound'}</div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Model</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.name || 'Pending Identification'}</div>
+                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Model</label>
+                    <div className="text-sm font-bold uppercase text-zinc-900 dark:text-[#e4e4e7]">{result.device.model?.name || 'Pending Identification'}</div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Storage</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.storage_gb ? `${result.device.model.storage_gb}GB` : 'N/A'}</div>
+                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Storage</label>
+                    <div className="text-sm font-bold uppercase text-zinc-900 dark:text-[#e4e4e7]">{result.device.model?.storage_gb ? `${result.device.model.storage_gb}GB` : 'N/A'}</div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Color</label>
-                    <div className="text-sm font-bold uppercase text-zinc-900">{result.device.model?.color || 'N/A'}</div>
+                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Color</label>
+                    <div className="text-sm font-bold uppercase text-zinc-900 dark:text-[#e4e4e7]">{result.device.model?.color || 'N/A'}</div>
                   </div>
                 </div>
 
-                <div className="p-6 bg-zinc-50 border border-zinc-200 rounded-lg space-y-4 shadow-sm">
+                <div className="p-6 bg-zinc-50 dark:bg-[#0a0a0b] border border-zinc-200 dark:border-[#1f1f21] rounded-lg space-y-4 shadow-sm">
                   {!result.device.is_hydrated && (
-                    <div className="bg-amber-50 border border-amber-200 p-3 rounded flex items-center gap-2 mb-2 animate-pulse">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">⚠️ Raw Asset: Specs Pending Binding</span>
+                    <div className="bg-amber-500/5 border border-amber-500/10 p-2.5 rounded-lg flex items-center gap-2">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400">Model metadata not yet bound to this device</span>
                     </div>
                   )}
                   <div className="flex justify-between items-start">
                     <div>
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Current Node</label>
-                      <div className="text-xs font-bold uppercase flex items-center gap-2 text-zinc-900">
-                        <MapPin size={14} className="text-zinc-400" />
+                      <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Current Node</label>
+                      <div className="text-xs font-bold uppercase flex items-center gap-2 text-zinc-900 dark:text-[#e4e4e7]">
+                        <MapPin size={14} className="text-zinc-400 dark:text-[#a1a1aa]" />
                         {result.device.location_id?.replace('_', ' ')}
                       </div>
                     </div>
                     <div className="text-right">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Status</label>
-                      <span className={`badge-glow ${result.device.is_hydrated ? 'badge-neutral' : 'badge-warning bg-amber-100 text-amber-700'}`}>
-                        {result.device.is_hydrated ? (result.device.device_status?.replace('_', ' ') || 'ACTIVE') : 'RAW'}
-                      </span>
+                      <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Status</label>
+                      <DeviceStatusTransition device={result.device} onTransitionComplete={() => performSearch(result.device.imei)} />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 block mb-1">Sub-Location / Bin</label>
-                    <div className="text-xs font-bold uppercase tracking-widest text-zinc-700">{result.device.sub_location_bin || 'UNASSIGNED'}</div>
+                    <label className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] block mb-1">Sub-Location / Bin</label>
+                    <div className="text-xs font-bold uppercase tracking-widest text-zinc-700 dark:text-[#e4e4e7]">{result.device.sub_location_bin || 'UNASSIGNED'}</div>
                   </div>
                 </div>
               </div>
@@ -157,14 +156,14 @@ export default function TrackDevice() {
         </div>
 
         {/* RIGHT COLUMN: TIMELINE & COSTS */}
-        <div className="col-span-8 flex flex-col bg-zinc-50 overflow-hidden">
+        <div className="col-span-8 flex flex-col bg-zinc-50 dark:bg-[#0a0a0b] overflow-hidden">
           {result ? (
             <div className="flex-1 overflow-y-auto p-12 space-y-16">
               {/* IMMUTABLE TIMELINE */}
               <section className="space-y-12">
-                <div className="flex items-center gap-3 border-b border-zinc-200 pb-4">
-                  <History size={16} className="text-zinc-400" />
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Lifecycle Audit Trail</h2>
+                <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-[#1f1f21] pb-4">
+                  <History size={16} className="text-zinc-400 dark:text-[#a1a1aa]" />
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Lifecycle Audit Trail</h2>
                 </div>
 
                 <div className="relative pl-8 space-y-12">
@@ -174,21 +173,21 @@ export default function TrackDevice() {
                       <div className="absolute -left-[33px] top-1.5 w-2 h-2 bg-zinc-900 rounded-full border-4 border-zinc-50 shadow-sm"></div>
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <div className="text-xs font-bold uppercase tracking-widest text-zinc-900">{log.action_type.replace(/_/g, ' ')}</div>
-                          <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-2 mt-1">
+                          <div className="text-xs font-bold uppercase tracking-widest text-zinc-900 dark:text-[#e4e4e7]">{log.action_type.replace(/_/g, ' ')}</div>
+                          <div className="text-[10px] font-semibold text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-widest flex items-center gap-2 mt-1">
                             <Clock size={12} /> {new Date(log.timestamp).toLocaleString()}
                           </div>
                         </div>
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] flex items-center gap-1">
                           <User size={12} /> {log.employee_id}
                         </div>
                       </div>
-                      <div className="text-sm font-medium text-zinc-600 uppercase tracking-tight leading-relaxed max-w-2xl">
+                      <div className="text-sm font-medium text-zinc-600 dark:text-[#a1a1aa] uppercase tracking-tight leading-relaxed max-w-2xl">
                         {log.notes || 'No additional telemetry recorded for this action.'}
                       </div>
                       <div className="mt-4 flex gap-4">
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                          Transition: <span className="text-zinc-900">{log.previous_status || 'INIT'}</span> <ArrowRight size={10} className="inline mx-1" /> <span className="text-zinc-900">{log.new_status}</span>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa]">
+                          Transition: <span className="text-zinc-900 dark:text-[#e4e4e7]">{log.previous_status || 'INIT'}</span> <ArrowRight size={10} className="inline mx-1" /> <span className="text-zinc-900 dark:text-[#e4e4e7]">{log.new_status}</span>
                         </div>
                       </div>
                     </div>
@@ -199,15 +198,15 @@ export default function TrackDevice() {
               {/* TRUE COST LEDGER (ADMIN ONLY) */}
               {user?.role === 'admin' && (
                 <section className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                  <div className="flex items-center gap-3 border-b border-zinc-200 pb-4">
-                    <DollarSign size={16} className="text-zinc-400" />
-                    <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">True Cost Ledger</h2>
+                  <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-[#1f1f21] pb-4">
+                    <DollarSign size={16} className="text-zinc-400 dark:text-[#a1a1aa]" />
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">True Cost Ledger</h2>
                   </div>
 
-                  <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
+                  <div className="bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-zinc-50/50 border-b border-zinc-200">
-                        <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">
+                      <thead className="bg-zinc-50 dark:bg-[#0a0a0b]/50 border-b border-zinc-200 dark:border-[#1f1f21]">
+                        <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">
                           <th className="px-8 py-4">Cost Classification</th>
                           <th className="px-8 py-4">Reconciliation Date</th>
                           <th className="px-8 py-4 text-right">Amount</th>
@@ -215,10 +214,10 @@ export default function TrackDevice() {
                       </thead>
                       <tbody className="text-sm">
                         {result.cost_ledger.map((entry: any, i: number) => (
-                          <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors">
-                            <td className="px-8 py-5 text-zinc-700 font-semibold uppercase tracking-wider">{entry.cost_type}</td>
-                            <td className="px-8 py-5 text-zinc-400 font-semibold uppercase tracking-widest">{new Date(entry.created_at).toLocaleDateString()}</td>
-                            <td className="px-8 py-5 text-right text-zinc-900 font-bold">${entry.amount.toFixed(2)}</td>
+                          <tr key={i} className="border-b border-zinc-100 dark:border-[#1a1a1c] hover:bg-zinc-50 dark:hover:bg-[#1a1a1c] dark:bg-[#0a0a0b]/50 transition-colors">
+                            <td className="px-8 py-5 text-zinc-700 dark:text-[#e4e4e7] font-semibold uppercase tracking-wider">{entry.cost_type}</td>
+                            <td className="px-8 py-5 text-zinc-400 dark:text-[#a1a1aa] font-semibold uppercase tracking-widest">{new Date(entry.created_at).toLocaleDateString()}</td>
+                            <td className="px-8 py-5 text-right text-zinc-900 dark:text-[#e4e4e7] font-bold">${entry.amount.toFixed(2)}</td>
                           </tr>
                         ))}
                         <tr className="bg-zinc-900 text-white">
@@ -234,10 +233,10 @@ export default function TrackDevice() {
               )}
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-300 py-32">
+            <div className="h-full flex flex-col items-center justify-center text-zinc-300 dark:text-[#52525b] py-32">
               <Activity size={80} className="opacity-10 mb-6" />
               <div className="text-xs font-semibold uppercase tracking-[0.5em] opacity-40">System Awaiting Identifier</div>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">Enter IMEI or Serial to initialize telemetry</p>
+              <p className="text-[10px] font-bold text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-widest mt-4">Enter IMEI or Serial to initialize telemetry</p>
             </div>
           )}
         </div>

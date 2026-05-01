@@ -48,6 +48,19 @@ class StoreLocation(Base):
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
 
+class OrganizationSettings(Base):
+    __tablename__ = "organization_settings"
+    org_id = Column(String, primary_key=True, index=True)
+    default_tax_rate = Column(Float, default=8.5)
+    currency = Column(String, default="USD")
+    timezone = Column(String, default="America/Chicago")
+    invoice_terms = Column(String, default="All sales are final. 14-day warranty on defects. Layaway deposits are non-refundable.")
+    logo_url = Column(String, nullable=True)
+    invoice_template = Column(String, default="modern")
+    primary_color = Column(String, default="#e94560")
+    email_template_body = Column(String, nullable=True)
+    reminder_template_body = Column(String, nullable=True)
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -223,11 +236,61 @@ class Invoice(Base):
     payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.Unpaid)
     is_estimate = Column(Integer, default=0) # 0=Invoice, 1=Estimate
     due_date = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    viewed_at = Column(DateTime, nullable=True)
+    emailed_at = Column(DateTime, nullable=True)
+    message_on_invoice = Column(String, nullable=True)
+    statement_memo = Column(String, nullable=True)
+    discount_percent = Column(Float, default=0.0)
+    discount_amount = Column(Float, default=0.0)
     created_at = Column(DateTime, default=func.now())
-    
+
     customer = relationship("UnifiedCustomer")
     items = relationship("InvoiceItem", back_populates="invoice")
     payments = relationship("PaymentTransaction", back_populates="invoice")
+
+class RecurringFrequency(str, enum.Enum):
+    Weekly = "Weekly"
+    Monthly = "Monthly"
+    Quarterly = "Quarterly"
+    Yearly = "Yearly"
+
+class RecurringTemplateStatus(str, enum.Enum):
+    Active = "Active"
+    Paused = "Paused"
+    Completed = "Completed"
+
+class RecurringInvoiceTemplate(Base):
+    __tablename__ = "recurring_invoice_templates"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    customer_id = Column(String, ForeignKey("unified_customers.crm_id"), nullable=False)
+    frequency = Column(Enum(RecurringFrequency), nullable=False)
+    interval_value = Column(Integer, default=1)
+    next_run_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=True)
+    auto_send = Column(Integer, default=0)
+    status = Column(Enum(RecurringTemplateStatus), default=RecurringTemplateStatus.Active)
+    line_items = Column(String, nullable=False)  # JSON array
+    terms = Column(String, default="Due on Receipt")
+    message_on_invoice = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    customer = relationship("UnifiedCustomer")
+
+class RecurringInvoiceLog(Base):
+    __tablename__ = "recurring_invoice_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    template_id = Column(Integer, ForeignKey("recurring_invoice_templates.id"), nullable=False)
+    executed_at = Column(DateTime, default=func.now())
+    resulting_invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True)
+    status = Column(String, default="Success")  # "Success" or "Error"
+    error_message = Column(String, nullable=True)
+
+    template = relationship("RecurringInvoiceTemplate")
+    resulting_invoice = relationship("Invoice")
 
 class InvoiceItem(Base):
     __tablename__ = "invoice_items"

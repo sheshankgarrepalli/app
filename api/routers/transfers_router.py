@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
-import models, schemas, auth
+import models, schemas, auth, state_machine
 import wms_core
 from database import get_db
 import uuid
@@ -13,7 +13,11 @@ def bulk_route_devices(req: schemas.BulkRouteRequest, db: Session = Depends(get_
     org_id = getattr(current_user, 'current_org_id', None)
     success_count = 0
     errors = []
-    
+
+    target = state_machine.parse_target(req.destination)
+    if target is None:
+        raise HTTPException(status_code=400, detail=f"Invalid destination status: '{req.destination}'")
+
     for imei in req.imeis:
         device = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == imei,
@@ -22,24 +26,19 @@ def bulk_route_devices(req: schemas.BulkRouteRequest, db: Session = Depends(get_
         if not device:
             errors.append(f"IMEI {imei} not found")
             continue
-            
-        old_status = device.device_status
-        device.device_status = req.destination
-        
-        # Audit Log
-        log = models.DeviceHistoryLog(
-            imei=imei,
-            action_type="Bulk Transfer Dispatch",
+
+        result = state_machine.execute_transition(
+            db, device, target,
             employee_id=current_user.email,
-            previous_status=old_status,
-            new_status=req.destination,
-            notes=f"Routed to {req.destination}. Defects: {', '.join(req.defects)}. {req.notes}",
-            org_id=org_id
+            notes=req.notes or f"Bulk routed to {target.value}",
+            defects=req.defects,
         )
-        db.add(log)
-        success_count += 1
-        
-    db.commit()
+
+        if result.success:
+            success_count += 1
+        else:
+            errors.append(f"IMEI {imei}: {'; '.join(result.errors)}")
+
     return {"success_count": success_count, "errors": errors}
 
 @router.post("/dispatch", response_model=schemas.TransferManifestOut)
@@ -68,9 +67,14 @@ def dispatch_transfer(req: schemas.TransferDispatchRequest, db: Session = Depend
             raise HTTPException(status_code=404, detail=f"IMEI {imei} not found")
         
         old_status = device.device_status
-        if old_status in [models.DeviceStatus.In_Transit, models.DeviceStatus.Sold]:
+        if old_status in [models.DeviceStatus.In_Transit, models.DeviceStatus.Sold, models.DeviceStatus.Reserved_Layaway]:
             raise HTTPException(status_code=400, detail=f"IMEI {imei} cannot be dispatched. Current status: {old_status}")
-            
+
+        # Verify location ownership — non-admin users can only dispatch from their own store
+        user_location = current_user.store_id or current_user.role
+        if current_user.role != "admin" and device.location_id != user_location:
+            raise HTTPException(status_code=403, detail=f"IMEI {imei} is not at your location (expected: {user_location}, actual: {device.location_id})")
+
         device.device_status = models.DeviceStatus.In_Transit
         
         # Audit Log
@@ -118,14 +122,23 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
         
         if old_status == models.DeviceStatus.Transit_to_Repair:
             new_status = models.DeviceStatus.In_Repair
-            # Activate Repair Ticket
-            ticket = db.query(models.RepairTicket).filter(
-                models.RepairTicket.imei == imei, 
-                models.RepairTicket.status == models.RepairStatus.Pending,
+            # Auto-create RepairTicket if none exists
+            existing_ticket = db.query(models.RepairTicket).filter(
+                models.RepairTicket.imei == imei,
+                models.RepairTicket.status.in_([
+                    models.RepairStatus.Pending_Triage,
+                    models.RepairStatus.In_Repair,
+                    models.RepairStatus.Awaiting_Parts
+                ]),
                 models.RepairTicket.org_id == org_id
             ).first()
-            if ticket:
-                ticket.status = models.RepairStatus.In_Progress
+            if not existing_ticket:
+                ticket = models.RepairTicket(
+                    imei=imei, org_id=org_id,
+                    symptoms="", notes="Auto-created from bulk transfer receive",
+                    status=models.RepairStatus.Pending_Triage
+                )
+                db.add(ticket)
         elif old_status == models.DeviceStatus.Transit_to_Main_Bin:
             new_status = models.DeviceStatus.Sellable
         elif old_status == models.DeviceStatus.Transit_to_QC:
@@ -191,5 +204,60 @@ def get_transfers(db: Session = Depends(get_db), current_user: models.User = Dep
             models.TransferOrder.destination_location_id == current_user.role,
             models.TransferOrder.org_id == org_id
         ).all()
-        
+
     return orders
+
+
+# ── Manifest-based Smart Receiving ─────────────────────────────────────────
+
+@router.get("/manifests")
+def get_incoming_manifests(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    dest_id = current_user.role if current_user.role != "admin" else None
+
+    query = db.query(models.TransferManifest).filter(models.TransferManifest.org_id == org_id)
+    if dest_id:
+        query = query.filter(models.TransferManifest.destination_id == dest_id)
+    query = query.filter(models.TransferManifest.status.in_([
+        models.ManifestStatus.In_Transit, models.ManifestStatus.Pending_Acknowledgment
+    ]))
+    return query.order_by(models.TransferManifest.created_at.desc()).all()
+
+
+@router.get("/manifests/{manifest_id}")
+def get_manifest_detail(manifest_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    manifest = db.query(models.TransferManifest).filter(
+        models.TransferManifest.manifest_id == manifest_id,
+        models.TransferManifest.org_id == org_id
+    ).first()
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Manifest not found")
+
+    items = db.query(models.ManifestItem).filter(models.ManifestItem.manifest_id == manifest_id).all()
+    item_details = []
+    for mi in items:
+        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == mi.imei).first()
+        item_details.append({
+            "imei": mi.imei,
+            "model_number": device.model_number if device else None,
+            "serial_number": device.serial_number if device else None,
+            "device_status": device.device_status.value if device and device.device_status else None,
+            "is_received": device.location_id == manifest.destination_id if device else False
+        })
+
+    return {
+        "manifest": manifest,
+        "items": item_details,
+        "total_items": len(item_details),
+        "received_count": sum(1 for i in item_details if i["is_received"])
+    }
+
+
+@router.post("/manifests/{manifest_id}/verify")
+def verify_manifest_imeis(manifest_id: str, req: schemas.BulkReceiveRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+    try:
+        result = wms_core.verify_manifest_imeis(db, manifest_id, req.imeis, current_user.email)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -2,7 +2,7 @@ import uuid
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from models import DeviceInventory, UnifiedCustomer, TransferOrder, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction, PaymentMethodEnum
+from models import DeviceInventory, UnifiedCustomer, TransferOrder, TransferManifest, ManifestItem, ManifestStatus, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction, PaymentMethodEnum, OrganizationSettings
 
 def _log_history(db: Session, imei: str, action_type: str, employee_id: str, new_status: str, previous_status: str = None, notes: str = None, org_id: str = None):
     log = DeviceHistoryLog(
@@ -153,9 +153,14 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
                 "upfront_payment": round(upfront_payment, 2),
                 "balance_due": round(unpaid_balance, 2)
             },
-            "is_estimate": is_estimate
+            "is_estimate": is_estimate,
+            "invoice_terms": db.query(OrganizationSettings).filter(
+                OrganizationSettings.org_id == org_id
+            ).first().invoice_terms if db.query(OrganizationSettings).filter(
+                OrganizationSettings.org_id == org_id
+            ).first() else None,
         }
-        
+
         db.commit()
         return invoice_payload
     except Exception as e:
@@ -234,6 +239,100 @@ def receive_transfer_order(db: Session, transfer_order_id: str, employee_id: str
     except Exception as e:
         db.rollback()
         raise e
+
+def verify_manifest_imeis(db: Session, manifest_id: str, imei_list: List[str], employee_id: str) -> Dict[str, Any]:
+    """Verify specific IMEIs against a manifest and receive them individually."""
+    manifest = db.query(TransferManifest).filter(TransferManifest.manifest_id == manifest_id).first()
+    if not manifest:
+        raise ValueError(f"Manifest {manifest_id} not found.")
+    if manifest.status not in [ManifestStatus.In_Transit, ManifestStatus.Pending_Acknowledgment]:
+        raise ValueError(f"Manifest {manifest_id} is not in a receivable state (current: {manifest.status.value}).")
+
+    manifest_items = db.query(ManifestItem).filter(ManifestItem.manifest_id == manifest_id).all()
+    manifest_imeis = {mi.imei for mi in manifest_items}
+
+    verified = []
+    rejected = []
+
+    for imei in imei_list:
+        if imei not in manifest_imeis:
+            rejected.append({"imei": imei, "reason": "Not on this manifest"})
+            continue
+
+        device = db.query(DeviceInventory).filter(DeviceInventory.imei == imei).first()
+        if not device:
+            rejected.append({"imei": imei, "reason": "Device not found in inventory"})
+            continue
+
+        prev_status = device.device_status.value if device.device_status else "Unknown"
+        device.location_id = manifest.destination_id
+        device.assigned_transfer_order_id = None
+        device.sub_location_bin = "Receiving_Bay"
+
+        # Route to correct status based on transit type
+        if prev_status == DeviceStatus.Transit_to_Repair.value:
+            device.device_status = DeviceStatus.In_Repair
+            # Auto-create RepairTicket if none exists
+            existing_ticket = db.query(RepairTicket).filter(
+                RepairTicket.imei == imei,
+                RepairTicket.status.in_([
+                    RepairStatus.Pending_Triage,
+                    RepairStatus.In_Repair,
+                    RepairStatus.Awaiting_Parts
+                ]),
+                RepairTicket.org_id == device.org_id
+            ).first()
+            if not existing_ticket:
+                ticket = RepairTicket(
+                    imei=imei, org_id=device.org_id,
+                    symptoms="", notes="Auto-created from manifest verification",
+                    status=RepairStatus.Pending_Triage
+                )
+                db.add(ticket)
+        elif prev_status == DeviceStatus.Transit_to_QC.value:
+            device.device_status = DeviceStatus.In_QC
+            # Log QC Labor Fee
+            qc_rate = db.query(LaborRateConfig).filter(LaborRateConfig.action_name == 'QC_Standard').first()
+            if qc_rate:
+                ledger_entry = DeviceCostLedger(
+                    imei=imei,
+                    cost_type="QC Labor",
+                    amount=qc_rate.fee_amount,
+                    org_id=device.org_id
+                )
+                db.add(ledger_entry)
+                device.cost_basis += qc_rate.fee_amount
+        else:
+            device.device_status = DeviceStatus.Sellable
+
+        _log_history(db, imei, "Manifest_Item_Received", employee_id,
+                     device.device_status.value, prev_status,
+                     f"Verified and received via Manifest {manifest_id}",
+                     org_id=device.org_id)
+        verified.append(imei)
+
+    # Check if all manifest items are now received
+    all_received_imeis = set()
+    for mi in manifest_items:
+        device = db.query(DeviceInventory).filter(DeviceInventory.imei == mi.imei).first()
+        if device and device.device_status != DeviceStatus.In_Transit and device.location_id == manifest.destination_id:
+            all_received_imeis.add(mi.imei)
+
+    if all_received_imeis == manifest_imeis:
+        manifest.status = ManifestStatus.Completed
+    elif len(verified) > 0:
+        manifest.status = ManifestStatus.Pending_Acknowledgment
+
+    db.commit()
+    return {
+        "manifest_id": manifest_id,
+        "verified": verified,
+        "rejected": rejected,
+        "manifest_status": manifest.status.value,
+        "total_manifest_items": len(manifest_imeis),
+        "verified_count": len(all_received_imeis)
+    }
+
 
 def update_device_internal_status(db: Session, imei: str, new_bin: str, new_status: str, employee_id: str) -> dict:
     try:

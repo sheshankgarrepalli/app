@@ -70,32 +70,31 @@ export default function Returns() {
     const daysSinceSale = scannedDevice ? Math.floor((new Date().getTime() - new Date(scannedDevice.device.received_date).getTime()) / (1000 * 3600 * 24)) : 0;
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="space-y-0">
+            <div className="page-header px-6 pt-6 pb-4">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">Reverse Logistics</h1>
-                    <p className="text-xs text-zinc-500 mt-1">RMA processing & warranty validation</p>
+                    <h1 className="page-title">Reverse Logistics</h1>
+                    <p className="text-xs text-[#6b7280] dark:text-[#71717a] mt-1">RMA processing & warranty validation</p>
                 </div>
-            </header>
+            </div>
 
             <div className="flex-1 grid grid-cols-12 overflow-hidden">
-                {/* LEFT PANEL: SCANNER */}
-                <div className="col-span-4 bg-white border-r border-zinc-200 p-6 space-y-8 overflow-y-auto">
+                <div className="col-span-4 bg-white dark:bg-[#141416] border-r border-[#e5e7eb] dark:border-[#1f1f21] p-6 space-y-8 overflow-y-auto">
                     <section className="space-y-4">
-                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Scanner Input</label>
-                        <div className="relative group">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">Scanner Input</label>
+                        <div className="relative">
                             <input
                                 ref={scannerRef}
                                 value={skuInput}
                                 onChange={e => setSkuInput(e.target.value)}
                                 onKeyDown={handleScannerKeyDown}
                                 placeholder="Scan asset to initiate RMA..."
-                                className="input-stark w-full py-5 font-mono text-xl tracking-widest placeholder:font-sans placeholder:text-xs placeholder:tracking-normal"
+                                className="form-input w-full py-5 font-mono text-xl tracking-widest placeholder:font-sans placeholder:text-xs placeholder:tracking-normal"
                             />
-                            <Scan size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-zinc-900 transition-colors" />
+                            <Scan size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#d1d5db]" />
                         </div>
                         {errorStatus && (
-                            <div className="text-[10px] font-semibold text-rose-600 uppercase tracking-widest flex items-center gap-2 px-1">
+                            <div className="text-xs font-semibold text-red-500 flex items-center gap-2 px-1">
                                 <AlertCircle size={14} /> {errorStatus}
                             </div>
                         )}
@@ -103,42 +102,42 @@ export default function Returns() {
                 </div>
 
                 {/* RIGHT PANEL: DEVICE INFO & ACTION */}
-                <div className="col-span-8 flex flex-col bg-zinc-50 overflow-hidden">
+                <div className="col-span-8 flex flex-col bg-[#f5f5f5] dark:bg-[#0a0a0b] overflow-hidden">
                     {scannedDevice ? (
-                        <div className="flex-1 flex flex-col p-12 space-y-12 animate-in fade-in duration-500 overflow-y-auto">
-                            <div className="bg-white border border-zinc-200 rounded-lg p-8 shadow-sm">
-                                <div className="flex justify-between items-start border-b border-zinc-100 pb-8">
+                        <div className="flex-1 flex flex-col p-12 space-y-12 overflow-y-auto">
+                            <div className="card p-8">
+                                <div className="flex justify-between items-start border-b border-[#e5e7eb] dark:border-[#1f1f21] pb-8">
                                     <div>
-                                        <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2">Identified Asset</div>
-                                        <h2 className="text-4xl font-bold text-zinc-900 tracking-tighter">
+                                        <div className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] mb-2">Identified Asset</div>
+                                        <h2 className="text-3xl font-bold text-[#1f2937] dark:text-[#e4e4e7]">
                                             {scannedDevice.device.model.brand} {scannedDevice.device.model.name}
                                         </h2>
-                                        <div className="text-xs font-medium text-zinc-500 mt-2 uppercase tracking-widest">IMEI: {scannedDevice.device.imei}</div>
+                                        <div className="text-xs font-medium text-[#6b7280] dark:text-[#71717a] mt-2 uppercase tracking-wider">IMEI: {scannedDevice.device.imei}</div>
 
                                         <div className="mt-6">
                                             {daysSinceSale <= 15 ? (
-                                                <span className="badge-glow badge-success">
+                                                <span className="badge badge-success">
                                                     ELIGIBLE ({15 - daysSinceSale} DAYS REMAINING)
                                                 </span>
                                             ) : (
-                                                <span className="badge-glow badge-error">
+                                                <span className="badge badge-error">
                                                     EXPIRED ({daysSinceSale} DAYS AGO)
                                                 </span>
                                             )}
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2">Warranty Status</div>
+                                        <div className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] mb-2">Warranty Status</div>
                                         {isUnderWarranty(scannedDevice.device.warranty_expiry_date) ? (
-                                            <div className="badge-glow badge-success inline-flex items-center gap-2">
+                                            <div className="badge badge-success inline-flex items-center gap-2">
                                                 <ShieldCheck size={14} /> ACTIVE COVERAGE
                                             </div>
                                         ) : (
-                                            <div className="badge-glow badge-error inline-flex items-center gap-2">
+                                            <div className="badge badge-error inline-flex items-center gap-2">
                                                 <ShieldAlert size={14} /> EXPIRED / NO COVERAGE
                                             </div>
                                         )}
-                                        <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mt-2">
+                                        <div className="text-[10px] font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] mt-2">
                                             Expires: {scannedDevice.device.warranty_expiry_date ? new Date(scannedDevice.device.warranty_expiry_date).toLocaleDateString() : 'N/A'}
                                         </div>
                                     </div>
@@ -146,32 +145,32 @@ export default function Returns() {
 
                                 <div className="grid grid-cols-2 gap-12 py-8">
                                     <div className="space-y-6">
-                                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Transaction Context</label>
+                                        <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">Transaction Context</label>
                                         <div className="space-y-4">
-                                            <div className="flex justify-between border-b border-zinc-100 pb-3">
-                                                <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Entity ID</span>
-                                                <span className="text-sm font-bold uppercase text-zinc-900">{scannedDevice.device.sold_to_crm_id}</span>
+                                            <div className="flex justify-between border-b border-[#e5e7eb] dark:border-[#1f1f21] pb-3">
+                                                <span className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">Entity ID</span>
+                                                <span className="text-sm font-bold uppercase text-[#1f2937] dark:text-[#e4e4e7]">{scannedDevice.device.sold_to_crm_id}</span>
                                             </div>
-                                            <div className="flex justify-between border-b border-zinc-100 pb-3">
-                                                <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Sale Date</span>
-                                                <span className="text-sm font-bold uppercase text-zinc-900">{new Date(scannedDevice.device.received_date).toLocaleDateString()}</span>
+                                            <div className="flex justify-between border-b border-[#e5e7eb] dark:border-[#1f1f21] pb-3">
+                                                <span className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">Sale Date</span>
+                                                <span className="text-sm font-bold uppercase text-[#1f2937] dark:text-[#e4e4e7]">{new Date(scannedDevice.device.received_date).toLocaleDateString()}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="space-y-6">
-                                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">RMA Execution</label>
+                                        <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">RMA Execution</label>
 
                                         {daysSinceSale > 15 && (
-                                            <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-100 rounded-lg mb-4">
+                                            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-lg mb-4">
                                                 <input
                                                     type="checkbox"
                                                     id="override"
                                                     checked={overridePolicy}
                                                     onChange={e => setOverridePolicy(e.target.checked)}
-                                                    className="w-4 h-4 accent-zinc-900 bg-white border-zinc-300 rounded"
+                                                    className="w-4 h-4 accent-accent bg-white dark:bg-[#141416] border-[#e5e7eb] dark:border-[#1f1f21] rounded"
                                                 />
-                                                <label htmlFor="override" className="text-xs font-bold uppercase tracking-widest text-rose-600 cursor-pointer">
+                                                <label htmlFor="override" className="text-xs font-bold uppercase tracking-wider text-red-500 cursor-pointer">
                                                     Managerial Override Required
                                                 </label>
                                             </div>
@@ -180,7 +179,7 @@ export default function Returns() {
                                         <button
                                             onClick={handleProcessReturn}
                                             disabled={isProcessing || (daysSinceSale > 15 && !overridePolicy)}
-                                            className="btn-primary w-full h-16 text-xs font-semibold uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                                            className="btn-primary w-full h-14 text-sm font-semibold flex items-center justify-center gap-3"
                                         >
                                             {isProcessing ? 'Synchronizing...' : (
                                                 <>
@@ -188,7 +187,7 @@ export default function Returns() {
                                                 </>
                                             )}
                                         </button>
-                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 text-center flex items-center justify-center gap-2">
+                                        <p className="text-xs font-semibold text-[#6b7280] dark:text-[#71717a] text-center flex items-center justify-center gap-2">
                                             <AlertCircle size={12} /> Customer balance will be credited and asset routed to QC node.
                                         </p>
                                     </div>
@@ -196,9 +195,9 @@ export default function Returns() {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-300 space-y-4">
+                        <div className="flex-1 flex flex-col items-center justify-center text-[#d1d5db] space-y-4">
                             <Package size={64} className="opacity-10" />
-                            <div className="text-xs font-semibold uppercase tracking-[0.4em] opacity-40">Waiting for Asset Scan...</div>
+                            <div className="text-xs font-semibold uppercase tracking-widest">Waiting for Asset Scan...</div>
                         </div>
                     )}
                 </div>

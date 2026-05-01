@@ -501,11 +501,12 @@
   <!-- ── BOTTOM: Note + Signature ── -->
   <div class="bottom-section">
     <div class="note-to-customer">
-      <div class="note-title">Note to Customer &amp; Warranty Policy</div>
-      <p><strong>All Sales Final:</strong> All wholesale device sales are final. No returns or exchanges unless item is Dead on Arrival (DOA).</p>
-      <p><strong>DOA Policy:</strong> DOA claims must be reported within 48 hours of receipt. Device must power on and hold charge to qualify as functional.</p>
-      <p><strong>Condition Disclosure:</strong> Device grade and condition are as described on this invoice. Cosmetic wear is pre-disclosed and not eligible for dispute.</p>
-      <p><strong>Blacklist / IMEI:</strong> Buyer assumes full responsibility for verifying IMEI status. Seller does not guarantee carrier unlocked status post-sale unless explicitly noted.</p>
+      <div class="note-title">Terms &amp; Conditions</div>
+      {% if invoice_terms %}
+      <p>{{ invoice_terms | replace('\n', '<br>') | safe }}</p>
+      {% else %}
+      <p>All sales are final. 14-day warranty on defects. Layaway deposits are non-refundable.</p>
+      {% endif %}
       <p style="margin-top:6px;font-size:7.3pt;color:#999;">By signing below, buyer acknowledges receipt of all items listed and agrees to all terms.</p>
     </div>
     <div class="signature-area">

@@ -320,31 +320,31 @@ export default function InvoicingSystem() {
 
     if (successState) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 p-6">
-                <div className="max-w-xl w-full p-12 bg-white border border-zinc-200 rounded-lg text-center shadow-sm animate-in zoom-in-95 duration-500">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#f5f5f5] dark:bg-[#0a0a0b] p-6">
+                <div className="max-w-xl w-full p-12 card text-center">
                     <div className="flex justify-center mb-8">
                         <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
                             <CheckCircle2 size={40} />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-bold text-zinc-900 mb-2">Transaction Success</h1>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-10">Reference: {successState.id}</p>
+                    <h1 className="text-[22px] font-bold text-[#1f2937] dark:text-[#e4e4e7] mb-2">Transaction Success</h1>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] dark:text-[#71717a] mb-10">Reference: {successState.id}</p>
 
                     <div className="space-y-4 mb-10">
-                        <button onClick={() => window.open(successState.pdfUrl)} className="btn-primary w-full h-16 text-xs font-semibold uppercase tracking-[0.2em] flex items-center justify-center gap-3">
+                        <button onClick={() => window.open(successState.pdfUrl)} className="btn-primary w-full h-16 text-sm font-semibold flex items-center justify-center gap-3">
                             <Printer size={20} /> Print Commercial Invoice
                         </button>
                         <div className="grid grid-cols-2 gap-4">
-                            <button className="btn-secondary px-6 py-4 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest">
+                            <button className="btn-secondary py-4 flex items-center justify-center gap-2 text-sm font-semibold">
                                 <Mail size={16} /> Email PDF
                             </button>
-                            <button className="btn-secondary px-6 py-4 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest">
+                            <button className="btn-secondary py-4 flex items-center justify-center gap-2 text-sm font-semibold">
                                 <Share2 size={16} /> WhatsApp
                             </button>
                         </div>
                     </div>
 
-                    <button onClick={resetFlow} className="text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">
+                    <button onClick={resetFlow} className="text-sm text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7] transition-colors">
                         Initialize Next Transaction
                     </button>
                 </div>
@@ -353,33 +353,33 @@ export default function InvoicingSystem() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="flex flex-col h-full">
+            <div className="page-header mb-4">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">{editingInvoiceId ? 'Modify Document' : 'Invoicing Engine'}</h1>
-                    <div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">
+                    <h1 className="page-title">{editingInvoiceId ? 'Modify Document' : 'Invoicing Engine'}</h1>
+                    <div className="text-xs text-[#6b7280] dark:text-[#71717a] flex items-center gap-2 mt-1">
                         <FileText size={14} /> Omni-Channel Terminal • {nextNumber}
                     </div>
                 </div>
 
-                <div className="flex bg-zinc-100 border border-zinc-200 p-1 rounded-lg">
+                <div className="flex bg-[#f5f5f5] dark:bg-[#0a0a0b] border border-[#e5e7eb] dark:border-[#1f1f21] p-1 rounded-lg">
                     {(['Retail', 'Wholesale', 'Transfer', 'Estimate'] as TransactionType[]).map(type => (
                         <button
                             key={type}
                             onClick={() => setTxType(type)}
-                            className={`px-4 py-1.5 rounded-md text-xs font-semibold uppercase tracking-widest transition-all ${txType === type ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+                            className={`px-4 py-1.5 rounded-md text-xs font-semibold uppercase tracking-widest transition-all ${txType === type ? 'bg-white dark:bg-[#141416] text-[#1f2937] dark:text-[#e4e4e7] shadow-sm' : 'text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7]'}`}
                         >
                             {type}
                         </button>
                     ))}
                 </div>
-            </header>
+            </div>
 
             <div className="flex-1 grid grid-cols-12 overflow-hidden">
                 {/* LEFT PANEL: CONFIGURATION */}
-                <div className="col-span-4 bg-white border-r border-zinc-200 p-6 space-y-8 overflow-y-auto">
+                <div className="col-span-4 bg-white dark:bg-[#141416] border-r border-[#e5e7eb] dark:border-[#1f1f21] p-6 space-y-8 overflow-y-auto">
                     <section className="space-y-3">
-                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] ml-1">
                             {txType === 'Transfer' ? 'Destination Node' : 'Entity Selection'}
                         </label>
 
@@ -387,13 +387,13 @@ export default function InvoicingSystem() {
                             <select
                                 value={destinationLocation}
                                 onChange={e => setDestinationLocation(e.target.value)}
-                                className="input-stark w-full py-3 text-xs font-bold uppercase tracking-widest"
+                                className="form-select w-full py-3 text-xs font-bold"
                             >
                                 <option value="">Select Destination...</option>
                                 {locations.map(loc => <option key={loc?.id} value={loc?.id}>{loc?.name || "Unknown Store"}</option>)}
                             </select>
                         ) : (
-                            <div className="relative group">
+                            <div className="relative">
                                 <input
                                     placeholder="Search CRM database..."
                                     value={customerSearch}
@@ -401,21 +401,21 @@ export default function InvoicingSystem() {
                                         setCustomerSearch(e.target.value);
                                         if (selectedCustomer) setSelectedCustomer(null);
                                     }}
-                                    className="input-stark w-full py-3"
+                                    className="form-input w-full py-3"
                                 />
                                 {selectedCustomer && (
-                                    <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 transition"><X size={16} /></button>
+                                    <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] dark:text-[#52525b] hover:text-[#1f2937] dark:text-[#e4e4e7] transition"><X size={16} /></button>
                                 )}
                                 {customerResults.length > 0 && !selectedCustomer && (
-                                    <div className="absolute top-full left-0 right-0 bg-white border border-zinc-200 shadow-xl z-50 mt-1 rounded-lg overflow-hidden">
+                                    <div className="absolute top-full left-0 right-0 bg-white dark:bg-[#141416] border border-[#e5e7eb] dark:border-[#1f1f21] shadow-xl z-50 mt-1 rounded-lg overflow-hidden">
                                         {customerResults.map(c => (
                                             <button
                                                 key={c?.crm_id}
                                                 onClick={() => { setSelectedCustomer(c); setCustomerSearch(c?.company_name || c?.name || "N/A"); }}
-                                                className="w-full p-4 hover:bg-zinc-50 border-b border-zinc-100 last:border-0 text-left transition-colors flex justify-between items-center"
+                                                className="w-full p-4 hover:bg-[#f9fafb] dark:bg-[#1a1a1c] border-b border-[#e5e7eb] dark:border-[#1f1f21] last:border-0 text-left transition-colors flex justify-between items-center"
                                             >
-                                                <div className="font-bold text-sm text-zinc-900">{c?.company_name || c?.name || "Unknown Entity"}</div>
-                                                <div className="text-[10px] font-semibold text-zinc-500 mt-1 uppercase tracking-widest">{c?.phone} • {c?.crm_id}</div>
+                                                <div className="font-bold text-sm text-[#1f2937] dark:text-[#e4e4e7]">{c?.company_name || c?.name || "Unknown Entity"}</div>
+                                                <div className="text-[10px] font-semibold text-[#6b7280] dark:text-[#71717a] mt-1 uppercase tracking-widest">{c?.phone} • {c?.crm_id}</div>
                                             </button>
                                         ))}
                                     </div>
@@ -425,12 +425,12 @@ export default function InvoicingSystem() {
                     </section>
 
                     {(txType === 'Wholesale' || txType === 'Estimate') && (
-                        <section className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Contract Parameters</label>
+                        <section className="space-y-4">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] ml-1">Contract Parameters</label>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 ml-1">Terms</span>
-                                    <select value={terms} onChange={e => setTerms(e.target.value)} className="input-stark w-full py-2.5 text-xs font-bold uppercase tracking-widest">
+                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] dark:text-[#52525b] ml-1">Terms</span>
+                                    <select value={terms} onChange={e => setTerms(e.target.value)} className="form-select w-full py-2.5 text-xs font-bold">
                                         <option>Due on Receipt</option>
                                         <option>Net 15</option>
                                         <option>Net 30</option>
@@ -438,50 +438,50 @@ export default function InvoicingSystem() {
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 ml-1">PO Ref</span>
-                                    <input value={poNumber} onChange={e => setPoNumber(e.target.value)} placeholder="ST-XXXX" className="input-stark w-full py-2.5 text-xs font-bold uppercase tracking-widest" />
+                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] dark:text-[#52525b] ml-1">PO Ref</span>
+                                    <input value={poNumber} onChange={e => setPoNumber(e.target.value)} placeholder="ST-XXXX" className="form-input w-full py-2.5 text-xs font-bold" />
                                 </div>
                             </div>
                         </section>
                     )}
 
                     <section className="space-y-3">
-                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Asset Acquisition</label>
-                        <div className="relative group">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] ml-1">Asset Acquisition</label>
+                        <div className="relative">
                             <input
                                 ref={scannerRef}
                                 value={skuInput}
                                 onChange={e => setSkuInput(e.target.value)}
                                 onKeyDown={handleScannerKeyDown}
                                 placeholder="Scan IMEI..."
-                                className="input-stark w-full py-4 font-mono text-lg tracking-widest placeholder:font-sans placeholder:text-xs placeholder:tracking-normal"
+                                className="form-input w-full py-4 font-mono text-lg tracking-widest placeholder:font-sans placeholder:text-xs placeholder:tracking-normal"
                             />
-                            <Scan size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-zinc-900 transition-colors" />
+                            <Scan size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#d1d5db]" />
                         </div>
                         {errorStatus ? (
-                            <div className="text-[10px] font-semibold text-rose-600 uppercase tracking-widest flex items-center gap-2 px-1">
+                            <div className="text-[10px] font-semibold text-red-500 uppercase tracking-widest flex items-center gap-2 px-1">
                                 <AlertCircle size={14} /> {errorStatus}
                             </div>
                         ) : (
-                            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" /> Scanner Synchronized
+                            <div className="text-[10px] font-semibold text-[#6b7280] dark:text-[#71717a] uppercase tracking-widest flex items-center gap-2 px-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Scanner Synchronized
                             </div>
                         )}
                     </section>
 
                     {(txType === 'Wholesale' || txType === 'Estimate') && (
                         <section className="space-y-4">
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Logistics</label>
-                            <div className="flex bg-zinc-100 border border-zinc-200 p-1 rounded-lg">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] ml-1">Logistics</label>
+                            <div className="flex bg-[#f5f5f5] dark:bg-[#0a0a0b] border border-[#e5e7eb] dark:border-[#1f1f21] p-1 rounded-lg">
                                 <button
                                     onClick={() => setFulfillmentMethod('Walk-in')}
-                                    className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-widest rounded-md transition-all ${fulfillmentMethod === 'Walk-in' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+                                    className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-widest rounded-md transition-all ${fulfillmentMethod === 'Walk-in' ? 'bg-white dark:bg-[#141416] text-[#1f2937] dark:text-[#e4e4e7] shadow-sm' : 'text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7]'}`}
                                 >
                                     Walk-in
                                 </button>
                                 <button
                                     onClick={() => setFulfillmentMethod('Shipped')}
-                                    className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-widest rounded-md transition-all ${fulfillmentMethod === 'Shipped' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+                                    className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-widest rounded-md transition-all ${fulfillmentMethod === 'Shipped' ? 'bg-white dark:bg-[#141416] text-[#1f2937] dark:text-[#e4e4e7] shadow-sm' : 'text-[#6b7280] dark:text-[#71717a] hover:text-[#1f2937] dark:text-[#e4e4e7]'}`}
                                 >
                                     Shipped
                                 </button>
@@ -492,7 +492,7 @@ export default function InvoicingSystem() {
                                     onChange={e => setShippingAddress(e.target.value)}
                                     placeholder="Destination address..."
                                     rows={2}
-                                    className="input-stark w-full py-3 text-sm tracking-tight resize-none"
+                                    className="form-input w-full py-3 text-sm resize-none"
                                 />
                             )}
                         </section>
@@ -500,17 +500,17 @@ export default function InvoicingSystem() {
 
                     {txType !== 'Transfer' && txType !== 'Estimate' && (
                         <section className="space-y-4">
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Financial Tender</label>
+                            <label className="text-xs font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] ml-1">Financial Tender</label>
                             {txType === 'Wholesale' && (
                                 <div className="space-y-1.5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 ml-1">Upfront Credit</span>
+                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] dark:text-[#52525b] ml-1">Upfront Credit</span>
                                     <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af] dark:text-[#52525b] text-sm">$</span>
                                         <input
                                             type="number"
                                             value={upfrontPayment}
                                             onChange={e => setUpfrontPayment(parseFloat(e.target.value) || 0)}
-                                            className="input-stark w-full pl-7 py-2.5 text-sm font-bold"
+                                            className="form-input w-full pl-7 py-2.5 text-sm font-bold"
                                         />
                                     </div>
                                 </div>
@@ -520,7 +520,7 @@ export default function InvoicingSystem() {
                                     <button
                                         key={method}
                                         onClick={() => setPaymentMethod(method)}
-                                        className={`py-2.5 text-[10px] font-bold uppercase tracking-widest border rounded-lg transition-all ${paymentMethod === method ? 'bg-zinc-900 border-zinc-900 text-white shadow-sm' : 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50'}`}
+                                        className={`py-2.5 text-[10px] font-bold uppercase tracking-widest border rounded-lg transition-all ${paymentMethod === method ? 'bg-navy border-navy text-white shadow-sm' : 'bg-white dark:bg-[#141416] border-[#e5e7eb] dark:border-[#1f1f21] text-[#6b7280] dark:text-[#71717a] hover:bg-[#f5f5f5] dark:bg-[#0a0a0b]'}`}
                                     >
                                         {method}
                                     </button>
@@ -531,55 +531,55 @@ export default function InvoicingSystem() {
                 </div>
 
                 {/* RIGHT PANEL: CART & SUMMARY */}
-                <div className="col-span-8 flex flex-col bg-zinc-50 overflow-hidden">
+                <div className="col-span-8 flex flex-col bg-[#f5f5f5] dark:bg-[#0a0a0b] overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-6">
-                        <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-zinc-50/50 border-b border-zinc-200">
-                                    <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">
-                                        <th className="px-8 py-4">Asset Specification</th>
-                                        <th className="px-8 py-4">Identifiers</th>
-                                        <th className="px-8 py-4 text-center w-20">Qty</th>
-                                        <th className="px-8 py-4 text-right w-40">Unit Price</th>
+                        <div className="card overflow-hidden">
+                            <table className="table-standard">
+                                <thead>
+                                    <tr>
+                                        <th>Asset Specification</th>
+                                        <th>Identifiers</th>
+                                        <th className="text-center">Qty</th>
+                                        <th className="text-right">Unit Price</th>
                                     </tr>
                                 </thead>
-                                <tbody className="text-sm">
+                                <tbody>
                                     {groupedItems.length === 0 ? (
                                         <tr>
                                             <td colSpan={4} className="py-32 text-center">
-                                                <div className="flex flex-col items-center gap-4 text-zinc-300">
+                                                <div className="flex flex-col items-center gap-4 text-[#d1d5db]">
                                                     <Package size={64} className="opacity-10" />
-                                                    <div className="text-xs font-semibold uppercase tracking-[0.4em] opacity-40">Transaction Ledger Empty</div>
+                                                    <div className="text-xs font-semibold uppercase tracking-widest">Transaction Ledger Empty</div>
                                                 </div>
                                             </td>
                                         </tr>
                                     ) : (
                                         groupedItems.map((item) => (
-                                            <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group">
-                                                <td className="px-8 py-6">
-                                                    <div className="font-bold text-zinc-900 uppercase tracking-tight text-xs">{item.brand}</div>
-                                                    <div className="text-xs text-zinc-500 font-semibold mt-0.5 uppercase">{item.model}</div>
+                                            <tr key={item.id} className="group">
+                                                <td className="py-6">
+                                                    <div className="font-bold text-[#1f2937] dark:text-[#e4e4e7] uppercase text-xs">{item.brand}</div>
+                                                    <div className="text-xs text-[#6b7280] dark:text-[#71717a] font-semibold mt-0.5 uppercase">{item.model}</div>
                                                 </td>
-                                                <td className="px-8 py-6">
+                                                <td className="py-6">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {item.imeis.map(i => (
-                                                            <span key={i} className="text-[10px] font-bold font-mono px-2 py-0.5 border border-zinc-200 text-zinc-500 bg-zinc-50 uppercase rounded">
+                                                            <span key={i} className="text-[10px] font-bold font-mono px-2 py-0.5 border border-[#e5e7eb] dark:border-[#1f1f21] text-[#6b7280] dark:text-[#71717a] bg-[#f5f5f5] dark:bg-[#0a0a0b] uppercase rounded">
                                                                 {i}
                                                             </span>
                                                         ))}
                                                     </div>
                                                 </td>
-                                                <td className="px-8 py-6 text-center font-bold text-zinc-900">{item.qty}</td>
-                                                <td className="px-8 py-6 text-right">
+                                                <td className="py-6 text-center font-bold text-[#1f2937] dark:text-[#e4e4e7]">{item.qty}</td>
+                                                <td className="py-6 text-right">
                                                     <div className="flex items-center justify-end gap-3">
-                                                        <span className="text-zinc-400 text-sm">$</span>
+                                                        <span className="text-[#9ca3af] dark:text-[#52525b] text-sm">$</span>
                                                         <input
                                                             type="number"
                                                             value={item.rate}
                                                             onChange={(e) => handlePriceChange(item.id, parseFloat(e.target.value) || 0)}
-                                                            className="w-24 bg-transparent border-b border-zinc-200 focus:border-zinc-900 outline-none text-right font-bold text-zinc-900 text-sm py-1 transition-colors"
+                                                            className="w-24 bg-transparent border-b border-[#e5e7eb] dark:border-[#1f1f21] focus:border-accent outline-none text-right font-bold text-[#1f2937] dark:text-[#e4e4e7] text-sm py-1 transition-colors"
                                                         />
-                                                        <button onClick={() => setScannedDevices(prev => prev.filter(d => !item.imeis.includes(d.imei)))} className="ml-3 text-zinc-300 hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                                                        <button onClick={() => setScannedDevices(prev => prev.filter(d => !item.imeis.includes(d.imei)))} className="ml-3 text-[#d1d5db] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -591,11 +591,11 @@ export default function InvoicingSystem() {
                     </div>
 
                     {/* SUMMARY BLOCK */}
-                    <div className="p-8 bg-white border-t border-zinc-200 flex justify-between items-end gap-12">
+                    <div className="p-8 bg-white dark:bg-[#141416] border-t border-[#e5e7eb] dark:border-[#1f1f21] flex justify-between items-end gap-12">
                         <div className="space-y-3 min-w-[240px]">
                             <div className="flex justify-between text-sm font-bold uppercase tracking-widest">
-                                <span className="text-zinc-400">Subtotal</span>
-                                <span className="text-zinc-900">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span className="text-[#6b7280] dark:text-[#71717a]">Subtotal</span>
+                                <span className="text-[#1f2937] dark:text-[#e4e4e7]">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             {discountAmount > 0 && (
                                 <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-emerald-600">
@@ -604,12 +604,12 @@ export default function InvoicingSystem() {
                                 </div>
                             )}
                             <div className="flex justify-between text-sm font-bold uppercase tracking-widest">
-                                <span className="text-zinc-400">Sales Tax</span>
-                                <span className="text-zinc-900">{isTaxExempt ? 'EXEMPT' : `$${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}</span>
+                                <span className="text-[#6b7280] dark:text-[#71717a]">Sales Tax</span>
+                                <span className="text-[#1f2937] dark:text-[#e4e4e7]">{isTaxExempt ? 'EXEMPT' : `$${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}</span>
                             </div>
                             {upfrontPayment > 0 && (
-                                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-zinc-900 border-t border-zinc-100 pt-2 mt-2">
-                                    <span className="text-zinc-400">Upfront Credit</span>
+                                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-[#1f2937] dark:text-[#e4e4e7] border-t border-[#e5e7eb] dark:border-[#1f1f21] pt-2 mt-2">
+                                    <span className="text-[#6b7280] dark:text-[#71717a]">Upfront Credit</span>
                                     <span>-${upfrontPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             )}
@@ -617,8 +617,8 @@ export default function InvoicingSystem() {
 
                         <div className="flex flex-col items-end gap-6">
                             <div className="text-right">
-                                <div className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 mb-2">{upfrontPayment > 0 ? 'Balance Due' : 'Total Reconciliation'}</div>
-                                <div className="text-6xl font-bold tracking-tighter text-zinc-900">
+                                <div className="text-xs font-bold uppercase tracking-widest text-[#6b7280] dark:text-[#71717a] mb-2">{upfrontPayment > 0 ? 'Balance Due' : 'Total Reconciliation'}</div>
+                                <div className="text-5xl font-bold text-[#1f2937] dark:text-[#e4e4e7]">
                                     ${(totalDue - upfrontPayment).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </div>
                             </div>
@@ -626,7 +626,7 @@ export default function InvoicingSystem() {
                             <button
                                 onClick={handleCheckout}
                                 disabled={isProcessing || scannedDevices.length === 0}
-                                className="btn-primary w-80 h-16 text-xs font-semibold uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                                className="btn-primary px-12 h-14 text-sm font-semibold flex items-center justify-center gap-3"
                             >
                                 {isProcessing ? 'Synchronizing...' : (
                                     <>

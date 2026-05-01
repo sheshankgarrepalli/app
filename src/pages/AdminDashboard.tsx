@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { TrendingUp, Package, DollarSign, Clock, AlertTriangle, Wrench, Download } from 'lucide-react';
+import { Wrench, Download, TrendingUp } from 'lucide-react';
+
+const DATE_RANGES = ['Today', 'This Week', 'This Month', '3 Months', '6 Months', 'All Time'];
 
 export default function AdminDashboard() {
     const { token } = useAuth();
@@ -10,9 +12,7 @@ export default function AdminDashboard() {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchDashboard();
-    }, [dateRange, token]);
+    useEffect(() => { fetchDashboard(); }, [dateRange, token]);
 
     const fetchDashboard = async () => {
         try {
@@ -38,94 +38,144 @@ export default function AdminDashboard() {
     };
 
     if (error) return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8 bg-rose-50 border border-rose-200 rounded-lg m-8">
-            <div className="text-rose-900 font-bold text-lg mb-2 uppercase tracking-widest">Service Interruption</div>
-            <p className="text-rose-700/60 text-xs font-semibold uppercase tracking-widest max-w-md">{error}</p>
-            <button onClick={fetchDashboard} className="btn-primary mt-8 px-8 py-3">Retry</button>
+        <div className="flex flex-col items-center justify-center h-96 text-center card p-8">
+            <div className="text-red-500 font-semibold text-lg mb-2">Service Interruption</div>
+            <p className="text-[#6b7280] dark:text-[#71717a] text-sm max-w-md mb-6">{error}</p>
+            <button onClick={fetchDashboard} className="btn-primary px-8 py-3">Retry</button>
         </div>
     );
 
     if (!data) return (
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-6">
-            <div className="w-10 h-10 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-            <div className="text-zinc-400 font-semibold uppercase tracking-[0.4em] text-[10px]">Loading Metrics...</div>
+        <div className="flex flex-col items-center justify-center h-96 gap-4">
+            <div className="w-10 h-10 border-2 border-[#e5e7eb] dark:border-[#1f1f21] border-t-accent rounded-full animate-spin" />
+            <div className="text-[#6b7280] dark:text-[#71717a] text-sm">Loading Metrics...</div>
         </div>
     );
 
-    const Metric = ({ icon: Icon, label, value, suffix = '' }: any) => (
-        <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm space-y-2">
-            <div className="flex items-center gap-2 text-zinc-400">
-                <Icon size={16} /><span className="text-[10px] font-semibold uppercase tracking-widest">{label}</span>
-            </div>
-            <div className="text-3xl font-bold text-zinc-900 tracking-tighter">{value}{suffix}</div>
-        </div>
-    );
+    const locationSales = data.sales_by_location || {};
+    const locationEntries: [string, number][] = Object.entries(locationSales);
+    const maxSales = Math.max(...locationEntries.map(([,v]) => v as number), 1);
+
+    const barColors = ['bg-accent', 'bg-success', 'bg-navy'];
 
     return (
-        <div className="max-w-6xl mx-auto p-8 space-y-8">
-            <header className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">Executive Overview</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Real-time operational intelligence</p>
-                </div>
+        <div className="space-y-6 max-w-7xl">
+            {/* Header */}
+            <div className="page-header">
+                <h1 className="page-title">Dashboard</h1>
                 <div className="flex items-center gap-3">
-                    <select value={dateRange} onChange={e => setDateRange(e.target.value)} className="input-stark">
-                        {["Today", "This Week", "This Month", "3 Months", "6 Months", "All Time"].map(o => (
-                            <option key={o} value={o}>{o}</option>
+                    <div className="flex gap-1">
+                        {DATE_RANGES.map(d => (
+                            <button
+                                key={d}
+                                className={`date-pill ${d === dateRange ? 'active' : ''}`}
+                                onClick={() => setDateRange(d)}
+                            >
+                                {d}
+                            </button>
                         ))}
-                    </select>
-                    <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 border border-zinc-300 rounded-lg text-xs font-semibold uppercase tracking-widest text-zinc-600 hover:bg-zinc-50">
-                        <Download size={14} /> Export
+                    </div>
+                    <button onClick={handleExport} className="btn-secondary text-xs">
+                        <Download size={14} /> Export CSV
                     </button>
                 </div>
-            </header>
-
-            {/* Key Metrics Grid */}
-            <div className="grid grid-cols-4 gap-4">
-                <Metric icon={TrendingUp} label="Total Sold" value={data.total_sold} />
-                <Metric icon={Package} label="Warehouse Flux" value={data.warehouse_outflow} />
-                <Metric icon={Wrench} label="Active Repairs" value={data.active_repairs} />
-                <Metric icon={AlertTriangle} label="Low Stock Parts" value={data.low_stock_parts} />
             </div>
 
+            {/* KPI Row 1 */}
             <div className="grid grid-cols-4 gap-4">
-                <Metric icon={DollarSign} label="Revenue" value={`$${data.total_revenue.toLocaleString()}`} />
-                <Metric icon={DollarSign} label="Gross Margin" value={`$${data.gross_margin.toLocaleString()}`} suffix={` (${data.gross_margin_pct}%)`} />
-                <Metric icon={Clock} label="Avg Velocity" value={data.inventory_velocity_days} suffix=" days" />
-                <Metric icon={AlertTriangle} label="Shrinkage" value={data.shrinkage_pct} suffix="%" />
+                <div className="kpi-card">
+                    <div className="kpi-label">Total Revenue</div>
+                    <div className="kpi-value">${(data.total_revenue || 0).toLocaleString()}</div>
+                    <div className="kpi-change up">
+                        <TrendingUp size={12} className="inline" /> {data.total_sold} units sold
+                    </div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Gross Margin</div>
+                    <div className="kpi-value">{data.gross_margin_pct || 0}%</div>
+                    <div className="kpi-change up">${(data.gross_margin || 0).toLocaleString()} profit</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Active Repairs</div>
+                    <div className="kpi-value">{data.active_repairs || 0}</div>
+                    <div className="kpi-change" style={{color: '#f59e0b'}}>
+                        <Wrench size={12} className="inline" /> {data.low_stock_parts || 0} awaiting parts
+                    </div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Low Stock Parts</div>
+                    <div className="kpi-value">{data.low_stock_parts || 0}</div>
+                    <div className="kpi-change down">Reorder needed</div>
+                </div>
             </div>
 
+            {/* Two column layout */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
-                    <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-4">Sales by Location</h2>
-                    {Object.entries(data.sales_by_location).map(([store, count]) => (
-                        <div key={store} className="flex justify-between items-center text-xs font-semibold uppercase tracking-wider py-2 border-b border-zinc-100 last:border-0">
-                            <span className="text-zinc-500">{store.replace(/_/g, ' ')}</span>
-                            <span className="text-zinc-900 font-bold">{count as number}</span>
-                        </div>
-                    ))}
-                </div>
-                <div className="bg-white border border-zinc-200 p-6 rounded-lg shadow-sm">
-                    <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-4">Top Selling Models</h2>
-                    <table className="w-full">
-                        <tbody>
-                            {data.top_selling_models.map((item: any, idx: number) => (
-                                <tr key={idx} className="border-b border-zinc-100 last:border-0 text-xs">
-                                    <td className="py-2.5 font-semibold uppercase tracking-wider text-zinc-700">{item.model_number}</td>
-                                    <td className="py-2.5 text-right font-bold text-zinc-900">{item.count}</td>
-                                </tr>
+                {/* Sales by Location */}
+                <div className="card">
+                    <div className="card-header">Sales by Location</div>
+                    <div className="card-body">
+                        <div className="flex items-end gap-8 h-40 px-3">
+                            {locationEntries.map(([store, count], i) => (
+                                <div key={store} className="flex flex-col items-center gap-2 flex-1">
+                                    <span className="text-sm font-semibold">{count as number}</span>
+                                    <div
+                                        className={`w-12 rounded-t-md ${barColors[i % 3]}`}
+                                        style={{ height: `${((count as number) / maxSales) * 140}px`, transition: 'height 0.3s' }}
+                                    />
+                                    <span className="text-[11px] text-[#6b7280] dark:text-[#71717a] capitalize">{store.replace(/_/g, ' ')}</span>
+                                </div>
                             ))}
-                            {data.top_selling_models.length === 0 && (
-                                <tr><td colSpan={2} className="py-8 text-center text-zinc-300 font-semibold uppercase">No data</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Top Selling Models */}
+                <div className="card">
+                    <div className="card-header">Top Selling Models</div>
+                    <div className="p-0">
+                        <table className="table-standard">
+                            <thead>
+                                <tr><th>Model</th><th className="text-right">Units Sold</th></tr>
+                            </thead>
+                            <tbody>
+                                {(data.top_selling_models || []).map((item: any, idx: number) => (
+                                    <tr key={idx}>
+                                        <td className="font-medium">{item.model_number}</td>
+                                        <td className="text-right font-semibold">{item.count}</td>
+                                    </tr>
+                                ))}
+                                {(!data.top_selling_models || data.top_selling_models.length === 0) && (
+                                    <tr><td colSpan={2} className="text-center text-[#6b7280] dark:text-[#71717a] py-8">No data for this period</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            {/* Summary stats footer */}
-            <div className="text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                {data.total_devices} total devices in inventory | Parts consumed: ${data.parts_cost_consumed.toFixed(2)}
+            {/* KPI Row 2 */}
+            <div className="grid grid-cols-4 gap-4">
+                <div className="kpi-card">
+                    <div className="kpi-label">Inventory Velocity</div>
+                    <div><span className="text-xl font-bold">{data.inventory_velocity_days || 0}</span> <span className="text-sm text-[#6b7280] dark:text-[#71717a]">days avg</span></div>
+                    <div className="text-xs text-[#6b7280] dark:text-[#71717a]">Intake to sale turnaround</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Shrinkage Rate</div>
+                    <div className="kpi-value">{data.shrinkage_pct || 0}%</div>
+                    <div className="text-xs text-[#6b7280] dark:text-[#71717a]">{data.total_devices || 0} total devices tracked</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Parts Consumed</div>
+                    <div className="kpi-value">${(data.parts_cost_consumed || 0).toLocaleString()}</div>
+                    <div className="text-xs text-[#6b7280] dark:text-[#71717a]">This period</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Warehouse Outflow</div>
+                    <div className="kpi-value">{data.warehouse_outflow || 0}</div>
+                    <div className="text-xs text-[#6b7280] dark:text-[#71717a]">Transfer orders dispatched</div>
+                </div>
             </div>
         </div>
     );

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP — Design Mockups</title>
+<style>
+:root {
+  --navy: #1a1a2e; --accent: #e94560; --bg: #f5f5f5; --card: #ffffff;
+  --text: #1f2937; --text-secondary: #6b7280; --border: #e5e7eb;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+
+header {
+  background: var(--navy); color: #fff; padding: 32px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-title { font-size: 24px; font-weight: 700; }
+.header-title span { color: var(--accent); }
+.header-meta { font-size: 13px; color: rgba(255,255,255,0.6); }
+
+main { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+.intro { margin-bottom: 32px; }
+.intro h2 { font-size: 18px; margin-bottom: 8px; }
+.intro p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; max-width: 700px; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden; transition: box-shadow 0.2s, transform 0.15s;
+}
+.card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.card-preview {
+  height: 200px; background: #f0f0f4; border-bottom: 1px solid var(--border);
+  overflow: hidden; position: relative;
+}
+.card-preview iframe { width: 140%; height: 140%; border: none; transform: scale(0.714); transform-origin: 0 0; pointer-events: none; }
+.card-body { padding: 16px 20px 20px; }
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px;
+  font-size: 13px; font-weight: 500; text-decoration: none; font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #d63d52; }
+.btn-outline { border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+
+.status-bar { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; }
+.status-item { background: var(--card); border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; }
+.status-dot.green { background: #10b981; }
+.status-dot.amber { background: #f59e0b; }
+
+footer { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 13px; }
+
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 650px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">AMAFAH<span>ERP</span> — Design Mockups</div>
+    <div class="header-meta" style="margin-top:4px">Phase 5: Visual Previews &middot; Generated 2026-04-28</div>
+  </div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.5)">
+    Design doc: <a href="https://github.com/sheshank/amafah-electronics-erp" style="color:rgba(255,255,255,0.7)">sheshank/amafah-electronics-erp</a><br>
+    Status: APPROVED
+  </div>
+</header>
+
+<main>
+  <div class="intro">
+    <h2>6 Screens — Complete Platform Mockup</h2>
+    <p>Standalone HTML mockups for the AMAFAH Electronics ERP. Each file is self-contained with inline CSS, realistic dummy data, and CSS-only interactive patterns (modal dialogs, tab switching, detail panels). No frameworks, no build step — open any file directly in a browser.</p>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item"><span class="status-dot green"></span> 6 screens generated</div>
+    <div class="status-item"><span class="status-dot green"></span> Design: Dark navy + accent red-pink</div>
+    <div class="status-item"><span class="status-dot amber"></span> Mockups only — not wired to API</div>
+    <div class="status-item"><span class="status-dot green"></span> All CSS-only interactive patterns</div>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-preview"><iframe src="dashboard.html"></iframe></div>
+      <div class="card-body">
+        <div class="card-title">1. Dashboard</div>
+        <div class="card-desc">KPI cards (revenue, margin, repairs, alerts), bar charts, top-selling models table, inventory velocity, shrinkage gauge, recent activity feed, date range filters, CSV export.</div>
+        <a class="btn btn-primary" href="dashboard.html" target="_blank">Open Dashboard</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-preview"><iframe src="parts.html"></iframe></div>
+      <div class="card-body">
+        <div class="card-title">2. Parts Inventory</div>
+        <div class="card-desc">Parts table with low-stock highlights, receive/new part modals, SKU detail panel with valuation, intake history, supplier management, labor rate configuration — 4 tabs with inline switching.</div>
+        <a class="btn btn-primary" href="parts.html" target="_blank">Open Parts</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-preview"><iframe src="repair.html"></iframe></div>
+      <div class="card-body">
+        <div class="card-title">3. Repair Kanban</div>
+        <div class="card-desc">5-column kanban board (Triage, In Progress, Awaiting Parts, Completed, Cancelled). Ticket cards show IMEI, model, symptoms, technician. Click to expand with parts consumed and complete/scrap actions.</div>
+        <a class="btn btn-primary" href="repair.html" target="_blank">Open Repairs</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-preview"><iframe src="pos.html"></iframe></div>
+      <div class="card-body">
+        <div class="card-title">4. Point of Sale</div>
+        <div class="card-desc">Two-column layout: cart (left) + device lookup (right). Large IMEI scan field, auto-populating device details, cart with line items and totals, split payment and layaway options, recent invoices table.</div>
+        <a class="btn btn-primary" href="pos.html" target="_blank">Open Checkout</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-preview"><iframe src="inventory.html"></iframe></div>
+      <div class="card-body">
+        <div class="card-title">5. Device Inventory</div>
+        <div class="card-desc">Filterable device table (IMEI, model, status badge, location, cost basis, days in inventory). Click to expand detail panel with history, cost ledger, repair history, and transfers sub-tabs.</div>
+        <a class="btn btn-primary" href="inventory.html" target="_blank">Open Inventory</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-preview"><iframe src="transfers.html"></iframe></div>
+      <div class="card-body">
+        <div class="card-title">6. Transfers & Manifests</div>
+        <div class="card-desc">Active/completed transfer tabs. Manifest detail expands inline with device list and per-device receive checkboxes. Print manifest and receive selected actions.</div>
+        <a class="btn btn-primary" href="transfers.html" target="_blank">Open Transfers</a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  AMAFAH Electronics ERP &middot; Design mockups generated 2026-04-28 &middot; 6 screens
+</footer>
+
+</body>
+</html>

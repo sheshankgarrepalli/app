@@ -62,22 +62,22 @@ export default function BulkTransfer() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">Logistics Dispatch</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Chain of custody & inter-node routing</p>
+                    <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Logistics Dispatch</h1>
+                    <p className="text-xs text-zinc-500 dark:text-[#71717a] mt-1">Chain of custody & inter-node routing</p>
                 </div>
             </header>
 
             <div className="flex-1 grid grid-cols-12 overflow-hidden">
                 {/* CONTROLS (1/3) */}
-                <div className="col-span-4 bg-white border-r border-zinc-200 p-6 space-y-8 overflow-y-auto">
+                <div className="col-span-4 bg-white dark:bg-[#141416] border-r border-zinc-200 dark:border-[#1f1f21] p-6 space-y-8 overflow-y-auto">
                     <form onSubmit={handleScan} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Scanner Input (IMEI/Serial)</label>
+                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Scanner Input (IMEI/Serial)</label>
                             <div className="relative group">
-                                <Scan size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-zinc-900 transition-colors" />
+                                <Scan size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-[#52525b] group-focus-within:text-zinc-900 dark:text-[#e4e4e7] transition-colors" />
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -91,7 +91,7 @@ export default function BulkTransfer() {
 
                         <div className="space-y-6">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Destination Node</label>
+                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a] ml-1">Destination Node</label>
                                 <select
                                     value={destination}
                                     onChange={e => setDestination(e.target.value)}
@@ -104,14 +104,14 @@ export default function BulkTransfer() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Identified Defects</label>
+                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a] ml-1">Identified Defects</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {defectOptions.map(d => (
                                         <button
                                             key={d}
                                             type="button"
                                             onClick={() => toggleDefect(d)}
-                                            className={`p-3 text-[10px] font-bold uppercase tracking-widest border rounded-lg transition-all ${defects.includes(d) ? 'bg-zinc-900 border-zinc-900 text-white shadow-sm' : 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50'}`}
+                                            className={`p-3 text-[10px] font-bold uppercase tracking-widest border rounded-lg transition-all ${defects.includes(d) ? 'bg-zinc-900 border-zinc-900 text-white shadow-sm' : 'bg-white dark:bg-[#141416] border-zinc-200 dark:border-[#1f1f21] text-zinc-500 dark:text-[#71717a] hover:bg-zinc-50 dark:hover:bg-[#1a1a1c] dark:bg-[#0a0a0b]'}`}
                                         >
                                             {d}
                                         </button>
@@ -120,7 +120,7 @@ export default function BulkTransfer() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Dispatch Directives</label>
+                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a] ml-1">Dispatch Directives</label>
                                 <textarea
                                     value={notes}
                                     onChange={e => setNotes(e.target.value)}
@@ -148,7 +148,7 @@ export default function BulkTransfer() {
                         <div className={`p-6 border rounded-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 shadow-sm ${summary.errors.length > 0 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
                             <div className="flex justify-between items-center">
                                 <span className={`text-xs font-bold uppercase tracking-widest ${summary.errors.length > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>Dispatch Summary</span>
-                                <button onClick={() => setSummary(null)} className="text-zinc-400 hover:text-zinc-900 transition-colors"><X size={16} /></button>
+                                <button onClick={() => setSummary(null)} className="text-zinc-400 dark:text-[#a1a1aa] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors"><X size={16} /></button>
                             </div>
                             <div className={`text-3xl font-bold ${summary.errors.length > 0 ? 'text-rose-900' : 'text-emerald-900'}`}>{summary.success_count} <span className="text-xs uppercase tracking-widest font-bold opacity-60">Success</span></div>
                             {summary.errors.length > 0 && (
@@ -164,9 +164,9 @@ export default function BulkTransfer() {
                 </div>
 
                 {/* SCANNED LIST (2/3) */}
-                <div className="col-span-8 flex flex-col bg-zinc-50 overflow-hidden">
-                    <div className="p-4 bg-white border-b border-zinc-200 flex justify-between items-center">
-                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Dispatch Batch ({scannedImeis.length})</label>
+                <div className="col-span-8 flex flex-col bg-zinc-50 dark:bg-[#0a0a0b] overflow-hidden">
+                    <div className="p-4 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
+                        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Dispatch Batch ({scannedImeis.length})</label>
                         {scannedImeis.length > 0 && (
                             <button onClick={() => setScannedImeis([])} className="text-xs font-semibold uppercase tracking-widest text-rose-600 hover:text-rose-700 transition-colors">Clear Batch</button>
                         )}
@@ -174,15 +174,15 @@ export default function BulkTransfer() {
 
                     <div className="flex-1 overflow-y-auto p-6">
                         {scannedImeis.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-zinc-300 space-y-4">
+                            <div className="flex flex-col items-center justify-center h-full text-zinc-300 dark:text-[#52525b] space-y-4">
                                 <Scan size={64} className="opacity-10" />
                                 <div className="text-xs font-semibold uppercase tracking-[0.4em] opacity-40">Waiting for Scans...</div>
                             </div>
                         ) : (
-                            <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
+                            <div className="bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm overflow-hidden">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="bg-zinc-50/50 border-b border-zinc-200">
-                                        <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">
+                                    <thead className="bg-zinc-50 dark:bg-[#0a0a0b]/50 border-b border-zinc-200 dark:border-[#1f1f21]">
+                                        <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">
                                             <th className="px-8 py-4 w-20">Seq</th>
                                             <th className="px-8 py-4">Asset Identifier</th>
                                             <th className="px-8 py-4 text-right w-24">Actions</th>
@@ -190,11 +190,11 @@ export default function BulkTransfer() {
                                     </thead>
                                     <tbody className="text-sm">
                                         {scannedImeis.map((imei, index) => (
-                                            <tr key={imei} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group animate-in fade-in slide-in-from-top-2">
-                                                <td className="px-8 py-4 text-zinc-400 font-semibold">{scannedImeis.length - index}</td>
-                                                <td className="px-8 py-4 font-mono text-zinc-900 font-bold tracking-widest uppercase text-xs">{imei}</td>
+                                            <tr key={imei} className="border-b border-zinc-100 dark:border-[#1a1a1c] hover:bg-zinc-50 dark:hover:bg-[#1a1a1c] dark:bg-[#0a0a0b]/50 transition-colors group animate-in fade-in slide-in-from-top-2">
+                                                <td className="px-8 py-4 text-zinc-400 dark:text-[#a1a1aa] font-semibold">{scannedImeis.length - index}</td>
+                                                <td className="px-8 py-4 font-mono text-zinc-900 dark:text-[#e4e4e7] font-bold tracking-widest uppercase text-xs">{imei}</td>
                                                 <td className="px-8 py-4 text-right">
-                                                    <button onClick={() => removeImei(imei)} className="text-zinc-300 hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100">
+                                                    <button onClick={() => removeImei(imei)} className="text-zinc-300 dark:text-[#52525b] hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100">
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </td>

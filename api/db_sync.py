@@ -16,6 +16,15 @@ def _safe_add_column(db: Session, table: str, column: str, col_type: str, defaul
     except Exception:
         db.rollback()
 
+def _safe_add_enum_value(db: Session, enum_type: str, value: str):
+    """Add a value to a PostgreSQL enum type if it doesn't already exist."""
+    try:
+        db.execute(text(f"ALTER TYPE {enum_type} ADD VALUE '{value}'"))
+        db.commit()
+        print(f"Added value '{value}' to enum type {enum_type}")
+    except Exception:
+        db.rollback()
+
 def db_sync():
     # Ensure tables exist
     models.Base.metadata.create_all(bind=engine)
@@ -77,6 +86,13 @@ def db_sync():
 
         # payment_transactions: org_id
         _safe_add_column(db, "payment_transactions", "org_id", "TEXT")
+
+        # ── Ensure PostgreSQL enum types have all values ──
+        _safe_add_enum_value(db, "devicestatus", "Pending_Acknowledgment")
+        _safe_add_enum_value(db, "devicestatus", "Reserved_Layaway")
+        _safe_add_enum_value(db, "devicestatus", "Scrapped")
+        _safe_add_enum_value(db, "devicestatus", "Awaiting_Parts")
+        _safe_add_enum_value(db, "repairstatus", "Awaiting_Parts")
 
         # ── Ensure Default Store exists ──
         default_store_id = "Warehouse_Alpha"

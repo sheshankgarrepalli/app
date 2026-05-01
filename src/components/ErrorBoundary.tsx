@@ -30,21 +30,21 @@ class ErrorBoundary extends Component<Props, State> {
     public render() {
         if (this.state.hasError) {
             return (
-                <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6 selection:bg-zinc-200">
-                    <div className="w-full max-w-2xl bg-white border border-zinc-200 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in duration-300">
+                <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0b] flex items-center justify-center p-6 selection:bg-zinc-200">
+                    <div className="w-full max-w-2xl bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in duration-300">
                         <div className="p-12 space-y-10">
                             <div className="flex items-center gap-4 text-rose-600">
                                 <div className="p-3 bg-rose-50 rounded-full border border-rose-100">
                                     <AlertCircle size={32} />
                                 </div>
                                 <div>
-                                    <h1 className="text-xl font-black uppercase tracking-[0.2em] text-zinc-900">System Interruption</h1>
-                                    <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase mt-1">Runtime Exception Detected</p>
+                                    <h1 className="text-xl font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-[#e4e4e7]">System Interruption</h1>
+                                    <p className="text-[10px] font-bold text-zinc-400 dark:text-[#a1a1aa] tracking-widest uppercase mt-1">Runtime Exception Detected</p>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-widest">
                                     <Terminal size={12} /> Error Message
                                 </div>
                                 <div className="p-6 bg-zinc-900 rounded-md border border-zinc-800 shadow-inner">
@@ -56,19 +56,19 @@ class ErrorBoundary extends Component<Props, State> {
 
                             {this.state.errorInfo && (
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-widest">
                                         <Terminal size={12} /> Component Stack Trace
                                     </div>
-                                    <div className="p-6 bg-zinc-50 rounded-md border border-zinc-200 max-h-48 overflow-auto">
-                                        <pre className="text-[10px] font-mono text-zinc-500 leading-relaxed">
+                                    <div className="p-6 bg-zinc-50 dark:bg-[#0a0a0b] rounded-md border border-zinc-200 dark:border-[#1f1f21] max-h-48 overflow-auto">
+                                        <pre className="text-[10px] font-mono text-zinc-500 dark:text-[#71717a] leading-relaxed">
                                             {this.state.errorInfo.componentStack}
                                         </pre>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="pt-6 border-t border-zinc-100 flex justify-between items-center">
-                                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
+                            <div className="pt-6 border-t border-zinc-100 dark:border-[#1a1a1c] flex justify-between items-center">
+                                <p className="text-[9px] font-bold text-zinc-400 dark:text-[#a1a1aa] uppercase tracking-widest">
                                     Internal Telemetry Logged • Authorized Personnel Only
                                 </p>
                                 <button

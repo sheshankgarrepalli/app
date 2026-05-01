@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP — Dashboard</title>
+<style>
+:root {
+  --navy: #1a1a2e;
+  --accent: #e94560;
+  --success: #0f3460;
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --text: #1f2937;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --sidebar-width: 240px;
+  --topbar-height: 56px;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --blue: #3b82f6;
+  --red: #ef4444;
+  --purple: #8b5cf6;
+  --teal: #14b8a6;
+  --orange: #f97316;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar-width); background: var(--navy); color: #fff;
+  display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+}
+.sidebar-logo { padding: 16px 20px; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo span { color: var(--accent); }
+.sidebar-nav { flex: 1; padding: 12px 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: rgba(255,255,255,0.65);
+  font-size: 14px; cursor: pointer; transition: all 0.15s; text-decoration: none; border-left: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
+.nav-icon { width: 20px; text-align: center; font-size: 16px; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
+.sidebar-footer { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: rgba(255,255,255,0.4); }
+
+/* MAIN */
+.main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; }
+
+/* TOP BAR */
+.topbar {
+  height: var(--topbar-height); background: var(--card); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50;
+}
+.breadcrumbs { font-size: 13px; color: var(--text-secondary); }
+.breadcrumbs span { color: var(--text); font-weight: 500; }
+.topbar-spacer { flex: 1; }
+.store-select {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+  background: var(--bg); cursor: pointer; font-family: inherit;
+}
+.topbar-btn {
+  width: 36px; height: 36px; border: none; background: none; cursor: pointer;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); position: relative;
+}
+.topbar-btn:hover { background: var(--bg); }
+.notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; border: 2px solid #fff; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* CONTENT */
+.content { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 22px; font-weight: 700; }
+.date-filters { display: flex; gap: 4px; }
+.date-pill {
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px;
+  cursor: pointer; background: var(--card); color: var(--text-secondary); font-family: inherit; white-space: nowrap;
+}
+.date-pill.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.date-pill:hover:not(.active) { background: var(--bg); }
+
+/* KPI CARDS */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.kpi-card {
+  background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.kpi-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+.kpi-value { font-size: 28px; font-weight: 700; }
+.kpi-change { font-size: 12px; }
+.kpi-change.up { color: var(--green); }
+.kpi-change.down { color: var(--red); }
+
+/* TWO COLUMN */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.col-span-2 { grid-column: span 2; }
+
+/* CARDS */
+.card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+}
+.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.card-body { padding: 20px; flex: 1; }
+
+/* CHART PLACEHOLDER */
+.chart-placeholder { display: flex; align-items: flex-end; gap: 32px; height: 160px; padding: 0 12px; }
+.bar-group { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+.bar { width: 48px; border-radius: 4px 4px 0 0; transition: height 0.3s; }
+.bar-label { font-size: 11px; color: var(--text-secondary); }
+.bar-value { font-size: 13px; font-weight: 600; }
+.bar-a { background: var(--accent); height: 140px; }
+.bar-b { background: var(--success); height: 100px; }
+.bar-c { background: var(--navy); height: 87px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 16px; font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: #f9fafb; }
+tr:last-child td { border-bottom: none; }
+.text-right { text-align: right; }
+
+/* BADGES */
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;
+}
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-amber { background: #fef3c7; color: #92400e; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-purple { background: #ede9fe; color: #5b21b6; }
+.badge-teal { background: #ccfbf1; color: #115e59; }
+.badge-orange { background: #ffedd5; color: #9a3412; }
+
+/* ACTIVITY FEED */
+.activity-item { display: flex; gap: 10px; padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
+.activity-time { color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+.activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+
+/* BUTTONS */
+.btn {
+  padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent; font-family: inherit; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #d63d52; }
+.btn-outline { background: var(--card); border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* GAUGE */
+.gauge-wrap { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
+.gauge-circle {
+  width: 100px; height: 50px; border-radius: 100px 100px 0 0;
+  background: conic-gradient(var(--accent) 0deg 4deg, var(--green) 4deg 180deg, var(--border) 180deg 360deg);
+  position: relative; overflow: hidden;
+}
+.gauge-inner {
+  position: absolute; bottom: 0; left: 10px; right: 10px; height: 36px; background: var(--card); border-radius: 100px 100px 0 0;
+}
+.gauge-value { font-size: 24px; font-weight: 700; }
+.gauge-label { font-size: 12px; color: var(--text-secondary); }
+
+.metric-row { display: flex; gap: 24px; align-items: center; }
+.metric { display: flex; flex-direction: column; gap: 2px; }
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.metric-value { font-size: 20px; font-weight: 700; }
+
+/* MODALS */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; align-items: center; justify-content: center; }
+.modal { background: var(--card); border-radius: var(--radius); width: 480px; max-width: 90vw; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.modal-close { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
+
+.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.form-label { font-size: 13px; font-weight: 500; }
+.form-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; }
+.form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; background: var(--card); }
+
+/* Checkbox hack for modal toggle */
+.modal-checkbox { display: none; }
+.modal-checkbox:checked + .modal-overlay { display: flex; }
+
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo { font-size: 0; padding: 16px 12px; }
+  .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+  .main { margin-left: 60px; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .date-filters { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">AMAFAH<span>ERP</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item active" href="dashboard.html"><span class="nav-icon">&#9632;</span> Dashboard</a>
+    <a class="nav-item" href="inventory.html"><span class="nav-icon">&#9637;</span> Inventory</a>
+    <a class="nav-item" href="pos.html"><span class="nav-icon">&#9644;</span> Checkout</a>
+    <a class="nav-item" href="repair.html"><span class="nav-icon">&#9851;</span> Repairs <span class="nav-badge">7</span></a>
+    <a class="nav-item" href="parts.html"><span class="nav-icon">&#9881;</span> Parts <span class="nav-badge">3</span></a>
+    <a class="nav-item" href="transfers.html"><span class="nav-icon">&#8660;</span> Transfers</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9783;</span> Reports</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9881;</span> Settings</a>
+  </nav>
+  <div class="sidebar-footer">v1.0.0 &middot; org_3Com6Msekl6q0o4KuRxiKybuhTU</div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="breadcrumbs">Home <span>&rsaquo; Dashboard</span></div>
+    <div class="topbar-spacer"></div>
+    <select class="store-select">
+      <option>All Locations</option>
+      <option>Store A — Downtown</option>
+      <option>Store B — Eastside</option>
+      <option>Store C — Westend</option>
+      <option>Warehouse Alpha</option>
+    </select>
+    <button class="topbar-btn"><span>&#128276;</span><span class="notif-dot"></span></button>
+    <div class="avatar">S</div>
+  </header>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <div class="page-header">
+      <h1 class="page-title">Dashboard</h1>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="date-filters">
+          <button class="date-pill active">Today</button>
+          <button class="date-pill">This Week</button>
+          <button class="date-pill">This Month</button>
+          <button class="date-pill">3 Months</button>
+          <button class="date-pill">6 Months</button>
+          <button class="date-pill">All Time</button>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="alert('CSV export triggered')">&#8615; Export CSV</button>
+      </div>
+    </div>
+
+    <!-- KPI ROW -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value">$45,230</div>
+        <div class="kpi-change up">&#8593; 12.4% vs last period</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Gross Margin</div>
+        <div class="kpi-value">32.5%</div>
+        <div class="kpi-change up">&#8593; $14,702 profit</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Active Repairs</div>
+        <div class="kpi-value">7</div>
+        <div class="kpi-change" style="color:var(--amber)">3 awaiting parts</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Low Stock Parts</div>
+        <div class="kpi-value">3</div>
+        <div class="kpi-change down">Reorder needed</div>
+      </div>
+    </div>
+
+    <!-- TWO COLUMNS -->
+    <div class="two-col">
+      <!-- Sales by Location -->
+      <div class="card">
+        <div class="card-header">Sales by Location</div>
+        <div class="card-body">
+          <div class="chart-placeholder">
+            <div class="bar-group">
+              <div class="bar-value">45</div>
+              <div class="bar bar-a" style="height:140px"></div>
+              <div class="bar-label">Store A</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-value">32</div>
+              <div class="bar bar-b" style="height:100px"></div>
+              <div class="bar-label">Store B</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-value">28</div>
+              <div class="bar bar-c" style="height:87px"></div>
+              <div class="bar-label">Store C</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Selling Models -->
+      <div class="card">
+        <div class="card-header">Top Selling Models</div>
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Model</th><th class="text-right">Units Sold</th><th class="text-right">Revenue</th></tr></thead>
+            <tbody>
+              <tr><td>iPhone 15 Pro Max (A2848)</td><td class="text-right">23</td><td class="text-right">$18,400</td></tr>
+              <tr><td>iPhone 14 Pro (A2651)</td><td class="text-right">18</td><td class="text-right">$10,800</td></tr>
+              <tr><td>iPhone 13 (A2633)</td><td class="text-right">12</td><td class="text-right">$5,040</td></tr>
+              <tr><td>iPhone 12 Pro (A2341)</td><td class="text-right">9</td><td class="text-right">$3,780</td></tr>
+              <tr><td>Samsung S23 Ultra</td><td class="text-right">7</td><td class="text-right">$4,900</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS ROW -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr)">
+      <div class="kpi-card">
+        <div class="kpi-label">Inventory Velocity</div>
+        <div class="metric-row">
+          <div class="metric"><div class="metric-value">12.3</div><div class="metric-label">days avg</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)">Intake to sale turnaround</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Shrinkage Rate</div>
+        <div class="gauge-wrap">
+          <div class="gauge-circle"><div class="gauge-inner"></div></div>
+          <div class="gauge-value">1.2%</div>
+          <div class="gauge-label">2 of 163 devices scrapped</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Parts Consumed</div>
+        <div class="metric"><div class="metric-value">$2,340</div><div class="metric-label">this period</div></div>
+        <div style="font-size:12px;color:var(--text-secondary)">Across 14 repair completions</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Warehouse Outflow</div>
+        <div class="metric"><div class="metric-value">12</div><div class="metric-label">transfer orders</div></div>
+        <div style="font-size:12px;color:var(--text-secondary)">31 devices moved this period</div>
+      </div>
+    </div>
+
+    <!-- ACTIVITY FEED -->
+    <div class="card">
+      <div class="card-header">Recent Activity</div>
+      <div class="card-body">
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--blue)"></div>
+          <div style="flex:1"><strong>IMEI 356901087654321</strong> sold at Store A — $800.00</div>
+          <div class="activity-time">2 min ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--amber)"></div>
+          <div style="flex:1"><strong>Repair #R-1042</strong> moved to Awaiting Parts — iPhone 13 screen</div>
+          <div class="activity-time">18 min ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--green)"></div>
+          <div style="flex:1"><strong>Part intake:</strong> 5× A2848-SCR-OEM received from MobileSentrix</div>
+          <div class="activity-time">42 min ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--teal)"></div>
+          <div style="flex:1"><strong>Transfer #T-089</strong> dispatched — 4 devices from Warehouse to Store B</div>
+          <div class="activity-time">1 hr ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--red)"></div>
+          <div style="flex:1"><strong>Device IMEI 356703429871102</strong> scrapped — beyond economical repair</div>
+          <div class="activity-time">2 hr ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--blue)"></div>
+          <div style="flex:1"><strong>Invoice #INV-20260428-003</strong> created — 3 items, Store C</div>
+          <div class="activity-time">2 hr ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--purple)"></div>
+          <div style="flex:1"><strong>Parts low stock alert:</strong> A2633-BAT-OEM at 2 units (threshold: 5)</div>
+          <div class="activity-time">3 hr ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--orange)"></div>
+          <div style="flex:1"><strong>Layaway:</strong> IMEI 356812349870123 reserved at Store A — $200 deposit</div>
+          <div class="activity-time">4 hr ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--green)"></div>
+          <div style="flex:1"><strong>Repair #R-1041 completed</strong> — iPhone 14 Pro, screen + battery</div>
+          <div class="activity-time">5 hr ago</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:var(--teal)"></div>
+          <div style="flex:1"><strong>Audit completed</strong> at Store B — 41 expected, 40 found, 1 missing</div>
+          <div class="activity-time">6 hr ago</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

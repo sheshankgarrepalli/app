@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/react": "^6.4.2",
     "axios": "^1.7.0",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^0.395.0",
     "papaparse": "^5.5.3",
     "puppeteer": "^24.40.0",

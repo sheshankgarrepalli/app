@@ -7,6 +7,8 @@ import models, schemas, auth, wms_core
 from database import get_db
 import io
 import uuid
+import json
+from datetime import timedelta
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import pdf_worker
@@ -45,7 +47,7 @@ def retail_checkout(
             models.DeviceInventory.location_id == current_user.role,
             models.DeviceInventory.org_id == org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
-        ).first()
+        ).with_for_update().first()
         if not db_store_inv:
             raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
         
@@ -69,6 +71,12 @@ def retail_checkout(
     total_payments = sum(p.amount for p in req.payments)
     if total_payments > total + 0.01:
         raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
+
+    # CVE-007: Enforce minimum 10% deposit for layaway reservations
+    if total_payments < total - 0.01:
+        min_deposit = total * 0.10
+        if total_payments < min_deposit:
+            raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f}). Current payments: ${total_payments:.2f}")
     
     last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
     next_id = last_invoice.id + 1 if last_invoice else 1
@@ -99,7 +107,7 @@ def retail_checkout(
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.org_id == org_id
-        ).first()
+        ).with_for_update().first()
         if total_payments >= total - 0.01:
             db_store_inv.device_status = models.DeviceStatus.Sold
         else:
@@ -128,6 +136,10 @@ def retail_checkout(
         
     db.commit()
     db.refresh(db_invoice)
+    org_settings = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    db_invoice.invoice_terms = org_settings.invoice_terms if org_settings else None
     return db_invoice
 
 @router.post("/invoice", response_model=schemas.InvoiceOut)
@@ -157,7 +169,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
             models.DeviceInventory.location_id == current_user.role,
             models.DeviceInventory.org_id == org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
-        ).first()
+        ).with_for_update().first()
         if not db_store_inv:
             raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
         
@@ -217,6 +229,10 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         
     db.commit()
     db.refresh(db_invoice)
+    org_settings = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    db_invoice.invoice_terms = org_settings.invoice_terms if org_settings else None
     return db_invoice
 
 @router.post("/wholesale")
@@ -366,7 +382,12 @@ def process_payment(
     
     # Layaway State Machine
     total_paid = sum(p.amount for p in invoice.payments)
-    
+    remaining_balance = invoice.total - total_paid
+
+    if payment.payment_method != models.PaymentMethodEnum.On_Terms:
+        if payment.amount > remaining_balance + 0.01:
+            raise HTTPException(status_code=400, detail=f"Payment (${payment.amount:.2f}) exceeds remaining balance (${remaining_balance:.2f})")
+
     if total_paid < invoice.total:
         invoice.payment_status = models.PaymentStatus.Partial_Layaway
         invoice.status = models.InvoiceStatus.Partially_Paid
@@ -409,7 +430,7 @@ def process_payment(
         if customer:
             customer.current_balance -= payment.amount
             if customer.current_balance < 0:
-                customer.current_balance = 0
+                raise HTTPException(status_code=400, detail=f"Payment exceeds customer balance. Overpayment of ${abs(customer.current_balance):.2f}")
         
     db.commit()
     return {"status": "success", "total_paid": total_paid, "payment_status": invoice.payment_status}
@@ -547,8 +568,9 @@ def process_returns(
             # We'll log it as a negative payment or just adjust the balance logic
             # For simplicity in this ERP, we'll deduct from customer balance if it was "On Terms"
             if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
+                if customer and customer.current_balance < return_value:
+                    raise HTTPException(status_code=400, detail=f"RMA credit (${return_value:.2f}) exceeds customer balance (${customer.current_balance:.2f})")
                 customer.current_balance -= return_value
-                if customer.current_balance < 0: customer.current_balance = 0
                 total_credit_applied += return_value
         
         wms_core._log_history(db, imei, "RMA_Return", current_user.email, device.device_status.value, prev_status, f"Returned from Invoice {invoice.invoice_number}")
@@ -883,3 +905,660 @@ def employee_error_report(db: Session = Depends(get_db),
             by_employee[emp]["recent"].append({"action": log.action_type, "notes": log.notes, "date": str(log.timestamp)})
 
     return list(by_employee.values())
+
+
+# ── Phase 2: Structured Invoice Form ──────────────────────────────────────
+
+@router.post("/invoices", response_model=schemas.InvoiceOut)
+def create_invoice_from_form(
+    req: schemas.InvoiceFormCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    customer_id = req.customer_id
+    if not customer_id and req.customer:
+        db_customer = models.UnifiedCustomer(org_id=org_id, **req.customer.model_dump())
+        db_customer.crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
+        db.add(db_customer)
+        db.flush()
+        db.refresh(db_customer)
+        customer_id = db_customer.crm_id
+
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="Customer info required")
+
+    customer_db_obj = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == customer_id,
+        models.UnifiedCustomer.org_id == org_id
+    ).first()
+
+    subtotal = 0.0
+    for item in req.items:
+        if item.imei:
+            db_store_inv = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == item.imei,
+                models.DeviceInventory.location_id == current_user.role,
+                models.DeviceInventory.org_id == org_id,
+                models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+            ).with_for_update().first()
+            if not db_store_inv:
+                raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
+            db_store_inv.sold_to_crm_id = customer_id
+
+        applied_rate = item.rate
+        if customer_db_obj and customer_db_obj.pricing_tier > 0:
+            applied_rate = applied_rate * (1.0 - customer_db_obj.pricing_tier)
+
+        subtotal += applied_rate * item.qty
+
+    final_tax_percent = req.tax_percent
+    if customer_db_obj and customer_db_obj.tax_exempt_id:
+        final_tax_percent = 0.0
+
+    discount_amount = req.discount_amount or 0.0
+    if req.discount_percent and req.discount_percent > 0:
+        discount_amount = subtotal * (req.discount_percent / 100.0)
+
+    discounted_subtotal = subtotal - discount_amount
+    tax_amount = discounted_subtotal * (final_tax_percent / 100.0)
+    total = discounted_subtotal + tax_amount
+
+    total_payments = sum(p.amount for p in req.payments)
+    if total_payments > total + 0.01:
+        raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
+
+    if total_payments < total - 0.01:
+        min_deposit = total * 0.10
+        if total_payments < min_deposit:
+            raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f})")
+
+    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
+    next_id = last_invoice.id + 1 if last_invoice else 1
+    invoice_number = f"INV-{next_id:04d}"
+
+    is_paid_in_full = total_payments >= total - 0.01
+
+    db_invoice = models.Invoice(
+        invoice_number=invoice_number,
+        customer_id=customer_id,
+        store_id=current_user.store_id or current_user.role,
+        subtotal=subtotal,
+        tax_percent=final_tax_percent,
+        tax_amount=tax_amount,
+        total=total,
+        fulfillment_method=req.fulfillment_method,
+        shipping_address=req.shipping_address,
+        status=models.InvoiceStatus.Paid if is_paid_in_full else models.InvoiceStatus.Partially_Paid,
+        payment_status=models.PaymentStatus.Paid_in_Full if is_paid_in_full else models.PaymentStatus.Partial_Layaway,
+        message_on_invoice=req.message_on_invoice,
+        statement_memo=req.statement_memo,
+        discount_percent=req.discount_percent or 0.0,
+        discount_amount=discount_amount,
+        due_date=req.due_date,
+        org_id=org_id
+    )
+    db.add(db_invoice)
+    db.flush()
+
+    warranty_expiry = datetime.utcnow() + timedelta(days=15)
+
+    for item in req.items:
+        if item.imei:
+            db_store_inv = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == item.imei,
+                models.DeviceInventory.org_id == org_id
+            ).with_for_update().first()
+            if is_paid_in_full:
+                db_store_inv.device_status = models.DeviceStatus.Sold
+            else:
+                db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
+            db_store_inv.warranty_expiry_date = warranty_expiry
+
+        db_item = models.InvoiceItem(
+            invoice_id=db_invoice.id,
+            imei=item.imei or "",
+            model_number=item.model_number,
+            unit_price=item.rate
+        )
+        db.add(db_item)
+
+    for p in req.payments:
+        db_payment = models.PaymentTransaction(
+            invoice_id=db_invoice.id,
+            amount=p.amount,
+            payment_method=p.payment_method,
+            reference_id=p.reference_id,
+            org_id=org_id
+        )
+        db.add(db_payment)
+
+    db.commit()
+    db.refresh(db_invoice)
+    org_settings = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    db_invoice.invoice_terms = org_settings.invoice_terms if org_settings else None
+    return db_invoice
+
+
+@router.patch("/invoices/{invoice_id}")
+def update_invoice_header(
+    invoice_id: str,
+    req: schemas.InvoiceUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status not in [models.InvoiceStatus.Draft, models.InvoiceStatus.Unpaid, models.InvoiceStatus.Partially_Paid]:
+        raise HTTPException(status_code=400, detail=f"Cannot edit invoice with status {invoice.status.value}")
+
+    update_data = req.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(invoice, key, value)
+
+    db.commit()
+    return {"status": "updated", "invoice_number": invoice.invoice_number}
+
+
+@router.post("/invoices/batch")
+def batch_create_invoices(
+    req: schemas.BatchInvoiceCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    if len(req.invoices) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 invoices per batch")
+
+    org_id = getattr(current_user, 'current_org_id', None)
+    results = []
+    errors = []
+
+    for i, inv in enumerate(req.invoices):
+        try:
+            created = create_invoice_from_form(inv, db, current_user)
+            results.append(created.invoice_number)
+        except HTTPException as e:
+            errors.append({"index": i, "detail": e.detail})
+        except Exception as e:
+            errors.append({"index": i, "detail": str(e)})
+
+    return {"created": results, "errors": errors}
+
+
+@router.post("/invoices/batch-send")
+def batch_send_invoices(
+    req: schemas.BatchActionRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    results = []
+    for inv_id in req.invoice_ids:
+        invoice = db.query(models.Invoice).filter(
+            models.Invoice.id == inv_id, models.Invoice.org_id == org_id
+        ).first()
+        if not invoice:
+            results.append({"invoice_id": inv_id, "status": "error", "message": "Not found"})
+            continue
+        invoice.emailed_at = datetime.utcnow()
+        invoice.sent_at = datetime.utcnow()
+        results.append({"invoice_id": inv_id, "status": "sent", "invoice_number": invoice.invoice_number})
+
+    db.commit()
+    return {"results": results}
+
+
+@router.post("/invoices/batch-print")
+def batch_print_invoices(
+    req: schemas.BatchActionRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    try:
+        from PyPDF2 import PdfMerger
+    except ImportError:
+        from PyPDF2 import PdfMerger
+
+    merger = PdfMerger()
+    for inv_id in req.invoice_ids:
+        invoice = db.query(models.Invoice).filter(
+            models.Invoice.id == inv_id, models.Invoice.org_id == org_id
+        ).first()
+        if not invoice:
+            continue
+        try:
+            customer_info = {}
+            if invoice.customer:
+                customer_info = {
+                    "crm_id": invoice.customer_id,
+                    "name": invoice.customer.company_name or f"{invoice.customer.first_name or ''} {invoice.customer.last_name or ''}".strip()
+                }
+            invoice_data = {
+                "invoice_id": invoice.invoice_number,
+                "date": invoice.created_at.isoformat(),
+                "customer": customer_info,
+                "lines": [{"imei": i.imei, "model": i.model_number, "final_price": i.unit_price} for i in invoice.items],
+                "summary": {
+                    "subtotal": invoice.subtotal,
+                    "tax_percent": invoice.tax_percent,
+                    "total_due": invoice.total
+                }
+            }
+            pdf_bytes = generate_wholesale_invoice_pdf(invoice_data)
+            from io import BytesIO
+            merger.append(BytesIO(pdf_bytes))
+        except Exception:
+            pass
+
+    buf = io.BytesIO()
+    merger.write(buf)
+    merger.close()
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": "attachment; filename=batch_invoices.pdf"})
+
+
+# ── Estimate Workflow ─────────────────────────────────────────────────────
+
+@router.post("/estimates/{invoice_id}/mark-sent")
+def mark_estimate_sent(
+    invoice_id: str,
+    req: Optional[schemas.EstimateStatusRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.is_estimate == 1,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+
+    invoice.sent_at = datetime.utcnow()
+    invoice.emailed_at = datetime.utcnow()
+    db.commit()
+    return {"status": "sent", "invoice_number": invoice.invoice_number}
+
+
+@router.post("/estimates/{invoice_id}/accept")
+def accept_estimate(
+    invoice_id: str,
+    db: Session = Depends(get_db)
+):
+    """Customer-facing: accept an estimate via shared link. No auth required."""
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.is_estimate == 1
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    if invoice.status == models.InvoiceStatus.Voided:
+        raise HTTPException(status_code=400, detail="Estimate is voided")
+
+    invoice.status = models.InvoiceStatus.Unpaid
+    db.commit()
+    return {"status": "accepted", "invoice_number": invoice.invoice_number}
+
+
+@router.post("/estimates/{invoice_id}/decline")
+def decline_estimate(
+    invoice_id: str,
+    db: Session = Depends(get_db)
+):
+    """Customer-facing: decline an estimate via shared link. No auth required."""
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.is_estimate == 1
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+
+    invoice.status = models.InvoiceStatus.Voided
+    invoice.payment_status = models.PaymentStatus.Voided
+    db.commit()
+    return {"status": "declined", "invoice_number": invoice.invoice_number}
+
+
+@router.post("/estimates/{estimate_id}/progress-invoice")
+def create_progress_invoice(
+    estimate_id: str,
+    req: schemas.ProgressInvoiceRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    estimate = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == estimate_id,
+        models.Invoice.is_estimate == 1,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    if estimate.status == models.InvoiceStatus.Voided:
+        raise HTTPException(status_code=400, detail="Estimate is voided")
+
+    existing_progress = db.query(models.Invoice).filter(
+        models.Invoice.org_id == org_id
+    ).filter(
+        models.Invoice.invoice_number.like(f"%PROG-{estimate_id}%")
+    ).all()
+    already_invoiced = sum(inv.total for inv in existing_progress if inv.status != models.InvoiceStatus.Voided)
+
+    progress_subtotal = sum(item.rate * item.qty for item in req.items)
+    new_total = already_invoiced + progress_subtotal
+
+    if new_total > estimate.total + 0.01:
+        raise HTTPException(status_code=400,
+                            detail=f"Progress invoice (${progress_subtotal:.2f}) would exceed estimate total (${estimate.total:.2f}). Already invoiced: ${already_invoiced:.2f}")
+
+    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
+    next_id = last_invoice.id + 1 if last_invoice else 1
+    prog_number = f"PROG-{estimate_id}-{next_id:04d}"
+
+    is_final = new_total >= estimate.total - 0.01
+
+    db_invoice = models.Invoice(
+        invoice_number=prog_number,
+        customer_id=estimate.customer_id,
+        store_id=current_user.store_id or current_user.role,
+        subtotal=progress_subtotal,
+        tax_percent=estimate.tax_percent,
+        tax_amount=progress_subtotal * (estimate.tax_percent / 100.0),
+        total=progress_subtotal + progress_subtotal * (estimate.tax_percent / 100.0),
+        status=models.InvoiceStatus.Paid if is_final else models.InvoiceStatus.Unpaid,
+        payment_status=models.PaymentStatus.Paid_in_Full if is_final else models.PaymentStatus.Unpaid,
+        org_id=org_id
+    )
+    db.add(db_invoice)
+    db.flush()
+
+    for item in req.items:
+        db_item = models.InvoiceItem(
+            invoice_id=db_invoice.id,
+            imei=item.imei or "",
+            model_number=item.model_number,
+            unit_price=item.rate
+        )
+        db.add(db_item)
+
+    for p in req.payments:
+        db_payment = models.PaymentTransaction(
+            invoice_id=db_invoice.id,
+            amount=p.amount,
+            payment_method=p.payment_method,
+            reference_id=p.reference_id,
+            org_id=org_id
+        )
+        db.add(db_payment)
+
+    if is_final:
+        estimate.status = models.InvoiceStatus.Paid
+
+    db.commit()
+    db.refresh(db_invoice)
+    return {
+        "progress_invoice": db_invoice.invoice_number,
+        "amount_invoiced": progress_subtotal,
+        "total_invoiced": new_total,
+        "estimate_total": estimate.total,
+        "remaining": estimate.total - new_total,
+        "is_final": is_final
+    }
+
+
+# ── Recurring Invoices ────────────────────────────────────────────────────
+
+@router.post("/invoices/recurring", response_model=schemas.RecurringInvoiceTemplateOut)
+def create_recurring_template(
+    req: schemas.RecurringInvoiceTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    template = models.RecurringInvoiceTemplate(
+        org_id=org_id,
+        customer_id=req.customer_id,
+        frequency=req.frequency,
+        interval_value=req.interval_value,
+        next_run_date=req.next_run_date,
+        end_date=req.end_date,
+        auto_send=1 if req.auto_send else 0,
+        line_items=req.line_items,
+        terms=req.terms,
+        message_on_invoice=req.message_on_invoice
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.get("/invoices/recurring", response_model=List[schemas.RecurringInvoiceTemplateOut])
+def list_recurring_templates(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    return db.query(models.RecurringInvoiceTemplate).filter(
+        models.RecurringInvoiceTemplate.org_id == org_id
+    ).order_by(models.RecurringInvoiceTemplate.created_at.desc()).all()
+
+
+@router.put("/invoices/recurring/{template_id}", response_model=schemas.RecurringInvoiceTemplateOut)
+def update_recurring_template(
+    template_id: int,
+    req: schemas.RecurringInvoiceTemplateUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    template = db.query(models.RecurringInvoiceTemplate).filter(
+        models.RecurringInvoiceTemplate.id == template_id,
+        models.RecurringInvoiceTemplate.org_id == org_id
+    ).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    update_data = req.model_dump(exclude_unset=True)
+    if 'auto_send' in update_data:
+        update_data['auto_send'] = 1 if update_data['auto_send'] else 0
+    for key, value in update_data.items():
+        setattr(template, key, value)
+
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.delete("/invoices/recurring/{template_id}")
+def delete_recurring_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    template = db.query(models.RecurringInvoiceTemplate).filter(
+        models.RecurringInvoiceTemplate.id == template_id,
+        models.RecurringInvoiceTemplate.org_id == org_id
+    ).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    db.delete(template)
+    db.commit()
+    return {"status": "deleted"}
+
+
+@router.post("/invoices/recurring/{template_id}/pause")
+def pause_recurring_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    template = db.query(models.RecurringInvoiceTemplate).filter(
+        models.RecurringInvoiceTemplate.id == template_id,
+        models.RecurringInvoiceTemplate.org_id == org_id
+    ).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template.status = models.RecurringTemplateStatus.Paused
+    db.commit()
+    return {"status": "paused"}
+
+
+@router.post("/invoices/recurring/{template_id}/resume")
+def resume_recurring_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    template = db.query(models.RecurringInvoiceTemplate).filter(
+        models.RecurringInvoiceTemplate.id == template_id,
+        models.RecurringInvoiceTemplate.org_id == org_id
+    ).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template.status = models.RecurringTemplateStatus.Active
+    db.commit()
+    return {"status": "active"}
+
+
+@router.get("/invoices/recurring/{template_id}/log", response_model=List[schemas.RecurringInvoiceLogOut])
+def get_recurring_template_log(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    return db.query(models.RecurringInvoiceLog).filter(
+        models.RecurringInvoiceLog.template_id == template_id,
+        models.RecurringInvoiceLog.org_id == org_id
+    ).order_by(models.RecurringInvoiceLog.executed_at.desc()).all()
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    """Add N months to a datetime, handling month-end clamping."""
+    import calendar
+    total_months = dt.month + months - 1
+    year = dt.year + total_months // 12
+    month = total_months % 12 + 1
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
+
+
+# ── Scheduler Cron Endpoint ───────────────────────────────────────────────
+
+@router.post("/scheduler/run")
+def scheduler_run(db: Session = Depends(get_db)):
+    """Called daily by Vercel Cron. Creates invoices from active recurring templates."""
+    now = datetime.utcnow()
+    templates = db.query(models.RecurringInvoiceTemplate).filter(
+        models.RecurringInvoiceTemplate.status == models.RecurringTemplateStatus.Active,
+        models.RecurringInvoiceTemplate.next_run_date <= now
+    ).all()
+
+    templates_checked = len(templates)
+    invoices_created = 0
+    errors = []
+
+    for template in templates:
+        org_id = template.org_id
+        try:
+            line_items = json.loads(template.line_items)
+        except json.JSONDecodeError:
+            errors.append(f"Template {template.id}: invalid line_items JSON")
+            continue
+
+        try:
+            last_invoice = db.query(models.Invoice).filter(
+                models.Invoice.org_id == org_id
+            ).order_by(models.Invoice.id.desc()).first()
+            next_id = last_invoice.id + 1 if last_invoice else 1
+            invoice_number = f"INV-{next_id:04d}"
+
+            subtotal = sum(li.get("rate", 0) * li.get("qty", 1) for li in line_items)
+            org_settings = db.query(models.OrganizationSettings).filter(
+                models.OrganizationSettings.org_id == org_id
+            ).first()
+            tax_rate = org_settings.default_tax_rate if org_settings else 8.5
+            tax_amount = subtotal * (tax_rate / 100.0)
+            total = subtotal + tax_amount
+
+            db_invoice = models.Invoice(
+                invoice_number=invoice_number,
+                customer_id=template.customer_id,
+                store_id="admin",
+                subtotal=subtotal,
+                tax_percent=tax_rate,
+                tax_amount=tax_amount,
+                total=total,
+                status=models.InvoiceStatus.Unpaid,
+                payment_status=models.PaymentStatus.Unpaid,
+                message_on_invoice=template.message_on_invoice,
+                due_date=datetime.utcnow() + timedelta(days=30),
+                org_id=org_id
+            )
+            db.add(db_invoice)
+            db.flush()
+
+            for li in line_items:
+                db_item = models.InvoiceItem(
+                    invoice_id=db_invoice.id,
+                    imei=li.get("imei", ""),
+                    model_number=li.get("model_number", ""),
+                    unit_price=li.get("rate", 0)
+                )
+                db.add(db_item)
+
+            log_entry = models.RecurringInvoiceLog(
+                org_id=org_id,
+                template_id=template.id,
+                resulting_invoice_id=db_invoice.id,
+                status="Success"
+            )
+            db.add(log_entry)
+
+            if template.frequency == models.RecurringFrequency.Weekly:
+                template.next_run_date = template.next_run_date + timedelta(days=7 * template.interval_value)
+            elif template.frequency == models.RecurringFrequency.Monthly:
+                template.next_run_date = _add_months(template.next_run_date, template.interval_value)
+            elif template.frequency == models.RecurringFrequency.Quarterly:
+                template.next_run_date = _add_months(template.next_run_date, 3 * template.interval_value)
+            elif template.frequency == models.RecurringFrequency.Yearly:
+                template.next_run_date = _add_months(template.next_run_date, 12 * template.interval_value)
+
+            if template.end_date and template.next_run_date > template.end_date:
+                template.status = models.RecurringTemplateStatus.Completed
+
+            invoices_created += 1
+
+        except Exception as e:
+            log_entry = models.RecurringInvoiceLog(
+                org_id=template.org_id,
+                template_id=template.id,
+                status="Error",
+                error_message=str(e)
+            )
+            db.add(log_entry)
+            errors.append(f"Template {template.id}: {str(e)}")
+
+    db.commit()
+    return schemas.SchedulerRunResult(
+        templates_checked=templates_checked,
+        invoices_created=invoices_created,
+        errors=errors
+    )

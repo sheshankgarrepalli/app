@@ -62,90 +62,86 @@ export default function CRMDirectory() {
     });
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="space-y-4">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">CRM Database</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Customer relationship & credit management</p>
+                    <h1 className="page-title">CRM Database</h1>
+                    <p className="text-xs text-[#6b7280] dark:text-[#71717a] mt-1">Customer relationship & credit management</p>
                 </div>
                 <button
                     onClick={openAdd}
-                    className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-semibold uppercase tracking-widest"
+                    className="btn-primary"
                 >
                     <UserPlus size={16} /> New Entity
                 </button>
-            </header>
+            </div>
 
-            <div className="p-6 bg-white border-b border-zinc-200">
+            <div className="card p-4">
                 <div className="relative max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af] dark:text-[#52525b]" size={16} />
                     <input
                         placeholder="Search by name, company, or phone..."
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
-                        className="input-stark w-full pl-10 py-3"
+                        className="form-input w-full pl-10 py-3"
                     />
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-6">
-                <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse table-fixed">
-                        <thead className="bg-zinc-50/50 border-b border-zinc-200">
-                            <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">
-                                <th className="px-8 py-4 w-64">Entity Name / Company</th>
-                                <th className="px-8 py-4 w-32">Classification</th>
-                                <th className="px-8 py-4 w-40">Contact Node</th>
-                                <th className="px-8 py-4 w-48">Ledger Status</th>
-                                <th className="px-8 py-4 w-24 text-right">Actions</th>
+            <div className="card overflow-hidden">
+                <table className="table-standard">
+                    <thead>
+                        <tr>
+                            <th>Entity Name / Company</th>
+                            <th>Classification</th>
+                            <th>Contact Node</th>
+                            <th>Ledger Status</th>
+                            <th className="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="py-32 text-center text-[#9ca3af] dark:text-[#52525b]">No matching records identified</td>
                             </tr>
-                        </thead>
-                        <tbody className="text-sm">
-                            {filtered.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="py-32 text-center">
-                                        <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300">No matching records identified</div>
+                        ) : (
+                            filtered.map(c => (
+                                <tr key={c.crm_id} onClick={() => openDetail(c)} className="cursor-pointer group">
+                                    <td className="py-5">
+                                        <div className="font-bold text-[#1f2937] dark:text-[#e4e4e7] uppercase text-xs">
+                                            {c.customer_type === 'Wholesale' ? (c.company_name || c.name) : `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.name}
+                                        </div>
+                                        {c.customer_type === 'Wholesale' && c.contact_person && (
+                                            <div className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] dark:text-[#52525b] mt-1">Attn: {c.contact_person}</div>
+                                        )}
+                                    </td>
+                                    <td className="py-5">
+                                        <span className="badge badge-neutral">
+                                            {c.customer_type}
+                                        </span>
+                                    </td>
+                                    <td className="py-5 font-bold text-[#1f2937] dark:text-[#e4e4e7] text-xs">{c.phone || <span className="text-[#9ca3af] dark:text-[#52525b] italic">N/A</span>}</td>
+                                    <td className="py-5">
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`text-xs font-bold uppercase ${c.current_balance > 0 ? 'text-red-500' : 'text-[#1f2937] dark:text-[#e4e4e7]'}`}>
+                                                ${c.current_balance?.toLocaleString()} Balance
+                                            </span>
+                                            <span className="text-[10px] text-[#6b7280] dark:text-[#71717a] font-semibold uppercase">
+                                                Limit: ${c.credit_limit?.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="py-5 text-right">
+                                        <div className="flex items-center justify-end gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={(e) => openEdit(e, c)} className="text-[#9ca3af] dark:text-[#52525b] hover:text-[#1f2937] dark:text-[#e4e4e7] transition-colors" title="Edit Entity"><Edit2 size={18} /></button>
+                                            <button onClick={(e) => handleDeactivate(e, c.crm_id)} className="text-[#9ca3af] dark:text-[#52525b] hover:text-red-500 transition-colors" title="Deactivate"><Trash2 size={18} /></button>
+                                        </div>
                                     </td>
                                 </tr>
-                            ) : (
-                                filtered.map(c => (
-                                    <tr key={c.crm_id} onClick={() => openDetail(c)} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors cursor-pointer group">
-                                        <td className="px-8 py-5">
-                                            <div className="font-bold text-zinc-900 uppercase text-xs tracking-widest group-hover:text-zinc-600 transition-colors">
-                                                {c.customer_type === 'Wholesale' ? (c.company_name || c.name) : `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.name}
-                                            </div>
-                                            {c.customer_type === 'Wholesale' && c.contact_person && (
-                                                <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mt-1">Attn: {c.contact_person}</div>
-                                            )}
-                                        </td>
-                                        <td className="px-8 py-5">
-                                            <span className="badge-glow badge-neutral">
-                                                {c.customer_type}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-5 font-bold text-zinc-700 tracking-widest text-xs">{c.phone || <span className="text-zinc-300 italic">N/A</span>}</td>
-                                        <td className="px-8 py-5">
-                                            <div className="flex flex-col gap-1">
-                                                <span className={`text-xs font-bold uppercase tracking-widest ${c.current_balance > 0 ? 'text-rose-600' : 'text-zinc-900'}`}>
-                                                    ${c.current_balance?.toLocaleString()} Balance
-                                                </span>
-                                                <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-widest">
-                                                    Limit: ${c.credit_limit?.toLocaleString()}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={(e) => openEdit(e, c)} className="text-zinc-300 hover:text-zinc-900 transition-colors" title="Edit Entity"><Edit2 size={18} /></button>
-                                                <button onClick={(e) => handleDeactivate(e, c.crm_id)} className="text-zinc-300 hover:text-rose-600 transition-colors" title="Deactivate"><Trash2 size={18} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
 
             <CustomerModal

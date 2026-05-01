@@ -39,19 +39,19 @@ export default function RepairDashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-50">
-      <header className="p-6 bg-white border-b border-zinc-200 space-y-6">
+    <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+      <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] space-y-6">
         <div>
-          <h1 className="text-lg font-bold text-zinc-900">Repair Pipeline</h1>
-          <p className="text-xs text-zinc-500 mt-1">Technical service & maintenance queue</p>
+          <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Repair Pipeline</h1>
+          <p className="text-xs text-zinc-500 dark:text-[#71717a] mt-1">Technical service & maintenance queue</p>
         </div>
       </header>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse table-fixed">
-            <thead className="bg-zinc-50/50 border-b border-zinc-200">
-              <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">
+            <thead className="bg-zinc-50 dark:bg-[#0a0a0b]/50 border-b border-zinc-200 dark:border-[#1f1f21]">
+              <tr className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">
                 <th className="px-8 py-4 w-48">Asset Identifier</th>
                 <th className="px-8 py-4 w-48">Model</th>
                 <th className="px-6 py-4 w-32">Status</th>
@@ -61,26 +61,26 @@ export default function RepairDashboard() {
             </thead>
             <tbody className="text-sm">
               {isLoading ? (
-                <tr><td colSpan={5} className="py-32 text-center text-zinc-400 animate-pulse font-medium">Loading Queue...</td></tr>
+                <tr><td colSpan={5} className="py-32 text-center text-zinc-400 dark:text-[#a1a1aa] animate-pulse font-medium">Loading Queue...</td></tr>
               ) : inventory.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-32 text-center">
-                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300">No active repair assignments identified</div>
+                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300 dark:text-[#52525b]">No active repair assignments identified</div>
                   </td>
                 </tr>
               ) : (
                 inventory.map((item: any) => (
-                  <tr key={item.imei} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-8 py-4 font-mono font-bold text-zinc-900 tracking-widest uppercase text-xs">
+                  <tr key={item.imei} className="border-b border-zinc-100 dark:border-[#1a1a1c] hover:bg-zinc-50 dark:hover:bg-[#1a1a1c] dark:bg-[#0a0a0b]/50 transition-colors group">
+                    <td className="px-8 py-4 font-mono font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-widest uppercase text-xs">
                       {item.imei}
                     </td>
                     <td className="px-8 py-4">
-                      <div className="text-zinc-700 font-bold uppercase tracking-wider text-xs">{item.model_number}</div>
+                      <div className="text-zinc-700 dark:text-[#e4e4e7] font-bold uppercase tracking-wider text-xs">{item.model_number}</div>
                     </td>
                     <td className="px-6 py-4">
                       {getStatusBadge(item.device_status)}
                     </td>
-                    <td className="px-8 py-4 text-zinc-500 font-medium uppercase tracking-widest">
+                    <td className="px-8 py-4 text-zinc-500 dark:text-[#71717a] font-medium uppercase tracking-widest">
                       {new Date(item.received_date).toLocaleString()}
                     </td>
                     <td className="px-8 py-4 text-right">

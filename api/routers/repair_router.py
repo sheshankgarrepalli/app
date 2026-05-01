@@ -60,7 +60,7 @@ def create_ticket(req: RepairTicketCreate, db: Session = Depends(get_db),
     ).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    if device.device_status not in [DeviceStatus.Sellable, DeviceStatus.In_QC]:
+    if device.device_status not in [DeviceStatus.Sellable, DeviceStatus.In_QC, DeviceStatus.In_Repair, DeviceStatus.Awaiting_Parts, None]:
         raise HTTPException(status_code=400,
                             detail=f"Device status '{device.device_status}' cannot be sent to repair")
 

@@ -142,81 +142,81 @@ export default function ManualIntake() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="space-y-4">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900 flex items-center gap-3">
-                        Asset Intake 
-                        {mode === 'quick' && <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest font-black">Quick Scan</span>}
+                    <h1 className="page-title flex items-center gap-3">
+                        Asset Intake
+                        {mode === 'quick' && <span className="bg-accent text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Quick Scan</span>}
                     </h1>
-                    <p className="text-xs text-zinc-500 mt-1">High-speed IMEI registration & metadata binding</p>
+                    <p className="text-xs text-[#6b7280] dark:text-[#71717a] mt-1">High-speed IMEI registration & metadata binding</p>
                 </div>
                 <div className="flex gap-4 items-center">
                     {success && (
-                        <div className="flex items-center gap-2 text-emerald-600 text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-right-2">
+                        <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
                             <CheckCircle2 size={14} /> Batch Saved
                         </div>
                     )}
-                    
-                    <div className="flex bg-zinc-100 p-1 rounded-lg">
-                        <button 
+
+                    <div className="flex bg-[#f5f5f5] dark:bg-[#0a0a0b] p-1 rounded-lg">
+                        <button
                             onClick={() => setMode('quick')}
-                            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${mode === 'quick' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400'}`}
+                            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${mode === 'quick' ? 'bg-white dark:bg-[#141416] shadow-sm text-[#1f2937] dark:text-[#e4e4e7]' : 'text-[#6b7280] dark:text-[#71717a]'}`}
                         >
                             <Zap size={14} /> Quick Intake
                         </button>
-                        <button 
+                        <button
                             onClick={() => setMode('batch')}
-                            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${mode === 'batch' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400'}`}
+                            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${mode === 'batch' ? 'bg-white dark:bg-[#141416] shadow-sm text-[#1f2937] dark:text-[#e4e4e7]' : 'text-[#6b7280] dark:text-[#71717a]'}`}
                         >
                             <Layers size={14} /> Batch Model
                         </button>
-                        <button 
+                        <button
                             onClick={() => setMode('standard')}
-                            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${mode === 'standard' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400'}`}
+                            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${mode === 'standard' ? 'bg-white dark:bg-[#141416] shadow-sm text-[#1f2937] dark:text-[#e4e4e7]' : 'text-[#6b7280] dark:text-[#71717a]'}`}
                         >
                             <LayoutList size={14} /> Standard
                         </button>
                     </div>
                 </div>
-            </header>
+            </div>
 
-            <div className="flex-1 overflow-auto p-6 space-y-6">
-                
+            <div className="flex-1 overflow-auto space-y-6">
+
                 {mode === 'quick' && (
-                    <div className="bg-white p-8 border border-zinc-200 rounded-2xl shadow-sm flex flex-col items-center justify-center space-y-6 animate-in zoom-in-95 duration-300">
-                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 animate-pulse">
+                    <div className="card p-8 flex flex-col items-center justify-center space-y-6">
+                        <div className="w-20 h-20 bg-accent-light rounded-full flex items-center justify-center text-accent animate-pulse">
                             <Scan size={40} />
                         </div>
                         <div className="text-center space-y-1">
-                            <h2 className="text-xl font-bold text-zinc-900">IMEI Blind Scan</h2>
-                            <p className="text-sm text-zinc-400">Specifications will be bound later via Auction/Invoice sheets</p>
+                            <h2 className="text-xl font-bold text-[#1f2937] dark:text-[#e4e4e7]">IMEI Blind Scan</h2>
+                            <p className="text-sm text-[#6b7280] dark:text-[#71717a]">Specifications will be bound later via Auction/Invoice sheets</p>
                         </div>
                         <div className="w-full max-w-xl">
-                            <input 
+                            <input
                                 ref={quickScanRef}
                                 value={scanBuffer}
                                 onChange={e => setScanBuffer(e.target.value)}
                                 onKeyDown={handleQuickScan}
                                 placeholder="Scan IMEI and press Enter..."
-                                className="input-stark w-full py-6 text-2xl text-center font-mono font-bold tracking-widest border-blue-200 bg-blue-50/20 focus:ring-4 focus:ring-blue-100 transition-all"
+                                className="form-input w-full py-6 text-2xl text-center font-mono font-bold tracking-widest"
                             />
                         </div>
                         <div className="flex gap-8 text-center">
                             <div>
-                                <div className="text-3xl font-black text-zinc-900">{scannedItems.length}</div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Items in Buffer</div>
+                                <div className="text-3xl font-bold text-[#1f2937] dark:text-[#e4e4e7]">{scannedItems.length}</div>
+                                <div className="text-xs font-bold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">Items in Buffer</div>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {mode === 'batch' && (
-                    <div className="bg-white p-6 border border-zinc-200 rounded-lg shadow-sm grid grid-cols-4 gap-6 animate-in slide-in-from-top-2">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Batch Model</label>
-                            <select 
-                                className="input-stark w-full py-3"
+                    <div className="card p-6 grid grid-cols-4 gap-6">
+                        <div className="form-group">
+                            <label className="form-label text-xs">Batch Model</label>
+                            <select
+                                className="form-select"
                                 value={batchHeader.model_number}
                                 onChange={e => setBatchHeader({...batchHeader, model_number: e.target.value})}
                             >
@@ -224,10 +224,10 @@ export default function ManualIntake() {
                                 {models.map(m => <option key={m.model_number} value={m.model_number}>{m.name} ({m.model_number})</option>)}
                             </select>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Condition</label>
-                            <select 
-                                className="input-stark w-full py-3"
+                        <div className="form-group">
+                            <label className="form-label text-xs">Condition</label>
+                            <select
+                                className="form-select"
                                 value={batchHeader.condition}
                                 onChange={e => setBatchHeader({...batchHeader, condition: e.target.value})}
                             >
@@ -236,85 +236,84 @@ export default function ManualIntake() {
                                 <option value="C">Grade C</option>
                             </select>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Unit Cost</label>
-                            <input 
+                        <div className="form-group">
+                            <label className="form-label text-xs">Unit Cost</label>
+                            <input
                                 type="number"
-                                className="input-stark w-full py-3"
+                                className="form-input"
                                 value={batchHeader.acquisition_cost}
                                 onChange={e => setBatchHeader({...batchHeader, acquisition_cost: parseFloat(e.target.value)})}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-blue-600 font-bold">Scan to Hydrate</label>
-                            <input 
+                        <div className="form-group">
+                            <label className="form-label text-xs">Scan to Hydrate</label>
+                            <input
                                 ref={batchScanRef}
                                 value={scanBuffer}
                                 onChange={e => setScanBuffer(e.target.value)}
                                 onKeyDown={handleQuickScan}
                                 placeholder="Auto-Focus Active..."
-                                className="input-stark w-full py-3 border-blue-200 bg-blue-50/30 font-mono font-bold"
+                                className="form-input font-mono font-bold"
                             />
                         </div>
                     </div>
                 )}
 
-                {/* Buffer/Data Table */}
                 {(mode !== 'standard' || fields.length > 0) && (
-                    <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden animate-in fade-in">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-zinc-50/50 border-b border-zinc-200">
-                                <tr className="text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
-                                    <th className="px-6 py-4 w-48">IMEI</th>
-                                    <th className="px-6 py-4">Context</th>
-                                    <th className="px-6 py-4 w-40">Status</th>
-                                    <th className="px-6 py-4 w-16"></th>
+                    <div className="card overflow-hidden">
+                        <table className="table-standard">
+                            <thead>
+                                <tr>
+                                    <th>IMEI</th>
+                                    <th>Context</th>
+                                    <th>Status</th>
+                                    <th></th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-100">
+                            <tbody>
                                 {mode !== 'standard' ? (
                                     scannedItems.map((item, idx) => (
-                                        <tr key={idx} className="hover:bg-zinc-50/50 transition-colors">
-                                            <td className="px-6 py-4 font-mono font-bold tracking-widest text-xs">{item.imei}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                                        <tr key={idx}>
+                                            <td className="font-mono font-bold text-xs">{item.imei}</td>
+                                            <td>
+                                                <div className="text-xs font-bold text-[#6b7280] dark:text-[#71717a]">
                                                     {item.model_number ? `Batch: ${item.model_number} | ${item.condition}` : 'Raw IMEI registration'}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`badge-glow ${item.model_number ? 'badge-success' : 'badge-neutral'}`}>
+                                            <td>
+                                                <span className={`badge ${item.model_number ? 'badge-success' : 'badge-neutral'}`}>
                                                     {item.model_number ? 'Hydrated' : 'Raw'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button onClick={() => setScannedItems(scannedItems.filter((_, i) => i !== idx))} className="text-zinc-300 hover:text-rose-600"><Trash2 size={16} /></button>
+                                            <td className="text-right">
+                                                <button onClick={() => setScannedItems(scannedItems.filter((_, i) => i !== idx))} className="text-[#9ca3af] dark:text-[#52525b] hover:text-red-500"><Trash2 size={16} /></button>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     fields.map((field, index) => (
-                                        <tr key={field.id} className="hover:bg-zinc-50/50 transition-colors group">
-                                            <td className="px-6 py-4">
+                                        <tr key={field.id} className="group">
+                                            <td>
                                                 <input
                                                     {...register(`devices.${index}.imei` as const, { required: true })}
                                                     placeholder="IMEI..."
-                                                    className="input-stark w-full py-2 text-xs font-mono font-bold tracking-widest"
+                                                    className="form-input w-full py-2 text-xs font-mono font-bold"
                                                 />
                                             </td>
-                                            <td className="px-6 py-4 flex gap-2">
+                                            <td>
                                                 <select
                                                     {...register(`devices.${index}.model_number` as const)}
-                                                    className="input-stark w-full py-2 text-[10px] font-bold uppercase tracking-widest"
+                                                    className="form-select w-full py-2 text-xs font-bold"
                                                 >
                                                     <option value="">Model...</option>
                                                     {models.map(m => <option key={m.model_number} value={m.model_number}>{m.name}</option>)}
                                                 </select>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="badge-glow badge-neutral">Standard</span>
+                                            <td>
+                                                <span className="badge badge-neutral">Standard</span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button type="button" onClick={() => remove(index)} className="text-zinc-300 hover:text-rose-600"><Trash2 size={16} /></button>
+                                            <td className="text-right">
+                                                <button type="button" onClick={() => remove(index)} className="text-[#9ca3af] dark:text-[#52525b] hover:text-red-500"><Trash2 size={16} /></button>
                                             </td>
                                         </tr>
                                     ))
@@ -322,10 +321,10 @@ export default function ManualIntake() {
                             </tbody>
                         </table>
                         {mode === 'standard' && (
-                            <button 
-                                type="button" 
+                            <button
+                                type="button"
                                 onClick={() => append({ imei: '', serial_number: '', model_number: '', condition: 'A', acquisition_cost: 0 })}
-                                className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2 border-t border-dashed border-zinc-200"
+                                className="w-full py-4 text-xs font-bold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] hover:bg-[#f9fafb] dark:bg-[#1a1a1c] transition-colors flex items-center justify-center gap-2 border-t border-dashed border-[#e5e7eb] dark:border-[#1f1f21]"
                             >
                                 <Plus size={14} /> Insert Blank Row
                             </button>
@@ -334,16 +333,16 @@ export default function ManualIntake() {
                 )}
 
                 {error && (
-                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-lg flex items-center gap-3 text-rose-600 text-[10px] font-black uppercase tracking-widest animate-in shake">
+                    <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3 text-red-500 text-xs font-bold">
                         <AlertCircle size={18} /> {error}
                     </div>
                 )}
 
                 <div className="flex justify-end gap-6">
                     {(mode !== 'standard' && scannedItems.length > 0) && (
-                        <button 
+                        <button
                             onClick={() => setScannedItems([])}
-                            className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-rose-600 transition-colors"
+                            className="text-xs font-bold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] hover:text-red-500 transition-colors"
                         >
                             Discard Buffer
                         </button>
@@ -351,7 +350,7 @@ export default function ManualIntake() {
                     <button
                         onClick={() => onSubmit()}
                         disabled={isSubmitting || (mode !== 'standard' && scannedItems.length === 0)}
-                        className="btn-primary w-80 h-16 text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 rounded-2xl shadow-xl shadow-blue-500/20"
+                        className="btn-primary px-12 h-14 text-sm font-bold flex items-center justify-center gap-3"
                     >
                         {isSubmitting ? 'Synchronizing...' : (
                             <>

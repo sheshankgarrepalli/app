@@ -86,21 +86,21 @@ export default function AuctionImporter() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">Bulk Intake Engine</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Smart manifest intake & specification resolution</p>
+                    <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Bulk Intake Engine</h1>
+                    <p className="text-xs text-zinc-500 dark:text-[#71717a] mt-1">Smart manifest intake & specification resolution</p>
                 </div>
             </header>
 
             <div className="flex-1 grid grid-cols-12 overflow-hidden">
                 {/* UPLOADER & MAPPING (1/3) */}
-                <div className="col-span-5 bg-white border-r border-zinc-200 p-6 space-y-12 overflow-y-auto">
+                <div className="col-span-5 bg-white dark:bg-[#141416] border-r border-zinc-200 dark:border-[#1f1f21] p-6 space-y-12 overflow-y-auto">
                     {!fileHeaders.length ? (
-                        <div className="border-2 border-dashed border-zinc-200 p-20 flex flex-col items-center justify-center space-y-4 hover:border-zinc-400 transition-colors cursor-pointer relative rounded-lg bg-zinc-50/50">
-                            <Upload size={48} className="text-zinc-300" />
-                            <div className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Drop Manifest (CSV/XLSX)</div>
+                        <div className="border-2 border-dashed border-zinc-200 dark:border-[#1f1f21] p-20 flex flex-col items-center justify-center space-y-4 hover:border-zinc-400 transition-colors cursor-pointer relative rounded-lg bg-zinc-50 dark:bg-[#0a0a0b]/50">
+                            <Upload size={48} className="text-zinc-300 dark:text-[#52525b]" />
+                            <div className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Drop Manifest (CSV/XLSX)</div>
                             <input
                                 type="file"
                                 accept=".csv,.xlsx"
@@ -111,20 +111,20 @@ export default function AuctionImporter() {
                     ) : (
                         <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
                             <div className="flex justify-between items-center">
-                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Column Mapping</label>
-                                <button onClick={() => { setFileHeaders([]); setFileData([]); }} className="text-zinc-400 hover:text-zinc-900 transition-colors">
+                                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Column Mapping</label>
+                                <button onClick={() => { setFileHeaders([]); setFileData([]); }} className="text-zinc-400 dark:text-[#a1a1aa] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors">
                                     <X size={16} />
                                 </button>
                             </div>
 
                             <div className="space-y-3">
                                 {systemFields.map(field => (
-                                    <div key={field.id} className="flex items-center justify-between p-4 border border-zinc-200 bg-white rounded-lg shadow-sm">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-700">{field.label}</span>
+                                    <div key={field.id} className="flex items-center justify-between p-4 border border-zinc-200 dark:border-[#1f1f21] bg-white dark:bg-[#141416] rounded-lg shadow-sm">
+                                        <span className="text-xs font-semibold uppercase tracking-widest text-zinc-700 dark:text-[#e4e4e7]">{field.label}</span>
                                         <select
                                             value={mappings[field.id] || ''}
                                             onChange={e => handleMappingChange(field.id, e.target.value)}
-                                            className="bg-transparent border-b border-zinc-200 text-xs font-bold uppercase tracking-widest text-zinc-900 outline-none focus:border-zinc-900 transition-colors p-1"
+                                            className="bg-transparent border-b border-zinc-200 dark:border-[#1f1f21] text-xs font-bold uppercase tracking-widest text-zinc-900 dark:text-[#e4e4e7] outline-none focus:border-zinc-900 transition-colors p-1"
                                         >
                                             <option value="">Map Column...</option>
                                             {fileHeaders.map(h => (
@@ -151,20 +151,20 @@ export default function AuctionImporter() {
                 </div>
 
                 {/* SUMMARY & ERRORS (2/3) */}
-                <div className="col-span-7 flex flex-col bg-zinc-50 overflow-hidden">
+                <div className="col-span-7 flex flex-col bg-zinc-50 dark:bg-[#0a0a0b] overflow-hidden">
                     {summary ? (
                         <div className="flex-1 overflow-y-auto p-12 space-y-12 animate-in fade-in zoom-in-95">
                             <div className="grid grid-cols-2 gap-6">
-                                <div className="p-8 bg-white border border-zinc-200 rounded-lg shadow-sm">
-                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Success</div>
-                                    <div className="text-5xl font-bold text-zinc-900">{summary.success_count}</div>
+                                <div className="p-8 bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm">
+                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] mb-2">Success</div>
+                                    <div className="text-5xl font-bold text-zinc-900 dark:text-[#e4e4e7]">{summary.success_count}</div>
                                     <div className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mt-4 flex items-center gap-2">
                                         <CheckCircle2 size={14} /> Assets Synchronized
                                     </div>
                                 </div>
-                                <div className="p-8 bg-white border border-zinc-200 rounded-lg shadow-sm">
-                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Failed</div>
-                                    <div className="text-5xl font-bold text-zinc-900">{summary.failed_count}</div>
+                                <div className="p-8 bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm">
+                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] mb-2">Failed</div>
+                                    <div className="text-5xl font-bold text-zinc-900 dark:text-[#e4e4e7]">{summary.failed_count}</div>
                                     <div className="text-xs font-semibold uppercase tracking-widest text-rose-600 mt-4 flex items-center gap-2">
                                         <AlertCircle size={14} /> Rows Skipped
                                     </div>
@@ -173,11 +173,11 @@ export default function AuctionImporter() {
 
                             {summary.errors.length > 0 && (
                                 <div className="space-y-4">
-                                    <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Import Telemetry / Exceptions</label>
-                                    <div className="border border-zinc-200 bg-white p-6 rounded-lg shadow-sm max-h-[400px] overflow-y-auto space-y-3">
+                                    <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Import Telemetry / Exceptions</label>
+                                    <div className="border border-zinc-200 dark:border-[#1f1f21] bg-white dark:bg-[#141416] p-6 rounded-lg shadow-sm max-h-[400px] overflow-y-auto space-y-3">
                                         {summary.errors.map((err: string, i: number) => (
-                                            <div key={i} className="text-xs font-medium text-zinc-600 uppercase tracking-tight flex items-start gap-3 border-l border-zinc-100 pl-4 py-1">
-                                                <span className="text-zinc-400 font-mono">[{i + 1}]</span> {err}
+                                            <div key={i} className="text-xs font-medium text-zinc-600 dark:text-[#a1a1aa] uppercase tracking-tight flex items-start gap-3 border-l border-zinc-100 dark:border-[#1a1a1c] pl-4 py-1">
+                                                <span className="text-zinc-400 dark:text-[#a1a1aa] font-mono">[{i + 1}]</span> {err}
                                             </div>
                                         ))}
                                     </div>
@@ -185,7 +185,7 @@ export default function AuctionImporter() {
                             )}
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-300 space-y-4">
+                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-300 dark:text-[#52525b] space-y-4">
                             <FileText size={64} className="opacity-10" />
                             <div className="text-xs font-semibold uppercase tracking-[0.4em] opacity-40">Awaiting Manifest Initialization</div>
                         </div>

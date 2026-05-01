@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP — Device Inventory</title>
+<style>
+:root {
+  --navy: #1a1a2e; --accent: #e94560; --success: #0f3460; --bg: #f5f5f5;
+  --card: #ffffff; --text: #1f2937; --text-secondary: #6b7280; --border: #e5e7eb;
+  --sidebar-width: 240px; --topbar-height: 56px;
+  --green: #10b981; --amber: #f59e0b; --blue: #3b82f6; --red: #ef4444; --purple: #8b5cf6; --teal: #14b8a6; --orange: #f97316;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+.sidebar { width: var(--sidebar-width); background: var(--navy); color: #fff; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+.sidebar-logo { padding: 16px 20px; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo span { color: var(--accent); }
+.sidebar-nav { flex: 1; padding: 12px 0; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: rgba(255,255,255,0.65); font-size: 14px; cursor: pointer; transition: all 0.15s; text-decoration: none; border-left: 3px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
+.nav-icon { width: 20px; text-align: center; font-size: 16px; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
+
+.main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; }
+.topbar { height: var(--topbar-height); background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+.breadcrumbs { font-size: 13px; color: var(--text-secondary); }
+.breadcrumbs span { color: var(--text); font-weight: 500; }
+.topbar-spacer { flex: 1; }
+.store-select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--bg); cursor: pointer; font-family: inherit; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+
+.content { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 22px; font-weight: 700; }
+
+/* FILTERS */
+.filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.filter-input, .filter-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; }
+.filter-input { width: 240px; }
+
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.card-body { padding: 20px; }
+.card-body-no-pad { padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 16px; font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: #f9fafb; cursor: pointer; }
+tr:last-child td { border-bottom: none; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-amber { background: #fef3c7; color: #92400e; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-purple { background: #ede9fe; color: #5b21b6; }
+.badge-teal { background: #ccfbf1; color: #115e59; }
+.badge-orange { background: #ffedd5; color: #9a3412; }
+
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #d63d52; }
+.btn-outline { background: var(--card); border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* DETAIL PANEL */
+.detail-panel { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); margin-top: 16px; display: none; }
+.detail-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--navy); color: #fff; border-radius: var(--radius) var(--radius) 0 0; }
+.detail-close { border: none; background: none; color: rgba(255,255,255,0.6); font-size: 20px; cursor: pointer; }
+.detail-close:hover { color: #fff; }
+.detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px; border-bottom: 1px solid var(--border); }
+.detail-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 20px; }
+.detail-tab { padding: 10px 16px; font-size: 13px; cursor: pointer; border: none; background: none; font-family: inherit; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.detail-tab:hover { color: var(--text); }
+.detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.detail-tab-content { display: none; padding: 20px; }
+.detail-tab-content.active { display: block; }
+
+.stat { text-align: center; }
+.stat-label { font-size: 12px; color: var(--text-secondary); }
+.stat-value { font-size: 20px; font-weight: 700; }
+
+@media (max-width: 1200px) { .detail-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo { font-size: 0; padding: 16px 12px; }
+  .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+  .main { margin-left: 60px; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">AMAFAH<span>ERP</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard.html"><span class="nav-icon">&#9632;</span> Dashboard</a>
+    <a class="nav-item active" href="inventory.html"><span class="nav-icon">&#9637;</span> Inventory</a>
+    <a class="nav-item" href="pos.html"><span class="nav-icon">&#9644;</span> Checkout</a>
+    <a class="nav-item" href="repair.html"><span class="nav-icon">&#9851;</span> Repairs <span class="nav-badge">7</span></a>
+    <a class="nav-item" href="parts.html"><span class="nav-icon">&#9881;</span> Parts <span class="nav-badge">3</span></a>
+    <a class="nav-item" href="transfers.html"><span class="nav-icon">&#8660;</span> Transfers</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9783;</span> Reports</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9881;</span> Settings</a>
+  </nav>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumbs">Home <span>&rsaquo; Inventory</span></div>
+    <div class="topbar-spacer"></div>
+    <select class="store-select"><option>All Locations</option></select>
+    <div class="avatar">S</div>
+  </header>
+
+  <main class="content">
+    <div class="page-header">
+      <h1 class="page-title">Device Inventory</h1>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline">&#9881; Bulk Actions</button>
+        <button class="btn btn-primary">&#43; Intake Device</button>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters">
+      <input class="filter-input" placeholder="Search by IMEI or model...">
+      <select class="filter-select"><option>All Locations</option><option>Store A</option><option>Store B</option><option>Store C</option><option>Warehouse Alpha</option></select>
+      <select class="filter-select"><option>All Statuses</option><option>Sellable</option><option>In Repair</option><option>Awaiting Parts</option><option>In QC</option><option>In Transit</option><option>Reserved (Layaway)</option><option>Sold</option><option>Scrapped</option></select>
+      <select class="filter-select"><option>All Models</option><option>iPhone 15 Pro Max</option><option>iPhone 14 Pro</option><option>iPhone 13</option></select>
+      <span style="font-size:13px;color:var(--text-secondary)">163 devices found</span>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card"><div class="card-body card-body-no-pad">
+      <table>
+        <thead><tr><th>IMEI</th><th>Model</th><th>Status</th><th>Location</th><th class="text-right">Cost Basis</th><th class="text-center">Days in Inv</th></tr></thead>
+        <tbody>
+          <tr onclick="showDeviceDetail('356901087654321')"><td style="font-family:monospace">356901087654321</td><td>iPhone 15 Pro Max (A2848)</td><td><span class="badge badge-blue">Sold</span></td><td>Store A</td><td class="text-right">$580.00</td><td class="text-center">12</td></tr>
+          <tr onclick="showDeviceDetail('356812349870123')"><td style="font-family:monospace">356812349870123</td><td>iPhone 14 Pro (A2651)</td><td><span class="badge badge-orange">Reserved (Layaway)</span></td><td>Store A</td><td class="text-right">$450.00</td><td class="text-center">15</td></tr>
+          <tr onclick="showDeviceDetail('356703429871102')"><td style="font-family:monospace">356703429871102</td><td>iPhone 13 (A2633)</td><td><span class="badge badge-amber">In Repair</span></td><td>Store A</td><td class="text-right">$320.00</td><td class="text-center">8</td></tr>
+          <tr onclick="showDeviceDetail('356745678901234')"><td style="font-family:monospace">356745678901234</td><td>iPhone 11 (A2341)</td><td><span class="badge badge-purple">Awaiting Parts</span></td><td>Store A</td><td class="text-right">$180.00</td><td class="text-center">22</td></tr>
+          <tr onclick="showDeviceDetail('356998765432109')"><td style="font-family:monospace">356998765432109</td><td>iPhone 15 Pro Max (A2848)</td><td><span class="badge badge-amber">In Repair</span></td><td>Store A</td><td class="text-right">$590.00</td><td class="text-center">6</td></tr>
+          <tr onclick="showDeviceDetail('356834567890123')"><td style="font-family:monospace">356834567890123</td><td>iPhone 12 Pro (A2482)</td><td><span class="badge badge-purple">Awaiting Parts</span></td><td>Store B</td><td class="text-right">$240.00</td><td class="text-center">19</td></tr>
+          <tr onclick="showDeviceDetail('356567890123456')"><td style="font-family:monospace">356567890123456</td><td>iPhone 15 Pro Max (A2848)</td><td><span class="badge badge-green">Sellable</span></td><td>Store B</td><td class="text-right">$595.00</td><td class="text-center">5</td></tr>
+          <tr onclick="showDeviceDetail('356478901234567')"><td style="font-family:monospace">356478901234567</td><td>iPhone 13 (A2633)</td><td><span class="badge badge-teal">In Transit</span></td><td>Warehouse → Store C</td><td class="text-right">$310.00</td><td class="text-center">3</td></tr>
+          <tr onclick="showDeviceDetail('356389012345678')"><td style="font-family:monospace">356389012345678</td><td>Samsung S23 Ultra</td><td><span class="badge badge-green">Sellable</span></td><td>Store C</td><td class="text-right">$520.00</td><td class="text-center">4</td></tr>
+          <tr onclick="showDeviceDetail('356298765432109')"><td style="font-family:monospace">356298765432109</td><td>iPhone 14 Pro (A2651)</td><td><span class="badge badge-red">Scrapped</span></td><td>Warehouse</td><td class="text-right">$440.00</td><td class="text-center">45</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <!-- DEVICE DETAIL PANEL -->
+    <div id="device-detail" class="detail-panel">
+      <div class="detail-header">
+        <span><strong>IMEI <span id="detail-imei">356703429871102</span></strong> — iPhone 13 (A2633)</span>
+        <button class="detail-close" onclick="hideDetail()">&times;</button>
+      </div>
+      <div class="detail-grid">
+        <div class="stat"><div class="stat-label">Status</div><div class="stat-value"><span class="badge badge-amber" style="font-size:13px">In Repair</span></div></div>
+        <div class="stat"><div class="stat-label">Cost Basis</div><div class="stat-value">$320.00</div></div>
+        <div class="stat"><div class="stat-label">Total Cost (w/ Parts)</div><div class="stat-value">$338.00</div></div>
+        <div class="stat"><div class="stat-label">Days in Inventory</div><div class="stat-value">8</div></div>
+      </div>
+      <div class="detail-tabs">
+        <button class="detail-tab active" onclick="switchSubTab(event, 'history')">History</button>
+        <button class="detail-tab" onclick="switchSubTab(event, 'costs')">Cost Ledger</button>
+        <button class="detail-tab" onclick="switchSubTab(event, 'repairs')">Repair History</button>
+        <button class="detail-tab" onclick="switchSubTab(event, 'transfers')">Transfers</button>
+      </div>
+      <div id="sub-history" class="detail-tab-content active">
+        <table><thead><tr><th>Timestamp</th><th>Action</th><th>Details</th><th>User</th></tr></thead>
+        <tbody>
+          <tr><td>2026-04-28 10:30</td><td>Status Change</td><td>Sellable → In Repair — Repair #R-1042 opened</td><td>Sarah</td></tr>
+          <tr><td>2026-04-26 14:20</td><td>Part Consumed</td><td>A2633-CHG-OEM × 1 added to repair R-1042</td><td>Mike</td></tr>
+          <tr><td>2026-04-20 09:00</td><td>Device Intake</td><td>Received at Store A. Cost basis: $320.00</td><td>Sarah</td></tr>
+          <tr><td>2026-04-20 09:00</td><td>Status Change</td><td>Intake → In QC</td><td>Sarah</td></tr>
+          <tr><td>2026-04-20 14:30</td><td>Status Change</td><td>In QC → Sellable</td><td>Mike</td></tr>
+        </tbody></table>
+      </div>
+      <div id="sub-costs" class="detail-tab-content">
+        <table><thead><tr><th>Date</th><th>Cost Type</th><th>Description</th><th class="text-right">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>2026-04-26</td><td>Part: Charge Port</td><td>A2633-CHG-OEM × 1</td><td class="text-right">$18.00</td></tr>
+          <tr><td>2026-04-20</td><td>Intake</td><td>Initial cost basis</td><td class="text-right">$320.00</td></tr>
+        </tbody></table>
+      </div>
+      <div id="sub-repairs" class="detail-tab-content">
+        <table><thead><tr><th>Ticket</th><th>Status</th><th>Technician</th><th>Parts Used</th><th>Opened</th></tr></thead>
+        <tbody>
+          <tr><td><a href="repair.html" style="color:var(--accent)">R-1042</a></td><td><span class="badge badge-amber">In Progress</span></td><td>Mike</td><td>A2633-CHG-OEM</td><td>2026-04-26</td></tr>
+        </tbody></table>
+      </div>
+      <div id="sub-transfers" class="detail-tab-content">
+        <p style="color:var(--text-secondary);font-size:13px">No transfer history for this device.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+function showDeviceDetail(imei) {
+  document.getElementById('device-detail').style.display = 'block';
+  document.getElementById('detail-imei').textContent = imei;
+}
+function hideDetail() { document.getElementById('device-detail').style.display = 'none'; }
+function switchSubTab(e, name) {
+  document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.detail-tab-content').forEach(el => el.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('sub-' + name).classList.add('active');
+}
+</script>
+</body>
+</html>

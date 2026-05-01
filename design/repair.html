@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP — Repair Kanban</title>
+<style>
+:root {
+  --navy: #1a1a2e; --accent: #e94560; --success: #0f3460; --bg: #f5f5f5;
+  --card: #ffffff; --text: #1f2937; --text-secondary: #6b7280; --border: #e5e7eb;
+  --sidebar-width: 240px; --topbar-height: 56px;
+  --green: #10b981; --amber: #f59e0b; --blue: #3b82f6; --red: #ef4444; --purple: #8b5cf6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+.sidebar { width: var(--sidebar-width); background: var(--navy); color: #fff; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+.sidebar-logo { padding: 16px 20px; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo span { color: var(--accent); }
+.sidebar-nav { flex: 1; padding: 12px 0; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: rgba(255,255,255,0.65); font-size: 14px; cursor: pointer; transition: all 0.15s; text-decoration: none; border-left: 3px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
+.nav-icon { width: 20px; text-align: center; font-size: 16px; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
+.sidebar-footer { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: rgba(255,255,255,0.4); }
+
+.main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; overflow-x: hidden; }
+.topbar { height: var(--topbar-height); background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+.breadcrumbs { font-size: 13px; color: var(--text-secondary); }
+.breadcrumbs span { color: var(--text); font-weight: 500; }
+.topbar-spacer { flex: 1; }
+.store-select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--bg); cursor: pointer; font-family: inherit; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+
+.content { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 22px; font-weight: 700; }
+
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #d63d52; }
+.btn-outline { background: var(--card); border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* KANBAN */
+.kanban-wrap { overflow-x: auto; flex: 1; }
+.kanban { display: flex; gap: 16px; min-height: 60vh; padding-bottom: 16px; }
+.kanban-col { background: #f0f0f4; border-radius: var(--radius); width: 280px; min-width: 280px; display: flex; flex-direction: column; }
+.col-header { padding: 14px 16px; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; border-radius: var(--radius) var(--radius) 0 0; }
+.col-count { font-size: 12px; background: rgba(0,0,0,0.1); padding: 1px 7px; border-radius: 10px; font-weight: 500; }
+.col-triage .col-header { background: #dbeafe; color: #1e40af; }
+.col-progress .col-header { background: #fef3c7; color: #92400e; }
+.col-parts .col-header { background: #ede9fe; color: #5b21b6; }
+.col-complete .col-header { background: #d1fae5; color: #065f46; }
+.col-cancelled .col-header { background: #fee2e2; color: #991b1b; }
+.col-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 80px; }
+
+.ticket {
+  background: var(--card); border-radius: 6px; padding: 12px; box-shadow: var(--shadow);
+  cursor: pointer; transition: box-shadow 0.15s; border-left: 3px solid var(--border);
+}
+.ticket:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.ticket.triage { border-left-color: var(--blue); }
+.ticket.progress { border-left-color: var(--amber); }
+.ticket.parts { border-left-color: var(--purple); }
+.ticket.complete { border-left-color: var(--green); }
+.ticket.cancelled { border-left-color: var(--red); }
+.ticket-imei { font-family: monospace; font-size: 12px; color: var(--text-secondary); }
+.ticket-model { font-size: 13px; font-weight: 600; margin: 4px 0; }
+.ticket-symptoms { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ticket-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-secondary); }
+.ticket-tech { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+.ticket-time { color: var(--text-secondary); }
+
+/* MODALS */
+.modal-checkbox { display: none; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; align-items: center; justify-content: center; }
+.modal-checkbox:checked + .modal-overlay { display: flex; }
+.modal { background: var(--card); border-radius: var(--radius); width: 560px; max-width: 90vw; box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-height: 85vh; display: flex; flex-direction: column; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.modal-close { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
+.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.form-label { font-size: 13px; font-weight: 500; }
+.form-input, .form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-amber { background: #fef3c7; color: #92400e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-purple { background: #ede9fe; color: #5b21b6; }
+
+/* Ticket detail panel in modal */
+.parts-used { margin-top: 12px; }
+.parts-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.parts-table th { text-align: left; padding: 6px 10px; background: var(--bg); font-weight: 500; font-size: 11px; color: var(--text-secondary); }
+.parts-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo { font-size: 0; padding: 16px 12px; }
+  .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+  .main { margin-left: 60px; }
+  .kanban-col { width: 240px; min-width: 240px; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">AMAFAH<span>ERP</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard.html"><span class="nav-icon">&#9632;</span> Dashboard</a>
+    <a class="nav-item" href="inventory.html"><span class="nav-icon">&#9637;</span> Inventory</a>
+    <a class="nav-item" href="pos.html"><span class="nav-icon">&#9644;</span> Checkout</a>
+    <a class="nav-item active" href="repair.html"><span class="nav-icon">&#9851;</span> Repairs <span class="nav-badge">7</span></a>
+    <a class="nav-item" href="parts.html"><span class="nav-icon">&#9881;</span> Parts <span class="nav-badge">3</span></a>
+    <a class="nav-item" href="transfers.html"><span class="nav-icon">&#8660;</span> Transfers</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9783;</span> Reports</a>
+    <a class="nav-item" href="#"><span class="nav-icon">&#9881;</span> Settings</a>
+  </nav>
+  <div class="sidebar-footer">v1.0.0</div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumbs">Home <span>&rsaquo; Repairs</span></div>
+    <div class="topbar-spacer"></div>
+    <select class="store-select"><option>All Locations</option></select>
+    <div class="avatar">S</div>
+  </header>
+
+  <main class="content">
+    <div class="page-header">
+      <h1 class="page-title">Repair Board</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="font-size:13px;color:var(--text-secondary)">Technician: <strong>Mike</strong> (4 active) &middot; <strong>Sarah</strong> (3 active)</div>
+        <label class="btn btn-primary" for="modal-new-ticket">&#43; New Ticket</label>
+      </div>
+    </div>
+
+    <div class="kanban-wrap">
+      <div class="kanban">
+        <!-- TRIAGE -->
+        <div class="kanban-col col-triage">
+          <div class="col-header">&#9637; Triage <span class="col-count">2</span></div>
+          <div class="col-body">
+            <div class="ticket triage" onclick="openTicket('R-1045')">
+              <div class="ticket-imei">IMEI 356901087654321</div>
+              <div class="ticket-model">iPhone 15 Pro Max (A2848)</div>
+              <div class="ticket-symptoms">Screen cracked, touch unresponsive</div>
+              <div class="ticket-meta"><span class="ticket-tech">Unassigned</span><span class="ticket-time">Just now</span></div>
+            </div>
+            <div class="ticket triage" onclick="openTicket('R-1043')">
+              <div class="ticket-imei">IMEI 356812349870123</div>
+              <div class="ticket-model">iPhone 14 Pro (A2651)</div>
+              <div class="ticket-symptoms">Battery draining fast, won't hold charge</div>
+              <div class="ticket-meta"><span class="ticket-tech">Unassigned</span><span class="ticket-time">30 min ago</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- IN PROGRESS -->
+        <div class="kanban-col col-progress">
+          <div class="col-header">&#9881; In Progress <span class="col-count">2</span></div>
+          <div class="col-body">
+            <div class="ticket progress" onclick="openTicket('R-1042')">
+              <div class="ticket-imei">IMEI 356703429871102</div>
+              <div class="ticket-model">iPhone 13 (A2633)</div>
+              <div class="ticket-symptoms">Charge port loose, intermittent connection</div>
+              <div class="ticket-meta"><span class="ticket-tech">Mike</span><span class="ticket-time">2 hr ago</span></div>
+            </div>
+            <div class="ticket progress" onclick="openTicket('R-1040')">
+              <div class="ticket-imei">IMEI 356998765432109</div>
+              <div class="ticket-model">iPhone 15 Pro Max (A2848)</div>
+              <div class="ticket-symptoms">Back glass shattered, frame bent</div>
+              <div class="ticket-meta"><span class="ticket-tech">Sarah</span><span class="ticket-time">3 hr ago</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AWAITING PARTS -->
+        <div class="kanban-col col-parts">
+          <div class="col-header">&#9888; Awaiting Parts <span class="col-count">3</span></div>
+          <div class="col-body">
+            <div class="ticket parts" onclick="openTicket('R-1041')">
+              <div class="ticket-imei">IMEI 356834567890123</div>
+              <div class="ticket-model">iPhone 12 Pro (A2482)</div>
+              <div class="ticket-symptoms">Speaker distorted at high volume</div>
+              <div class="ticket-meta"><span class="ticket-tech">Mike</span><span class="ticket-time">5 hr ago</span></div>
+            </div>
+            <div class="ticket parts" onclick="openTicket('R-1039')">
+              <div class="ticket-imei">IMEI 356745678901234</div>
+              <div class="ticket-model">iPhone 11 (A2341)</div>
+              <div class="ticket-symptoms">Rear camera blurry, won't focus</div>
+              <div class="ticket-meta"><span class="ticket-tech">Sarah</span><span class="ticket-time">1 day ago</span></div>
+            </div>
+            <div class="ticket parts" onclick="openTicket('R-1038')">
+              <div class="ticket-imei">IMEI 356656789012345</div>
+              <div class="ticket-model">iPhone 14 Pro (A2651)</div>
+              <div class="ticket-symptoms">Screen replacement — waiting for OEM part</div>
+              <div class="ticket-meta"><span class="ticket-tech">Mike</span><span class="ticket-time">1 day ago</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMPLETED -->
+        <div class="kanban-col col-complete">
+          <div class="col-header">&#10003; Completed <span class="col-count">3</span></div>
+          <div class="col-body">
+            <div class="ticket complete" onclick="openTicket('R-1037')">
+              <div class="ticket-imei">IMEI 356567890123456</div>
+              <div class="ticket-model">iPhone 15 Pro Max (A2848)</div>
+              <div class="ticket-symptoms">Screen replacement — OEM</div>
+              <div class="ticket-meta"><span class="ticket-tech">Mike</span><span class="ticket-time">2 days ago</span></div>
+            </div>
+            <div class="ticket complete" onclick="openTicket('R-1036')">
+              <div class="ticket-imei">IMEI 356478901234567</div>
+              <div class="ticket-model">iPhone 13 (A2633)</div>
+              <div class="ticket-symptoms">Battery replacement — premium</div>
+              <div class="ticket-meta"><span class="ticket-tech">Sarah</span><span class="ticket-time">2 days ago</span></div>
+            </div>
+            <div class="ticket complete" onclick="openTicket('R-1035')">
+              <div class="ticket-imei">IMEI 356389012345678</div>
+              <div class="ticket-model">Samsung S23 Ultra</div>
+              <div class="ticket-symptoms">Charge port replacement</div>
+              <div class="ticket-meta"><span class="ticket-tech">Mike</span><span class="ticket-time">3 days ago</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CANCELLED -->
+        <div class="kanban-col col-cancelled">
+          <div class="col-header">&#10005; Cancelled <span class="col-count">0</span></div>
+          <div class="col-body"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL: New Ticket -->
+<input type="checkbox" class="modal-checkbox" id="modal-new-ticket">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">New Repair Ticket<label class="modal-close" for="modal-new-ticket">&times;</label></div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">Device IMEI</label><input class="form-input" placeholder="Scan or enter 15-digit IMEI..."></div>
+    <div class="form-group"><label class="form-label">Symptoms</label><textarea class="form-input" rows="3" placeholder="Describe the issue..."></textarea></div>
+    <div class="form-group"><label class="form-label">Assign Technician</label><select class="form-select"><option>Unassigned</option><option>Mike</option><option>Sarah</option></select></div>
+    <div class="form-group"><label class="form-label">Notes</label><input class="form-input" placeholder="Optional internal notes"></div>
+  </div>
+  <div class="modal-footer">
+    <label class="btn btn-outline" for="modal-new-ticket">Cancel</label>
+    <button class="btn btn-primary">Create Ticket</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Ticket Detail (R-1042) -->
+<input type="checkbox" class="modal-checkbox" id="modal-ticket">
+<div class="modal-overlay"><div class="modal">
+  <div class="modal-header">Repair Ticket <span style="font-family:monospace">#R-1042</span><label class="modal-close" for="modal-ticket">&times;</label></div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div style="font-size:12px;color:var(--text-secondary)">IMEI</div><div style="font-family:monospace">356703429871102</div></div>
+      <div><div style="font-size:12px;color:var(--text-secondary)">Status</div><span class="badge badge-amber">In Progress</span></div>
+      <div><div style="font-size:12px;color:var(--text-secondary)">Device</div><div>iPhone 13 (A2633)</div></div>
+      <div><div style="font-size:12px;color:var(--text-secondary)">Technician</div><div>Mike</div></div>
+      <div style="grid-column:span 2"><div style="font-size:12px;color:var(--text-secondary)">Symptoms</div><div>Charge port loose, intermittent connection. Cable has to be held at angle.</div></div>
+    </div>
+    <div class="parts-used">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Parts Consumed</div>
+      <table class="parts-table">
+        <thead><tr><th>SKU</th><th>Part</th><th class="text-right">Qty</th><th class="text-right">Cost</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:monospace">A2633-CHG-OEM</td><td>iPhone 13 Charge Port (OEM)</td><td class="text-right">1</td><td class="text-right">$18.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="form-row" style="margin-top:12px">
+      <div class="form-group"><label class="form-label">Add Part</label><select class="form-select"><option>Select SKU...</option><option>A2633-CHG-OEM</option><option>A2633-BAT-OEM</option></select></div>
+      <div class="form-group"><label class="form-label">Qty</label><input class="form-input" type="number" value="1" min="1"></div>
+    </div>
+    <button class="btn btn-outline btn-sm" style="margin-top:4px">&#43; Consume Part</button>
+  </div>
+  <div class="modal-footer" style="justify-content:space-between">
+    <div style="display:flex;gap:8px">
+      <label class="btn btn-outline btn-sm" for="modal-ticket">Move to Awaiting Parts</label>
+      <button class="btn btn-primary btn-sm">Complete Repair</button>
+    </div>
+    <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Scrap Device</button>
+  </div>
+</div></div>
+
+<script>
+function openTicket(id) {
+  document.getElementById('modal-ticket').checked = true;
+}
+</script>
+</body>
+</html>

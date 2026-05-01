@@ -16,25 +16,25 @@ export const PrintableView: React.FC<PrintableViewProps> = ({
   imeis
 }) => {
   return (
-    <div className="hidden print:block p-8 bg-white text-black min-h-screen">
+    <div className="hidden print:block p-8 bg-white dark:bg-[#141416] text-black min-h-screen">
       <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-wider">TRANSFER MANIFEST</h1>
           <p className="text-sm text-gray-600 mt-1">Date: {new Date().toLocaleDateString()}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-1">Manifest ID</p>
+          <p className="text-sm font-semibold uppercase tracking-widest text-gray-500 dark:text-[#71717a] mb-1">Manifest ID</p>
           <p className="text-4xl font-mono font-bold">{manifestId}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-8 mb-8">
         <div className="p-4 border border-gray-300 rounded">
-          <p className="text-xs uppercase text-gray-500 font-bold mb-1">Origin</p>
+          <p className="text-xs uppercase text-gray-500 dark:text-[#71717a] font-bold mb-1">Origin</p>
           <p className="text-lg font-semibold">{origin}</p>
         </div>
         <div className="p-4 border border-gray-300 rounded">
-          <p className="text-xs uppercase text-gray-500 font-bold mb-1">Destination</p>
+          <p className="text-xs uppercase text-gray-500 dark:text-[#71717a] font-bold mb-1">Destination</p>
           <p className="text-lg font-semibold">{destination}</p>
         </div>
       </div>
@@ -57,7 +57,7 @@ export const PrintableView: React.FC<PrintableViewProps> = ({
             ))}
             {imeis.length === 0 && (
               <tr>
-                <td colSpan={2} className="py-4 text-center text-gray-500 italic">No items scanned.</td>
+                <td colSpan={2} className="py-4 text-center text-gray-500 dark:text-[#71717a] italic">No items scanned.</td>
               </tr>
             )}
           </tbody>

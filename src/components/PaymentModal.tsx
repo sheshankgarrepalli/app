@@ -41,13 +41,13 @@ export default function PaymentModal({ isOpen, onClose, invoice, onSuccess }: Pa
 
     return (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md border border-gray-100 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="bg-white dark:bg-[#141416] w-full max-w-md border border-gray-100 dark:border-[#1f1f21] shadow-2xl animate-in fade-in zoom-in duration-200">
                 <div className="p-8 border-b border-gray-50 flex justify-between items-center">
                     <div>
-                        <h2 className="text-lg font-black uppercase tracking-[0.2em] text-gray-900">Log Payment</h2>
+                        <h2 className="text-lg font-black uppercase tracking-[0.2em] text-gray-900 dark:text-[#e4e4e7]">Log Payment</h2>
                         <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mt-1">Invoice: {invoice.invoice_number}</p>
                     </div>
-                    <button onClick={onClose} className="text-gray-300 hover:text-gray-900 transition-colors">
+                    <button onClick={onClose} className="text-gray-300 hover:text-gray-900 dark:text-[#e4e4e7] transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -62,7 +62,7 @@ export default function PaymentModal({ isOpen, onClose, invoice, onSuccess }: Pa
                                 step="0.01"
                                 value={amount}
                                 onChange={e => setAmount(e.target.value)}
-                                className="w-full pl-10 pr-4 py-4 border border-gray-100 rounded-none outline-none focus:border-gray-900 transition text-xl font-black tracking-tight"
+                                className="w-full pl-10 pr-4 py-4 border border-gray-100 dark:border-[#1f1f21] rounded-none outline-none focus:border-gray-900 transition text-xl font-black tracking-tight"
                                 required
                             />
                         </div>
@@ -80,7 +80,7 @@ export default function PaymentModal({ isOpen, onClose, invoice, onSuccess }: Pa
                                     key={m}
                                     type="button"
                                     onClick={() => setMethod(m)}
-                                    className={`py-3 text-[9px] font-black uppercase tracking-widest border transition-all ${method === m ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                                    className={`py-3 text-[9px] font-black uppercase tracking-widest border transition-all ${method === m ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white dark:bg-[#141416] border-gray-100 dark:border-[#1f1f21] text-gray-400 hover:border-gray-200'}`}
                                 >
                                     {m}
                                 </button>

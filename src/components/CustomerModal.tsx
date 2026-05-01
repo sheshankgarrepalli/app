@@ -87,10 +87,10 @@ export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: 
 
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
-            <div className="bg-white rounded-none border border-gray-200 w-full max-w-2xl flex flex-col max-h-[90vh] shadow-2xl">
-                <div className="p-8 border-b border-gray-100 flex justify-between items-center">
+            <div className="bg-white dark:bg-[#141416] rounded-none border border-gray-200 w-full max-w-2xl flex flex-col max-h-[90vh] shadow-2xl">
+                <div className="p-8 border-b border-gray-100 dark:border-[#1f1f21] flex justify-between items-center">
                     <h2 className="text-xl font-black uppercase tracking-[0.2em]">{isEdit ? 'Edit Entity' : 'New Entity Registration'}</h2>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 transition"><X size={20} /></button>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 dark:text-[#e4e4e7] transition"><X size={20} /></button>
                 </div>
                 <div className="p-8 overflow-y-auto flex-1">
                     <form id="customer-form" onSubmit={handleSubmit} className="space-y-10">
@@ -184,8 +184,8 @@ export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: 
                         </div>
                     </form>
                 </div>
-                <div className="p-8 border-t border-gray-100 flex justify-end gap-8">
-                    <button type="button" onClick={onClose} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition">Cancel</button>
+                <div className="p-8 border-t border-gray-100 dark:border-[#1f1f21] flex justify-end gap-8">
+                    <button type="button" onClick={onClose} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:text-[#e4e4e7] transition">Cancel</button>
                     <button type="submit" form="customer-form" className="px-10 py-4 bg-gray-900 text-white font-black uppercase text-xs tracking-[0.2em] hover:bg-black transition-all">
                         {isEdit ? 'Save Changes' : 'Create Entity'}
                     </button>

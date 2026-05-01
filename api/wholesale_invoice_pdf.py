@@ -139,6 +139,7 @@ def _build_context(tx: dict) -> dict:
             "tax_exempt":   tax_exempt,
             "total":        total,
         },
+        "invoice_terms": tx.get("invoice_terms", ""),
     }
 
 

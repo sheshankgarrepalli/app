@@ -76,11 +76,11 @@ export default function AuditDashboard() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
-            <header className="p-6 bg-white border-b border-zinc-200 flex justify-between items-center">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
-                    <h1 className="text-lg font-bold text-zinc-900">Stock Audit Engine</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Physical reconciliation & variance detection</p>
+                    <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Stock Audit Engine</h1>
+                    <p className="text-xs text-zinc-500 dark:text-[#71717a] mt-1">Physical reconciliation & variance detection</p>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -101,9 +101,9 @@ export default function AuditDashboard() {
             {!report ? (
                 <div className="flex-1 grid grid-cols-12 overflow-hidden">
                     {/* LEFT: SCANNER ENGINE */}
-                    <div className="col-span-8 bg-white border-r border-zinc-200 p-6 space-y-8 overflow-y-auto">
+                    <div className="col-span-8 bg-white dark:bg-[#141416] border-r border-zinc-200 dark:border-[#1f1f21] p-6 space-y-8 overflow-y-auto">
                         <form onSubmit={handleScan} className="space-y-4">
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 ml-1">Scanner Input (Auto Submit)</label>
+                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a] ml-1">Scanner Input (Auto Submit)</label>
                             <div className="relative group">
                                 <input
                                     ref={inputRef}
@@ -113,24 +113,24 @@ export default function AuditDashboard() {
                                     placeholder="Scan asset to batch..."
                                     className="input-stark w-full py-5 font-mono text-xl tracking-widest placeholder:font-sans placeholder:text-xs placeholder:tracking-normal"
                                 />
-                                <Zap size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-zinc-900 transition-colors" />
+                                <Zap size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-[#52525b] group-focus-within:text-zinc-900 dark:text-[#e4e4e7] transition-colors" />
                             </div>
                         </form>
 
-                        <div className="border border-zinc-200 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-                            <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
-                                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Scan Batch ({scannedList.length})</h3>
-                                <button onClick={() => setScannedList([])} className="text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:text-rose-600 transition-colors">Clear Batch</button>
+                        <div className="border border-zinc-200 dark:border-[#1f1f21] bg-white dark:bg-[#141416] rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+                            <div className="p-4 border-b border-zinc-100 dark:border-[#1a1a1c] bg-zinc-50 dark:bg-[#0a0a0b]/50 flex justify-between items-center">
+                                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Scan Batch ({scannedList.length})</h3>
+                                <button onClick={() => setScannedList([])} className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa] hover:text-rose-600 transition-colors">Clear Batch</button>
                             </div>
                             <div className="flex-1 p-6 grid grid-cols-4 gap-2 overflow-y-auto">
                                 {scannedList.length === 0 ? (
-                                    <div className="col-span-full flex flex-col items-center justify-center text-zinc-300 space-y-4">
+                                    <div className="col-span-full flex flex-col items-center justify-center text-zinc-300 dark:text-[#52525b] space-y-4">
                                         <Zap size={48} className="opacity-10" />
                                         <div className="text-xs font-semibold uppercase tracking-[0.4em] opacity-40">Waiting for Scans...</div>
                                     </div>
                                 ) : (
                                     scannedList.map((imei, idx) => (
-                                        <div key={idx} className="text-[10px] font-bold font-mono p-3 border border-zinc-200 text-zinc-900 bg-zinc-50 uppercase text-center rounded">
+                                        <div key={idx} className="text-[10px] font-bold font-mono p-3 border border-zinc-200 dark:border-[#1f1f21] text-zinc-900 dark:text-[#e4e4e7] bg-zinc-50 dark:bg-[#0a0a0b] uppercase text-center rounded">
                                             {imei}
                                         </div>
                                     ))
@@ -140,16 +140,16 @@ export default function AuditDashboard() {
                     </div>
 
                     {/* RIGHT: ACTIONS */}
-                    <div className="col-span-4 p-8 space-y-12 bg-zinc-50">
+                    <div className="col-span-4 p-8 space-y-12 bg-zinc-50 dark:bg-[#0a0a0b]">
                         <section className="space-y-6">
-                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500">Audit Protocol</label>
-                            <p className="text-sm text-zinc-500 leading-relaxed">
-                                Finalize physical scan for <b className="text-zinc-900">{location.replace('_', ' ')}</b> to generate variance telemetry.
+                            <label className="text-xs font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-[#71717a]">Audit Protocol</label>
+                            <p className="text-sm text-zinc-500 dark:text-[#71717a] leading-relaxed">
+                                Finalize physical scan for <b className="text-zinc-900 dark:text-[#e4e4e7]">{location.replace('_', ' ')}</b> to generate variance telemetry.
                             </p>
 
-                            <div className="p-10 bg-white border border-zinc-200 rounded-lg shadow-sm flex flex-col items-center justify-center gap-2">
-                                <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Batch Count</span>
-                                <span className="text-6xl font-bold text-zinc-900 tracking-tighter">{scannedList.length}</span>
+                            <div className="p-10 bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm flex flex-col items-center justify-center gap-2">
+                                <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa]">Batch Count</span>
+                                <span className="text-6xl font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-tighter">{scannedList.length}</span>
                             </div>
 
                             <button
@@ -164,10 +164,10 @@ export default function AuditDashboard() {
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto p-12 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <div className="flex justify-between items-end border-b border-zinc-200 pb-8">
+                    <div className="flex justify-between items-end border-b border-zinc-200 dark:border-[#1f1f21] pb-8">
                         <div>
-                            <h2 className="text-4xl font-bold text-zinc-900 tracking-tighter mb-1">Variance Report</h2>
-                            <div className="text-xs font-semibold text-zinc-500 tracking-widest uppercase flex items-center gap-2">
+                            <h2 className="text-4xl font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-tighter mb-1">Variance Report</h2>
+                            <div className="text-xs font-semibold text-zinc-500 dark:text-[#71717a] tracking-widest uppercase flex items-center gap-2">
                                 Location: {location.replace('_', ' ')} • Expected vs Physical Reconciliation
                             </div>
                         </div>
@@ -178,22 +178,22 @@ export default function AuditDashboard() {
                     </div>
 
                     <div className="grid grid-cols-3 gap-8">
-                        <div className="p-8 bg-white border border-zinc-200 rounded-lg shadow-sm space-y-4">
+                        <div className="p-8 bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm space-y-4">
                             <div className="text-xs font-semibold uppercase tracking-widest text-emerald-600 flex justify-between items-center">Matched <Check size={16} /></div>
-                            <div className="text-6xl font-bold text-zinc-900 tracking-tighter">{report.matched.length}</div>
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Physically verified assets.</p>
+                            <div className="text-6xl font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-tighter">{report.matched.length}</div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa]">Physically verified assets.</p>
                         </div>
 
-                        <div className="p-8 bg-white border border-zinc-200 rounded-lg shadow-sm space-y-4">
+                        <div className="p-8 bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm space-y-4">
                             <div className="text-xs font-semibold uppercase tracking-widest text-rose-600 flex justify-between items-center">Missing <X size={16} /></div>
-                            <div className="text-6xl font-bold text-zinc-900 tracking-tighter">{report.missing.length}</div>
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Assets not found in physical scan.</p>
+                            <div className="text-6xl font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-tighter">{report.missing.length}</div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa]">Assets not found in physical scan.</p>
                         </div>
 
-                        <div className="p-8 bg-white border border-zinc-200 rounded-lg shadow-sm space-y-4">
+                        <div className="p-8 bg-white dark:bg-[#141416] border border-zinc-200 dark:border-[#1f1f21] rounded-lg shadow-sm space-y-4">
                             <div className="text-xs font-semibold uppercase tracking-widest text-amber-600 flex justify-between items-center">Unexpected <AlertOctagon size={16} /></div>
-                            <div className="text-6xl font-bold text-zinc-900 tracking-tighter">{report.unexpected.length}</div>
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Status or location mismatch detected.</p>
+                            <div className="text-6xl font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-tighter">{report.unexpected.length}</div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa]">Status or location mismatch detected.</p>
                         </div>
                     </div>
 
@@ -202,18 +202,18 @@ export default function AuditDashboard() {
                             <label className="text-xs font-semibold uppercase tracking-[0.1em] text-rose-600 block border-b border-rose-100 pb-4">Missing Investigations</label>
                             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4">
                                 {report.missing.length === 0 ? (
-                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300 py-10">No missing assets identified</div>
+                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300 dark:text-[#52525b] py-10">No missing assets identified</div>
                                 ) : (
                                     report.missing.map((md: any) => (
-                                        <div key={md.imei} className="border border-zinc-200 bg-white p-6 rounded-lg shadow-sm hover:border-zinc-400 transition-colors">
-                                            <div className="font-mono font-bold text-zinc-900 text-sm mb-4 tracking-widest uppercase">{md.imei}</div>
+                                        <div key={md.imei} className="border border-zinc-200 dark:border-[#1f1f21] bg-white dark:bg-[#141416] p-6 rounded-lg shadow-sm hover:border-zinc-400 transition-colors">
+                                            <div className="font-mono font-bold text-zinc-900 dark:text-[#e4e4e7] text-sm mb-4 tracking-widest uppercase">{md.imei}</div>
                                             <div className="flex justify-between items-end">
                                                 <div className="space-y-1">
-                                                    <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Last Custodian</div>
-                                                    <div className="text-xs font-bold text-zinc-700 uppercase tracking-tight">{md.last_employee}</div>
+                                                    <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-[#a1a1aa]">Last Custodian</div>
+                                                    <div className="text-xs font-bold text-zinc-700 dark:text-[#e4e4e7] uppercase tracking-tight">{md.last_employee}</div>
                                                 </div>
                                                 <div className="text-right space-y-1">
-                                                    <div className="text-[10px] font-semibold text-zinc-400">{new Date(md.last_timestamp).toLocaleDateString()}</div>
+                                                    <div className="text-[10px] font-semibold text-zinc-400 dark:text-[#a1a1aa]">{new Date(md.last_timestamp).toLocaleDateString()}</div>
                                                     <div className="badge-glow badge-warning text-[10px]">{md.last_action}</div>
                                                 </div>
                                             </div>
@@ -227,11 +227,11 @@ export default function AuditDashboard() {
                             <label className="text-xs font-semibold uppercase tracking-[0.1em] text-amber-600 block border-b border-amber-100 pb-4">Unexpected Overrides</label>
                             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4">
                                 {report.unexpected.length === 0 ? (
-                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300 py-10">No unexpected assets found</div>
+                                    <div className="text-xs font-semibold uppercase tracking-widest text-zinc-300 dark:text-[#52525b] py-10">No unexpected assets found</div>
                                 ) : (
                                     report.unexpected.map((imei: string) => (
-                                        <div key={imei} className="border border-zinc-200 bg-white p-6 flex justify-between items-center rounded-lg shadow-sm hover:border-zinc-400 transition-colors">
-                                            <div className="font-mono font-bold text-zinc-900 tracking-widest uppercase">{imei}</div>
+                                        <div key={imei} className="border border-zinc-200 dark:border-[#1f1f21] bg-white dark:bg-[#141416] p-6 flex justify-between items-center rounded-lg shadow-sm hover:border-zinc-400 transition-colors">
+                                            <div className="font-mono font-bold text-zinc-900 dark:text-[#e4e4e7] tracking-widest uppercase">{imei}</div>
                                             <div className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 bg-zinc-900 text-white rounded">Manual Review Required</div>
                                         </div>
                                     ))
