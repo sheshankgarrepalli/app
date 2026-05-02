@@ -3,6 +3,7 @@ import UserManagement from './UserManagement';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { Users, DollarSign, Edit2, FileText, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function SystemAdmin() {
     const [activeTab, setActiveTab] = useState('users');
@@ -57,6 +58,7 @@ function LaborRatesSetup() {
     const [rates, setRates] = useState<any[]>([]);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editValue, setEditValue] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchRates();
@@ -86,12 +88,13 @@ function LaborRatesSetup() {
             setEditingId(null);
             fetchRates();
         } catch (err: any) {
-            alert(`Failed to save: ${err.response?.data?.detail || err.message}`);
+            setError(`Failed to save: ${err.response?.data?.detail || err.message}`);
         }
     };
 
     return (
         <div className="p-6 max-w-5xl space-y-6">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
             <div>
                 <h2 className="text-sm font-semibold text-[#1f2937] dark:text-[#e4e4e7] mb-1">Dynamic Labor Fees</h2>
                 <p className="text-xs text-[#6b7280] dark:text-[#71717a]">Configure technician and QC rates per action</p>

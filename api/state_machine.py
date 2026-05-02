@@ -92,8 +92,10 @@ TRANSITION_MAP: Dict[Optional[DeviceStatus], Set[DeviceStatus]] = {
         DeviceStatus.In_Transit,
         DeviceStatus.Scrapped,
     },
-    # Terminal states — no outgoing transitions
-    DeviceStatus.Sold: set(),
+    DeviceStatus.Sold: {
+        DeviceStatus.In_QC,
+        DeviceStatus.Sellable,
+    },
     DeviceStatus.Scrapped: set(),
 }
 

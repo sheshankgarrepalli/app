@@ -38,6 +38,7 @@ export default function InvoiceForm() {
 
     // Gear toggles
     const [showShipping, setShowShipping] = useState(false);
+    const [showRecurring, setShowRecurring] = useState(false);
     const [fulfillmentMethod, setFulfillmentMethod] = useState<'Walk-in' | 'Shipped'>('Walk-in');
     const [shippingAddress, setShippingAddress] = useState('');
 
@@ -274,8 +275,8 @@ export default function InvoiceForm() {
                                     Shipping fields
                                 </label>
                                 <label className="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-zinc-50 dark:hover:bg-[#141416] rounded">
-                                    <input type="checkbox" disabled className="rounded opacity-50" />
-                                    Schedule recurring (coming soon)
+                                    <input type="checkbox" checked={showRecurring} onChange={e => setShowRecurring(e.target.checked)} className="rounded" />
+                                    Schedule recurring
                                 </label>
                                 <label className="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-zinc-50 dark:hover:bg-[#141416] rounded">
                                     <input type="checkbox" disabled className="rounded opacity-50" />

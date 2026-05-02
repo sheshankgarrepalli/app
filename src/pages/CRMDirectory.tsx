@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Search, Edit2, Trash2, UserPlus } from 'lucide-react';
 import CustomerModal from '../components/CustomerModal';
 import CustomerDetailModal from '../components/CustomerDetailModal';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function CRMDirectory() {
     const { token } = useAuth();
@@ -13,6 +14,7 @@ export default function CRMDirectory() {
     const [isModalOpen, setModalOpen] = useState(false);
     const [isDetailOpen, setDetailOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchCustomers();
@@ -31,7 +33,7 @@ export default function CRMDirectory() {
             await axios.delete(`/api/crm/${crm_id}`, { headers: { Authorization: `Bearer ${token}` } });
             fetchCustomers();
         } catch (err) {
-            alert("Error deactivating customer");
+            setError("Error deactivating customer");
         }
     };
 
@@ -63,6 +65,7 @@ export default function CRMDirectory() {
 
     return (
         <div className="space-y-4">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">CRM Database</h1>

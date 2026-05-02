@@ -41,6 +41,7 @@ def retail_checkout(
     ).first()
 
     subtotal = 0.0
+    device_cache = {}
     for item in req.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
@@ -50,14 +51,15 @@ def retail_checkout(
         ).with_for_update().first()
         if not db_store_inv:
             raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
-        
+
         # device_status is set below based on total payments
         db_store_inv.sold_to_crm_id = customer_id
-        
+        device_cache[item.imei] = db_store_inv
+
         applied_price = item.unit_price
         if customer_db_obj and customer_db_obj.pricing_tier > 0:
             applied_price = applied_price * (1.0 - customer_db_obj.pricing_tier)
-            
+
         subtotal += applied_price
 
     final_tax_percent = req.tax_percent
@@ -78,12 +80,8 @@ def retail_checkout(
         if total_payments < min_deposit:
             raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f}). Current payments: ${total_payments:.2f}")
     
-    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
-    next_id = last_invoice.id + 1 if last_invoice else 1
-    invoice_number = f"INV-{next_id:04d}"
-    
     db_invoice = models.Invoice(
-        invoice_number=invoice_number,
+        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
         store_id=current_user.store_id or current_user.role,
         subtotal=subtotal,
@@ -99,22 +97,20 @@ def retail_checkout(
     db_invoice.org_id = org_id
     db.add(db_invoice)
     db.flush()
-    
+    db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
+
     from datetime import timedelta
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
     
     for item in req.items:
-        db_store_inv = db.query(models.DeviceInventory).filter(
-            models.DeviceInventory.imei == item.imei,
-            models.DeviceInventory.org_id == org_id
-        ).with_for_update().first()
+        db_store_inv = device_cache[item.imei]
         if total_payments >= total - 0.01:
             db_store_inv.device_status = models.DeviceStatus.Sold
         else:
             db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
-            
+
         db_store_inv.warranty_expiry_date = warranty_expiry
-        
+
         db_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
             imei=item.imei,
@@ -187,13 +183,9 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
 
     tax_amount = subtotal * (final_tax_percent / 100)
     total = subtotal + tax_amount
-    
-    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
-    next_id = last_invoice.id + 1 if last_invoice else 1
-    invoice_number = f"INV-{next_id:04d}"
-    
+
     db_invoice = models.Invoice(
-        invoice_number=invoice_number,
+        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
         store_id=current_user.store_id or current_user.role,
         subtotal=subtotal,
@@ -206,6 +198,8 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     )
     db_invoice.org_id = org_id
     db.add(db_invoice)
+    db.flush()
+    db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
     db.commit()
     db.refresh(db_invoice)
     
@@ -312,6 +306,8 @@ def convert_estimate(
         models.UnifiedCustomer.org_id == org_id
     ).first()
     if any(p.payment_method == models.PaymentMethodEnum.On_Terms for p in invoice.payments):
+        if not customer:
+            raise HTTPException(status_code=400, detail="Customer not found for On_Terms payment")
         if customer.current_balance + invoice.total > customer.credit_limit:
             raise HTTPException(status_code=400, detail="Credit limit exceeded")
         customer.current_balance += invoice.total
@@ -484,10 +480,13 @@ def update_invoice(
     db.query(models.InvoiceItem).filter(models.InvoiceItem.invoice_id == invoice.id).delete()
     subtotal = 0.0
     for item in req.items:
+        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first()
+        if not device:
+            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found in inventory")
         db_item = models.InvoiceItem(
             invoice_id=invoice.id,
             imei=item.imei,
-            model_number=db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first().model_number,
+            model_number=device.model_number,
             unit_price=item.unit_price
         )
         db.add(db_item)
@@ -495,7 +494,7 @@ def update_invoice(
 
     # Update Invoice Totals
     customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
-    tax_percent = 0.0 if customer.tax_exempt_id else 8.5
+    tax_percent = 0.0 if customer and customer.tax_exempt_id else 8.5
     tax_amount = subtotal * (tax_percent / 100)
     new_total = subtotal + tax_amount
 
@@ -546,7 +545,11 @@ def process_returns(
             models.DeviceInventory.imei == imei,
             models.DeviceInventory.org_id == org_id
         ).first()
-        prev_status = device.device_status.value
+        if not device:
+            raise HTTPException(status_code=400, detail=f"IMEI {imei} not found in inventory")
+        prev_status = device.device_status
+        if not wms_core.validate_transition(prev_status, models.DeviceStatus.In_QC):
+            raise HTTPException(status_code=400, detail=f"IMEI {imei}: cannot transition from {prev_status.value if prev_status else 'None'} to In_QC")
         device.device_status = models.DeviceStatus.In_QC
         device.location_id = "Warehouse_Alpha"
         device.sold_to_crm_id = None
@@ -573,7 +576,7 @@ def process_returns(
                 customer.current_balance -= return_value
                 total_credit_applied += return_value
         
-        wms_core._log_history(db, imei, "RMA_Return", current_user.email, device.device_status.value, prev_status, f"Returned from Invoice {invoice.invoice_number}")
+        wms_core._log_history(db, imei, "RMA_Return", current_user.email, device.device_status.value, prev_status.value if prev_status else "Unknown", f"Returned from Invoice {invoice.invoice_number}")
         results.append({"imei": imei, "status": "Success", "days_since_sale": days_since_sale, "credit_applied": return_value})
         
     db.commit()
@@ -790,6 +793,8 @@ def void_invoice(invoice_id: int, reason: str = "", db: Session = Depends(get_db
             models.DeviceInventory.org_id == org_id
         ).first()
         if device and device.device_status == models.DeviceStatus.Sold:
+            if not wms_core.validate_transition(device.device_status, models.DeviceStatus.Sellable):
+                raise HTTPException(status_code=400, detail=f"IMEI {device.imei}: cannot transition from {device.device_status.value} to Sellable")
             old_status = device.device_status
             device.device_status = models.DeviceStatus.Sellable
             db.add(models.DeviceHistoryLog(
@@ -862,6 +867,8 @@ def refund_invoice(invoice_id: int, reason: str = "", db: Session = Depends(get_
             models.DeviceInventory.org_id == org_id
         ).first()
         if device and device.device_status == models.DeviceStatus.Sold:
+            if not wms_core.validate_transition(device.device_status, models.DeviceStatus.Sellable):
+                raise HTTPException(status_code=400, detail=f"IMEI {device.imei}: cannot transition from {device.device_status.value} to Sellable")
             old_status = device.device_status
             device.device_status = models.DeviceStatus.Sellable
             device.cost_basis = max(0, device.cost_basis - (item.unit_price * 0.1))
@@ -973,14 +980,10 @@ def create_invoice_from_form(
         if total_payments < min_deposit:
             raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f})")
 
-    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
-    next_id = last_invoice.id + 1 if last_invoice else 1
-    invoice_number = f"INV-{next_id:04d}"
-
     is_paid_in_full = total_payments >= total - 0.01
 
     db_invoice = models.Invoice(
-        invoice_number=invoice_number,
+        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
         store_id=current_user.store_id or current_user.role,
         subtotal=subtotal,
@@ -1000,6 +1003,7 @@ def create_invoice_from_form(
     )
     db.add(db_invoice)
     db.flush()
+    db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
 
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
 
@@ -1261,14 +1265,10 @@ def create_progress_invoice(
         raise HTTPException(status_code=400,
                             detail=f"Progress invoice (${progress_subtotal:.2f}) would exceed estimate total (${estimate.total:.2f}). Already invoiced: ${already_invoiced:.2f}")
 
-    last_invoice = db.query(models.Invoice).filter(models.Invoice.org_id == org_id).order_by(models.Invoice.id.desc()).first()
-    next_id = last_invoice.id + 1 if last_invoice else 1
-    prog_number = f"PROG-{estimate_id}-{next_id:04d}"
-
     is_final = new_total >= estimate.total - 0.01
 
     db_invoice = models.Invoice(
-        invoice_number=prog_number,
+        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=estimate.customer_id,
         store_id=current_user.store_id or current_user.role,
         subtotal=progress_subtotal,
@@ -1281,6 +1281,7 @@ def create_progress_invoice(
     )
     db.add(db_invoice)
     db.flush()
+    db_invoice.invoice_number = f"PROG-{estimate_id}-{db_invoice.id:04d}"
 
     for item in req.items:
         db_item = models.InvoiceItem(
@@ -1484,12 +1485,6 @@ def scheduler_run(db: Session = Depends(get_db)):
             continue
 
         try:
-            last_invoice = db.query(models.Invoice).filter(
-                models.Invoice.org_id == org_id
-            ).order_by(models.Invoice.id.desc()).first()
-            next_id = last_invoice.id + 1 if last_invoice else 1
-            invoice_number = f"INV-{next_id:04d}"
-
             subtotal = sum(li.get("rate", 0) * li.get("qty", 1) for li in line_items)
             org_settings = db.query(models.OrganizationSettings).filter(
                 models.OrganizationSettings.org_id == org_id
@@ -1499,7 +1494,7 @@ def scheduler_run(db: Session = Depends(get_db)):
             total = subtotal + tax_amount
 
             db_invoice = models.Invoice(
-                invoice_number=invoice_number,
+                invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
                 customer_id=template.customer_id,
                 store_id="admin",
                 subtotal=subtotal,
@@ -1514,6 +1509,7 @@ def scheduler_run(db: Session = Depends(get_db)):
             )
             db.add(db_invoice)
             db.flush()
+            db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
 
             for li in line_items:
                 db_item = models.InvoiceItem(

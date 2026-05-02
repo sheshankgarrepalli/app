@@ -4,6 +4,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../context/AuthContext';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, X } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function AuctionImporter() {
     const { token } = useAuth();
@@ -12,6 +13,7 @@ export default function AuctionImporter() {
     const [mappings, setMappings] = useState<{ [key: string]: string }>({});
     const [summary, setSummary] = useState<any>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const systemFields = [
         { id: 'imei', label: 'IMEI / Serial' },
@@ -79,7 +81,7 @@ export default function AuctionImporter() {
             setMappings({});
         } catch (err) {
             console.error(err);
-            alert("Import failed");
+            setError("Import failed");
         } finally {
             setIsProcessing(false);
         }
@@ -87,6 +89,7 @@ export default function AuctionImporter() {
 
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
             <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
                     <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Bulk Intake Engine</h1>

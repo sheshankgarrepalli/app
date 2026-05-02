@@ -1,8 +1,41 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from models import DeviceInventory, UnifiedCustomer, TransferOrder, TransferManifest, ManifestItem, ManifestStatus, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction, PaymentMethodEnum, OrganizationSettings
+from models import DeviceInventory, UnifiedCustomer, TransferOrder, TransferManifest, ManifestItem, ManifestStatus, DeviceStatus, TransferType, DeviceHistoryLog, CustomerType, Invoice, InvoiceItem, InvoiceStatus, PaymentTransaction, PaymentMethodEnum, OrganizationSettings, RepairTicket, RepairStatus, LaborRateConfig, DeviceCostLedger, AdminAuditLog
+from state_machine import TRANSITION_MAP
+
+
+def validate_transition(src: Optional[DeviceStatus], target: DeviceStatus) -> bool:
+    """Check if a device status transition is allowed. Does NOT execute it."""
+    allowed = TRANSITION_MAP.get(src, set())
+    return target in allowed
+
+
+def audit_log(db: Session, org_id: str, actor_email: str, action: str, target: str = None, details: str = None):
+    """Persist an admin audit trail entry."""
+    db.add(AdminAuditLog(
+        org_id=org_id,
+        actor_email=actor_email,
+        action=action,
+        target=target,
+        details=details,
+    ))
+
+
+def get_customer_by_crm_id(db: Session, crm_id: str, org_id: str = None) -> Optional[UnifiedCustomer]:
+    """Fetch a customer by CRM ID, optionally scoped to an org."""
+    q = db.query(UnifiedCustomer).filter(UnifiedCustomer.crm_id == crm_id)
+    if org_id:
+        q = q.filter(UnifiedCustomer.org_id == org_id)
+    return q.first()
+
+
+def customer_display_name(customer: UnifiedCustomer) -> str:
+    """Return the best available display name for a customer."""
+    if not customer:
+        return "Walk-in Customer"
+    return customer.company_name or f"{customer.first_name or ''} {customer.last_name or ''}".strip() or customer.name or "Unknown"
 
 def _log_history(db: Session, imei: str, action_type: str, employee_id: str, new_status: str, previous_status: str = None, notes: str = None, org_id: str = None):
     log = DeviceHistoryLog(
@@ -61,11 +94,8 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             customer.current_balance += unpaid_balance
 
         # Create Invoice Record
-        last_invoice = db.query(Invoice).filter(Invoice.org_id == org_id).order_by(Invoice.id.desc()).first()
-        next_id = last_invoice.id + 1 if last_invoice else 1
         prefix = "EST" if is_estimate else "INV"
-        invoice_number = f"{prefix}-{next_id:04d}"
-        
+
         status = InvoiceStatus.Unpaid
         if is_estimate:
             status = InvoiceStatus.Draft
@@ -75,9 +105,9 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             status = InvoiceStatus.Partially_Paid
 
         due_date = datetime.utcnow() + timedelta(days=15) if not is_estimate else None
-        
+
         db_invoice = Invoice(
-            invoice_number=invoice_number,
+            invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
             customer_id=crm_id,
             store_id="admin", # Wholesale usually admin/central
             subtotal=subtotal,
@@ -92,7 +122,8 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             org_id=org_id
         )
         db.add(db_invoice)
-        db.flush() # Get ID
+        db.flush()
+        db_invoice.invoice_number = f"{prefix}-{db_invoice.id:04d}"
 
         # Create PaymentTransaction if upfront payment exists
         if not is_estimate and upfront_payment > 0:
@@ -117,7 +148,7 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
                 device.sold_to_crm_id = crm_id
                 _log_history(db, device.imei, "Wholesale_Bulk_Sold", employee_id, device.device_status.value, prev_status, f"Sold to {crm_id} via {payment_method}", org_id=org_id)
             else:
-                _log_history(db, device.imei, "Estimate_Created", employee_id, device.device_status.value, device.device_status.value, f"Included in Estimate {invoice_number}", org_id=org_id)
+                _log_history(db, device.imei, "Estimate_Created", employee_id, device.device_status.value, device.device_status.value, f"Included in Estimate {db_invoice.invoice_number}", org_id=org_id)
 
             # Find the line for this device to get the final price
             line = next(l for l in invoice_lines if l["imei"] == device.imei)
@@ -129,14 +160,19 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             )
             db.add(db_item)
 
+        org_settings = db.query(OrganizationSettings).filter(
+            OrganizationSettings.org_id == org_id
+        ).first()
+        invoice_terms = org_settings.invoice_terms if org_settings else None
+
         invoice_payload = {
-            "invoice_id": invoice_number,
+            "invoice_id": db_invoice.invoice_number,
             "db_id": db_invoice.id,
             "date": datetime.utcnow().isoformat(),
             "due_date": due_date.isoformat() if due_date else None,
             "customer": {
                 "crm_id": customer.crm_id,
-                "name": customer.company_name or f"{customer.first_name} {customer.last_name}".strip() or customer.name,
+                "name": customer_display_name(customer),
                 "tax_exempt_id": customer.tax_exempt_id
             },
             "fulfillment": {
@@ -154,11 +190,7 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
                 "balance_due": round(unpaid_balance, 2)
             },
             "is_estimate": is_estimate,
-            "invoice_terms": db.query(OrganizationSettings).filter(
-                OrganizationSettings.org_id == org_id
-            ).first().invoice_terms if db.query(OrganizationSettings).filter(
-                OrganizationSettings.org_id == org_id
-            ).first() else None,
+            "invoice_terms": invoice_terms,
         }
 
         db.commit()

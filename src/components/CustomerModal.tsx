@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { X } from 'lucide-react';
+import ErrorBanner from './ErrorBanner';
 
 export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: { isOpen: boolean, onClose: () => void, customer?: any, onSuccess: () => void }) {
     const { token } = useAuth();
@@ -23,6 +24,7 @@ export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: 
         shipping_address: '',
         notes: ''
     });
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (customer) {
@@ -81,7 +83,7 @@ export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: 
             }
             onSuccess();
         } catch (err: any) {
-            alert(err.response?.data?.detail || "An error occurred");
+            setError(err.response?.data?.detail || "An error occurred");
         }
     };
 
@@ -93,6 +95,7 @@ export default function CustomerModal({ isOpen, onClose, customer, onSuccess }: 
                     <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 dark:text-[#e4e4e7] transition"><X size={20} /></button>
                 </div>
                 <div className="p-8 overflow-y-auto flex-1">
+                    {error && <div className="mb-4"><ErrorBanner message={error} onDismiss={() => setError(null)} /></div>}
                     <form id="customer-form" onSubmit={handleSubmit} className="space-y-10">
 
                         <div className="space-y-4">

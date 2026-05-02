@@ -25,6 +25,7 @@ export default function InventoryHub() {
     return (
         <div className="space-y-0">
             <div className="bg-white dark:bg-[#0c0c0e] border-b border-[#e5e7eb] dark:border-[#1a1a1c] px-6 pt-6">
+                <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7] mb-4">Inventory Management</h1>
                 <div className="flex gap-8">
                     {tabs.map(tab => (
                         <button

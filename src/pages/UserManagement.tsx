@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus, Shield, Mail, Store, Key } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
+import SuccessBanner from '../components/SuccessBanner';
 
 export default function UserManagement() {
     const { token } = useAuth();
@@ -12,6 +14,8 @@ export default function UserManagement() {
     const [role, setRole] = useState('technician');
     const [storeId, setStoreId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
@@ -40,9 +44,9 @@ export default function UserManagement() {
             }, { headers: { Authorization: `Bearer ${token}` } });
             setEmail(''); setPassword('');
             fetchData();
-            alert("User created successfully");
+            setSuccess("User created successfully");
         } catch (err: any) {
-            alert(err.response?.data?.detail || "Error creating user");
+            setError(err.response?.data?.detail || "Error creating user");
         } finally {
             setIsLoading(false);
         }
@@ -50,6 +54,8 @@ export default function UserManagement() {
 
     return (
         <div className="p-8 max-w-6xl mx-auto space-y-12">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+            {success && <SuccessBanner message={success} onDismiss={() => setSuccess(null)} />}
             <header>
                 <h1 className="text-xl font-bold text-zinc-900 dark:text-[#e4e4e7] mb-1">Identity & Access</h1>
                 <p className="text-xs text-zinc-500 dark:text-[#71717a] mt-1">Manage employee credentials and store assignments</p>

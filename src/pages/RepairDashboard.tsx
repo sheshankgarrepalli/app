@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function RepairDashboard() {
   const { token } = useAuth();
   const [inventory, setInventory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchInventory = async () => {
     setIsLoading(true);
@@ -30,7 +31,7 @@ export default function RepairDashboard() {
       fetchInventory();
     } catch (err: any) {
       console.error("Complete repair error:", err.response?.data);
-      alert(err.response?.data?.detail || "Error completing repair");
+      setError(err.response?.data?.detail || "Error completing repair");
     }
   };
 
@@ -40,6 +41,7 @@ export default function RepairDashboard() {
 
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] space-y-6">
         <div>
           <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Repair Pipeline</h1>

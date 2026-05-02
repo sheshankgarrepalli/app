@@ -35,11 +35,16 @@ def list_tickets(status_filter: str = "", tech_filter: str = "",
         q = q.filter(RepairTicket.assigned_tech_id == tech_filter)
 
     tickets = q.order_by(desc(RepairTicket.created_at)).all()
+    imeis = [t.imei for t in tickets]
+    devices = {}
+    if imeis:
+        devs = db.query(DeviceInventory).filter(
+            DeviceInventory.imei.in_(imeis), DeviceInventory.org_id == org_id
+        ).all()
+        devices = {d.imei: d for d in devs}
     out = []
     for t in tickets:
-        device = db.query(DeviceInventory).filter(
-            DeviceInventory.imei == t.imei, DeviceInventory.org_id == org_id
-        ).first()
+        device = devices.get(t.imei)
         out.append(RepairTicketOut(
             id=t.id, imei=t.imei, symptoms=t.symptoms, notes=t.notes,
             status=t.status, assigned_tech_id=t.assigned_tech_id,
@@ -269,29 +274,46 @@ def complete_repair(ticket_id: int, req: RepairCompleteRequest,
         labor_total = 0.0
         part_total = 0.0
 
-        for category in req.work_completed:
-            if device and device.model_number:
-                mapping = db.query(RepairMapping).filter(
-                    RepairMapping.device_model_number == device.model_number,
-                    RepairMapping.repair_category == category
-                ).first()
-                if mapping:
-                    part = db.query(PartsInventory).filter(
-                        PartsInventory.sku == mapping.default_part_sku,
-                        PartsInventory.org_id == org_id
-                    ).first()
-                    if part and part.current_stock_qty > 0:
-                        part.current_stock_qty -= 1
-                        part_total += part.moving_average_cost
-                        db.add(DeviceCostLedger(
-                            imei=device.imei, org_id=org_id,
-                            cost_type=f"Part: {category}", amount=part.moving_average_cost
-                        ))
+        # Pre-fetch maps to avoid N+1 queries inside the loop
+        model = device.model_number if device else None
+        mappings = {}
+        parts_map = {}
+        labor_rates_map = {}
 
-            labor_rate = db.query(LaborRateConfig).filter(
-                LaborRateConfig.action_name == f"Repair_{category}",
-                LaborRateConfig.org_id == org_id
-            ).first()
+        if model and req.work_completed:
+            mappings_list = db.query(RepairMapping).filter(
+                RepairMapping.device_model_number == model,
+                RepairMapping.repair_category.in_(req.work_completed)
+            ).all()
+            mappings = {m.repair_category: m for m in mappings_list}
+            skus = [m.default_part_sku for m in mappings_list]
+            if skus:
+                parts_list = db.query(PartsInventory).filter(
+                    PartsInventory.sku.in_(skus),
+                    PartsInventory.org_id == org_id
+                ).all()
+                parts_map = {p.sku: p for p in parts_list}
+
+        labor_action_names = [f"Repair_{c}" for c in req.work_completed]
+        labor_rates_list = db.query(LaborRateConfig).filter(
+            LaborRateConfig.action_name.in_(labor_action_names),
+            LaborRateConfig.org_id == org_id
+        ).all()
+        labor_rates_map = {lr.action_name: lr for lr in labor_rates_list}
+
+        for category in req.work_completed:
+            mapping = mappings.get(category)
+            if mapping:
+                part = parts_map.get(mapping.default_part_sku)
+                if part and part.current_stock_qty > 0:
+                    part.current_stock_qty -= 1
+                    part_total += part.moving_average_cost
+                    db.add(DeviceCostLedger(
+                        imei=device.imei, org_id=org_id,
+                        cost_type=f"Part: {category}", amount=part.moving_average_cost
+                    ))
+
+            labor_rate = labor_rates_map.get(f"Repair_{category}")
             if labor_rate:
                 labor_total += labor_rate.fee_amount
                 db.add(DeviceCostLedger(

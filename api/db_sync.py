@@ -117,7 +117,7 @@ def db_sync():
             "transfer_orders", "device_inventory", "device_history_log",
             "invoices", "inventory_audits", "parts_inventory",
             "device_cost_ledger", "repair_tickets", "part_intakes",
-            "labor_rate_config", "payment_transactions"
+            "labor_rate_config", "payment_transactions", "admin_audit_log"
         ]
         for table_name in org_backfill_tables:
             try:

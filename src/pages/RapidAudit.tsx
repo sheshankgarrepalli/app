@@ -5,6 +5,7 @@ import {
     Scan, RefreshCw, AlertCircle,
     Trash2, ChevronRight, Info
 } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function RapidAudit() {
     const { token, user } = useAuth();
@@ -12,6 +13,7 @@ export default function RapidAudit() {
     const [currentInput, setCurrentInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [report, setReport] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -42,7 +44,7 @@ export default function RapidAudit() {
             });
             setReport(res.data);
         } catch (err: any) {
-            alert(err.response?.data?.detail || "Audit failed");
+            setError(err.response?.data?.detail || "Audit failed");
         } finally {
             setIsProcessing(false);
         }
@@ -150,6 +152,7 @@ export default function RapidAudit() {
 
     return (
         <div className="space-y-6">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Rapid Inventory Audit</h1>

@@ -6,6 +6,7 @@ import {
   Search, Plus, X, Package, CheckCircle2,
   Cpu, DollarSign, Factory, Wrench, TrendingUp
 } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 const TABS = [
   { id: 'ledger', label: 'Parts Ledger', icon: Cpu },
@@ -188,6 +189,7 @@ function IntakePanel({ API, token }: { API: string; token: string }) {
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -218,7 +220,7 @@ function IntakePanel({ API, token }: { API: string; token: string }) {
       fetchData();
       setTimeout(() => setSuccess(false), 3000);
     } catch (_) {
-      alert('Intake failed');
+      setError('Intake failed');
     } finally {
       setIsProcessing(false);
     }
@@ -229,6 +231,7 @@ function IntakePanel({ API, token }: { API: string; token: string }) {
       {/* Intake form */}
       <div className="col-span-4">
         <div className="bg-white dark:bg-[#141416] border border-[#e5e7eb] dark:border-[#1f1f21] rounded-xl p-5">
+          {error && <div className="mb-4"><ErrorBanner message={error} onDismiss={() => setError(null)} /></div>}
           <h3 className="text-sm font-bold text-[#1f2937] dark:text-[#e4e4e7] mb-4">Intake Form</h3>
           <form onSubmit={handleReceive} className="space-y-3">
             <div>
@@ -350,6 +353,7 @@ function CostingPanel({ API, token }: { API: string; token: string }) {
   const [editingSku, setEditingSku] = useState<string | null>(null);
   const [priceInput, setPriceInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { fetchUnpriced(); }, []);
 
@@ -376,12 +380,13 @@ function CostingPanel({ API, token }: { API: string; token: string }) {
       setPriceInput('');
       fetchUnpriced();
     } catch (_) {
-      alert('Price update failed');
+      setError('Price update failed');
     }
   };
 
   return (
     <div className="space-y-4">
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white dark:bg-[#141416] border border-[#e5e7eb] dark:border-[#1f1f21] rounded-xl p-4">
           <div className="text-[11px] text-[#6b7280] dark:text-[#71717a] font-semibold uppercase tracking-wider mb-1">Unpriced SKUs</div>

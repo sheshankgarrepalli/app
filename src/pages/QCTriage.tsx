@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Scan, AlertCircle, ArrowRight, ClipboardList } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
+import SuccessBanner from '../components/SuccessBanner';
 
 export default function QCTriage() {
     const { token } = useAuth();
@@ -11,6 +13,8 @@ export default function QCTriage() {
     const [notes, setNotes] = useState('');
     const [errorStatus, setErrorStatus] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<HTMLInputElement>(null);
 
     const symptomOptions = ["Screen", "Battery", "Charging Port", "Camera", "Back Glass", "Speaker", "Water Damage"];
@@ -54,12 +58,12 @@ export default function QCTriage() {
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            alert("Device sent to Repair Kanban");
+            setSuccess("Device sent to Repair Kanban");
             setDevice(null);
             setSymptoms([]);
             setNotes('');
         } catch (err) {
-            alert("Triage failed");
+            setError("Triage failed");
         } finally {
             setIsProcessing(false);
         }
@@ -67,6 +71,8 @@ export default function QCTriage() {
 
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+            {success && <SuccessBanner message={success} onDismiss={() => setSuccess(null)} />}
             <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
                     <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">QC Triage Engine</h1>

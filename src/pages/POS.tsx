@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import CustomerModal from '../components/CustomerModal';
 import {
   Scan, Search, Trash2,
   Receipt, Wallet,
   CheckCircle2, X, AlertTriangle, Package,
-  Plus, Clock, User, Phone, ShoppingCart
+  Plus, Clock, User, Phone, ShoppingCart, Printer
 } from 'lucide-react';
 
 type PaymentMethod = 'Cash' | 'Credit_Card' | 'Wire' | 'Store_Credit' | 'On_Terms' | 'Zelle';
@@ -57,6 +58,7 @@ export default function POS() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerResults, setCustomerResults] = useState<any[]>([]);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   // Tender
   const [tenderSlots, setTenderSlots] = useState<TenderSlot[]>([
@@ -68,6 +70,7 @@ export default function POS() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [successState, setSuccessState] = useState<{
     invoiceNumber: string;
+    invoiceId: number;
     total: number;
     paid: number;
     isLayaway: boolean;
@@ -253,6 +256,7 @@ export default function POS() {
       const invoice = res.data;
       setSuccessState({
         invoiceNumber: invoice.invoice_number,
+        invoiceId: invoice.id,
         total: invoice.total,
         paid: totalTendered,
         isLayaway: invoice.payment_status === 'Partial_Layaway',
@@ -285,6 +289,7 @@ export default function POS() {
       const paid = (layawayInvoice.payments || []).reduce((s: number, p: any) => s + p.amount, 0) + layawayPaymentAmount;
       setSuccessState({
         invoiceNumber: layawayInvoice.invoice_number,
+        invoiceId: layawayInvoice.id,
         total: layawayInvoice.total,
         paid,
         isLayaway: paid < layawayInvoice.total,
@@ -362,15 +367,21 @@ export default function POS() {
             </div>
           )}
 
-          <button onClick={resetFlow} className="btn-primary w-full h-14 text-sm font-semibold">
-            New Transaction
-          </button>
+          <div className="flex gap-3 mb-4">
+            <button onClick={() => window.open(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/pos/invoices/${successState.invoiceId}/pdf`, '_blank')} className="btn-secondary flex-1 h-14 text-sm font-semibold flex items-center justify-center gap-2">
+              <Printer size={18} /> Print Receipt
+            </button>
+            <button onClick={resetFlow} className="btn-primary flex-1 h-14 text-sm font-semibold">
+              New Transaction
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
+    <>
     <div className="space-y-0 h-full flex flex-col">
       {/* Mode tabs */}
       <div className="flex bg-[#f5f5f5] dark:bg-[#0a0a0b] border border-[#e5e7eb] dark:border-[#1f1f21] p-1 rounded-lg w-fit mb-4">
@@ -537,40 +548,49 @@ export default function POS() {
               <h2 className="text-xs font-bold text-[#1f2937] dark:text-[#e4e4e7] uppercase tracking-wider flex items-center gap-2">
                 <User size={14} /> Customer
               </h2>
-              <div className="relative">
-                <input
-                  placeholder="Search customer..."
-                  value={customerSearch}
-                  onChange={e => {
-                    setCustomerSearch(e.target.value);
-                    if (selectedCustomer) setSelectedCustomer(null);
-                  }}
-                  className="form-input w-full py-3 text-sm"
-                />
-                {selectedCustomer && (
-                  <button
-                    onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] dark:text-[#52525b] hover:text-[#1f2937] dark:hover:text-[#e4e4e7]"
-                  ><X size={16} /></button>
-                )}
-                {customerResults.length > 0 && !selectedCustomer && (
-                  <div className="absolute top-full left-0 right-0 bg-white dark:bg-[#141416] border border-[#e5e7eb] dark:border-[#1f1f21] shadow-xl z-50 mt-1 rounded-lg overflow-hidden">
-                    {customerResults.map((c: any) => (
-                      <button
-                        key={c.crm_id}
-                        onClick={() => { setSelectedCustomer(c); setCustomerSearch(c.company_name || c.name || ''); }}
-                        className="w-full p-3 hover:bg-[#f9fafb] dark:hover:bg-[#1a1a1c] border-b border-[#e5e7eb] dark:border-[#1f1f21] last:border-0 text-left"
-                      >
-                        <div className="font-bold text-sm text-[#1f2937] dark:text-[#e4e4e7]">
-                          {c.company_name || c.name || 'Unknown'}
-                        </div>
-                        <div className="text-[10px] text-[#6b7280] dark:text-[#71717a] mt-0.5">
-                          {c.phone} {c.tax_exempt_id ? '• TAX EXEMPT' : ''} {c.pricing_tier > 0 ? `• ${(c.pricing_tier * 100).toFixed(0)}% TIER` : ''}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    placeholder="Search customer..."
+                    value={customerSearch}
+                    onChange={e => {
+                      setCustomerSearch(e.target.value);
+                      if (selectedCustomer) setSelectedCustomer(null);
+                    }}
+                    className="form-input w-full py-3 text-sm"
+                  />
+                  {selectedCustomer && (
+                    <button
+                      onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] dark:text-[#52525b] hover:text-[#1f2937] dark:hover:text-[#e4e4e7]"
+                    ><X size={16} /></button>
+                  )}
+                  {customerResults.length > 0 && !selectedCustomer && (
+                    <div className="absolute top-full left-0 right-0 bg-white dark:bg-[#141416] border border-[#e5e7eb] dark:border-[#1f1f21] shadow-xl z-50 mt-1 rounded-lg overflow-hidden">
+                      {customerResults.map((c: any) => (
+                        <button
+                          key={c.crm_id}
+                          onClick={() => { setSelectedCustomer(c); setCustomerSearch(c.company_name || c.name || ''); }}
+                          className="w-full p-3 hover:bg-[#f9fafb] dark:hover:bg-[#1a1a1c] border-b border-[#e5e7eb] dark:border-[#1f1f21] last:border-0 text-left"
+                        >
+                          <div className="font-bold text-sm text-[#1f2937] dark:text-[#e4e4e7]">
+                            {c.company_name || c.name || 'Unknown'}
+                          </div>
+                          <div className="text-[10px] text-[#6b7280] dark:text-[#71717a] mt-0.5">
+                            {c.phone} {c.tax_exempt_id ? '• TAX EXEMPT' : ''} {c.pricing_tier > 0 ? `• ${(c.pricing_tier * 100).toFixed(0)}% TIER` : ''}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerModal(true)}
+                  className="btn-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Plus size={14} /> New
+                </button>
               </div>
               {selectedCustomer && (
                 <div className="bg-[#f5f5f5] dark:bg-[#1a1a1c] rounded-lg p-3 text-xs space-y-1">
@@ -773,5 +793,14 @@ export default function POS() {
         </div>
       )}
     </div>
+    <CustomerModal
+      isOpen={showCustomerModal}
+      onClose={() => setShowCustomerModal(false)}
+      onSuccess={() => {
+        setShowCustomerModal(false);
+        setCustomerSearch('');
+      }}
+    />
+    </>
   );
 }

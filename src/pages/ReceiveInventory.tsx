@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Scan, X, Trash2, PackageCheck } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function ReceiveInventory() {
     const { token } = useAuth();
@@ -10,6 +11,7 @@ export default function ReceiveInventory() {
     const [notes, setNotes] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [summary, setSummary] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -44,7 +46,7 @@ export default function ReceiveInventory() {
             setNotes('');
         } catch (err) {
             console.error(err);
-            alert("Receipt failed");
+            setError("Receipt failed");
         } finally {
             setIsProcessing(false);
         }
@@ -52,6 +54,7 @@ export default function ReceiveInventory() {
 
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
             <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
                     <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Asset Intake</h1>

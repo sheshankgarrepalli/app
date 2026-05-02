@@ -9,6 +9,7 @@ import {
     Copy, Mail, Ban
 } from 'lucide-react';
 import EmailPreviewModal from '../components/EmailPreviewModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 type Invoice = {
     id: number;
@@ -35,6 +36,7 @@ export default function InvoiceManagement() {
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; invoice: Invoice } | null>(null);
     const [emailModal, setEmailModal] = useState<Invoice | null>(null);
+    const [voidConfirm, setVoidConfirm] = useState<{ ids: number[]; reason: string } | null>(null);
 
     const contextRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +79,20 @@ export default function InvoiceManagement() {
         }
     };
 
+    const executeVoid = async (ids: number[], reason: string) => {
+        try {
+            for (const id of ids) {
+                await axios.post(`/api/pos/invoices/${id}/void`, { reason }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+            setSelected(new Set());
+            fetchInvoices(searchQuery, activeFilter);
+        } catch (err) {
+            console.error('Void error:', err);
+        }
+    };
+
     const batchAction = async (action: string) => {
         if (selected.size === 0) return;
         const ids = Array.from(selected);
@@ -93,11 +109,8 @@ export default function InvoiceManagement() {
                 const url = URL.createObjectURL(resp.data);
                 window.open(url);
             } else if (action === 'void') {
-                for (const id of ids) {
-                    await axios.post(`/api/pos/invoices/${id}/void`, {}, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                }
+                setVoidConfirm({ ids, reason: '' });
+                return;
             }
             setSelected(new Set());
             fetchInvoices(searchQuery, activeFilter);
@@ -139,10 +152,7 @@ export default function InvoiceManagement() {
         { label: 'View PDF', icon: ExternalLink, action: () => window.open(`/api/pos/invoices/${invoice.invoice_number}/pdf`) },
         { label: 'Send Email', icon: Mail, action: () => setEmailModal(invoice) },
         { label: 'Duplicate', icon: Copy, action: () => navigate(`/invoices/new?copy=${invoice.invoice_number}`) },
-        { label: 'Void', icon: Ban, action: async () => {
-            await axios.post(`/api/pos/invoices/${invoice.id}/void`, {}, { headers: { Authorization: `Bearer ${token}` } });
-            fetchInvoices(searchQuery, activeFilter);
-        }},
+        { label: 'Void', icon: Ban, action: () => setVoidConfirm({ ids: [invoice.id], reason: '' }) },
     ];
 
     return (
@@ -324,6 +334,27 @@ export default function InvoiceManagement() {
                 open={!!emailModal}
                 onClose={() => setEmailModal(null)}
                 invoice={emailModal}
+            />
+
+            {/* Void Confirmation */}
+            <ConfirmDialog
+                open={!!voidConfirm}
+                title="Void Invoice"
+                description={
+                    voidConfirm && voidConfirm.ids.length > 1
+                        ? `Are you sure you want to void ${voidConfirm.ids.length} invoices? This action cannot be undone.`
+                        : 'Are you sure you want to void this invoice? This action cannot be undone.'
+                }
+                confirmLabel="Void Invoice"
+                variant="danger"
+                reasonInput={true}
+                reasonValue={voidConfirm?.reason ?? ''}
+                onReasonChange={value => setVoidConfirm(prev => prev ? { ...prev, reason: value } : null)}
+                onConfirm={() => {
+                    if (voidConfirm) executeVoid(voidConfirm.ids, voidConfirm.reason);
+                    setVoidConfirm(null);
+                }}
+                onCancel={() => setVoidConfirm(null)}
             />
         </div>
     );

@@ -152,8 +152,8 @@ class ManifestItem(Base):
     __tablename__ = "manifest_items"
     id = Column(Integer, primary_key=True, index=True)
     manifest_id = Column(String, ForeignKey("transfer_manifests.manifest_id"))
-    imei = Column(String, ForeignKey("device_inventory.imei"))
-    
+    imei = Column(String, ForeignKey("device_inventory.imei"), index=True)
+
     manifest = relationship("TransferManifest", back_populates="items")
     device = relationship("DeviceInventory")
 
@@ -161,7 +161,7 @@ class DeviceInventory(Base):
     __tablename__ = "device_inventory"
     imei = Column(String, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
-    serial_number = Column(String, nullable=True)
+    serial_number = Column(String, nullable=True, index=True)
     model_number = Column(String, ForeignKey("phone_models.model_number"), nullable=True)
     is_hydrated = Column(Boolean, default=False, nullable=False)
     
@@ -171,9 +171,9 @@ class DeviceInventory(Base):
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
     
     cost_basis = Column(Float, nullable=True, default=0.0)
-    assigned_transfer_order_id = Column(String, ForeignKey("transfer_orders.id"), nullable=True)
+    assigned_transfer_order_id = Column(String, ForeignKey("transfer_orders.id"), nullable=True, index=True)
     assigned_technician_id = Column(String, ForeignKey("users.email"), nullable=True)
-    sold_to_crm_id = Column(String, ForeignKey("unified_customers.crm_id"), nullable=True)
+    sold_to_crm_id = Column(String, ForeignKey("unified_customers.crm_id"), nullable=True, index=True)
     
     received_date = Column(DateTime, default=func.now())
     warranty_expiry_date = Column(DateTime, nullable=True)
@@ -186,8 +186,8 @@ class DeviceHistoryLog(Base):
     __tablename__ = "device_history_log"
     log_id = Column(Integer, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
-    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False)
-    timestamp = Column(DateTime, default=func.now())
+    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False, index=True)
+    timestamp = Column(DateTime, default=func.now(), index=True)
     action_type = Column(String, nullable=False)
     employee_id = Column(String, nullable=False) # Usually email
     previous_status = Column(String, nullable=True)
@@ -295,8 +295,8 @@ class RecurringInvoiceLog(Base):
 class InvoiceItem(Base):
     __tablename__ = "invoice_items"
     id = Column(Integer, primary_key=True, index=True)
-    invoice_id = Column(Integer, ForeignKey("invoices.id"))
-    imei = Column(String)
+    invoice_id = Column(Integer, ForeignKey("invoices.id"), index=True)
+    imei = Column(String, index=True)
     model_number = Column(String)
     unit_price = Column(Float)
     
@@ -360,7 +360,7 @@ class DeviceCostLedger(Base):
     __tablename__ = "device_cost_ledger"
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
-    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False)
+    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False, index=True)
     cost_type = Column(String, nullable=False) # e.g., "Purchase", "Part: Screen", "Labor"
     amount = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -368,7 +368,7 @@ class DeviceCostLedger(Base):
 class RepairMapping(Base):
     __tablename__ = "repair_mapping"
     id = Column(Integer, primary_key=True, index=True)
-    device_model_number = Column(String, nullable=False)
+    device_model_number = Column(String, nullable=False, index=True)
     repair_category = Column(String, nullable=False) # e.g., "Screen", "Battery"
     default_part_sku = Column(String, ForeignKey("parts_inventory.sku"), nullable=False)
 
@@ -376,7 +376,7 @@ class RepairTicket(Base):
     __tablename__ = "repair_tickets"
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
-    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False)
+    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=False, index=True)
     symptoms = Column(String) # JSON or comma-separated
     notes = Column(String)
     status = Column(Enum(RepairStatus), default=RepairStatus.Pending_Triage)
@@ -394,7 +394,7 @@ class PartIntake(Base):
     __tablename__ = "part_intakes"
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
-    sku = Column(String, ForeignKey("parts_inventory.sku"), nullable=False)
+    sku = Column(String, ForeignKey("parts_inventory.sku"), nullable=False, index=True)
     qty = Column(Integer, nullable=False)
     total_price = Column(Float, default=0.0)
     is_priced = Column(Integer, default=0) # 0 = Unpriced, 1 = Priced
@@ -422,3 +422,13 @@ class PricingConfig(Base):
     pricing_tier = Column(Float, default=0.0)
     applies_to = Column(String, default="Both")  # Retail, Wholesale, Both
     default_markup_percent = Column(Float, default=20.0)
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_log"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    timestamp = Column(DateTime, default=func.now(), index=True)
+    actor_email = Column(String, nullable=False, index=True)
+    action = Column(String, nullable=False)
+    target = Column(String, nullable=True)
+    details = Column(String, nullable=True)

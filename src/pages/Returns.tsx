@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Scan, AlertCircle, Package, ArrowRight, ShieldCheck, ShieldAlert } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
+import SuccessBanner from '../components/SuccessBanner';
 
 export default function Returns() {
     const { token } = useAuth();
@@ -10,6 +12,8 @@ export default function Returns() {
     const [errorStatus, setErrorStatus] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [overridePolicy, setOverridePolicy] = useState(false);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -52,11 +56,11 @@ export default function Returns() {
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            alert("Return processed successfully. Device moved to QC.");
+            setSuccess("Return processed successfully. Device moved to QC.");
             setScannedDevice(null);
             setOverridePolicy(false);
         } catch (err: any) {
-            alert(err.response?.data?.detail || "Error processing return");
+            setError(err.response?.data?.detail || "Error processing return");
         } finally {
             setIsProcessing(false);
         }
@@ -71,6 +75,8 @@ export default function Returns() {
 
     return (
         <div className="space-y-0">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+            {success && <SuccessBanner message={success} onDismiss={() => setSuccess(null)} />}
             <div className="page-header px-6 pt-6 pb-4">
                 <div>
                     <h1 className="page-title">Reverse Logistics</h1>

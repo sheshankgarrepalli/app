@@ -6,9 +6,17 @@ from database import get_db
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
+
+def _audit(db, org_id, actor_email, action, target=None, details=None):
+    """Lazy-import wms_core to avoid circular import at module level."""
+    import wms_core
+    wms_core.audit_log(db, org_id, actor_email, action, target=target, details=details)
+
+
 @router.get("/rates", response_model=List[schemas.LaborRateConfigOut])
 def get_rates(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     return db.query(models.LaborRateConfig).filter(models.LaborRateConfig.org_id == getattr(current_user, 'current_org_id', None)).all()
+
 
 @router.put("/rates/upsert", response_model=schemas.LaborRateConfigOut)
 def upsert_rate(req: schemas.LaborRateConfigBase, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
@@ -24,10 +32,12 @@ def upsert_rate(req: schemas.LaborRateConfigBase, db: Session = Depends(get_db),
             db.add(rate)
         db.commit()
         db.refresh(rate)
+        _audit(db, getattr(current_user, 'current_org_id', None), current_user.email, "upsert_labor_rate", target=req.action_name, details=f"fee={req.fee_amount}")
         return rate
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/users", response_model=List[schemas.UserOut])
 def get_users(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
@@ -41,9 +51,10 @@ def get_users(db: Session = Depends(get_db), current_user: models.User = Depends
         import traceback
         traceback.print_exc()
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail={"detail": "Database Error", "message": str(e)}
         )
+
 
 @router.post("/users", response_model=schemas.UserOut)
 def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
@@ -52,7 +63,7 @@ def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_
         models.User.org_id == getattr(current_user, 'current_org_id', None)
     ).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     new_user = models.User(
         email=req.email,
         role=req.role,
@@ -62,7 +73,9 @@ def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    _audit(db, getattr(current_user, 'current_org_id', None), current_user.email, "create_user", target=new_user.email, details=f"role={req.role}")
     return new_user
+
 
 @router.get("/stores", response_model=List[schemas.StoreLocationOut])
 def get_stores(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
@@ -72,9 +85,10 @@ def get_stores(db: Session = Depends(get_db), current_user: models.User = Depend
         import traceback
         traceback.print_exc()
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail={"detail": "Database Error", "message": str(e)}
         )
+
 
 @router.post("/stores", response_model=schemas.StoreLocationOut)
 def create_store(req: schemas.StoreLocationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
@@ -83,12 +97,14 @@ def create_store(req: schemas.StoreLocationCreate, db: Session = Depends(get_db)
         models.StoreLocation.org_id == getattr(current_user, 'current_org_id', None)
     ).first():
         raise HTTPException(status_code=400, detail="Store ID already exists")
-    
+
     new_store = models.StoreLocation(id=req.id, name=req.name, address=req.address, org_id=getattr(current_user, 'current_org_id', None))
     db.add(new_store)
     db.commit()
     db.refresh(new_store)
+    _audit(db, getattr(current_user, 'current_org_id', None), current_user.email, "create_store", target=req.id, details=f"name={req.name}")
     return new_store
+
 
 @router.post("/rates/seed")
 def seed_rates(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
@@ -152,6 +168,7 @@ def update_org_settings(req: schemas.OrgSettingsRequest,
 
     db.commit()
     db.refresh(cfg)
+    _audit(db, org_id, current_user.email, "update_org_settings", details=f"tax_rate={cfg.default_tax_rate}, currency={cfg.currency}")
     return cfg
 
 
@@ -193,6 +210,7 @@ def update_pricing_config(req: schemas.PricingConfigUpdate,
 
     db.commit()
     db.refresh(cfg)
+    _audit(db, org_id, current_user.email, "update_pricing_config", details=f"tier={cfg.pricing_tier}, markup={cfg.default_markup_percent}")
     return cfg
 
 
@@ -209,4 +227,3 @@ def get_audit_log(limit: int = 100, imei_filter: str = "",
     if imei_filter:
         q = q.filter(models.DeviceHistoryLog.imei.ilike(f"%{imei_filter}%"))
     return q.order_by(models.DeviceHistoryLog.timestamp.desc()).limit(limit).all()
-

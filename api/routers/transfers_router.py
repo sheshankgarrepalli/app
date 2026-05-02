@@ -235,9 +235,14 @@ def get_manifest_detail(manifest_id: str, db: Session = Depends(get_db), current
         raise HTTPException(status_code=404, detail="Manifest not found")
 
     items = db.query(models.ManifestItem).filter(models.ManifestItem.manifest_id == manifest_id).all()
+    imeis = [mi.imei for mi in items]
+    devices = {}
+    if imeis:
+        devs = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei.in_(imeis)).all()
+        devices = {d.imei: d for d in devs}
     item_details = []
     for mi in items:
-        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == mi.imei).first()
+        device = devices.get(mi.imei)
         item_details.append({
             "imei": mi.imei,
             "model_number": device.model_number if device else None,

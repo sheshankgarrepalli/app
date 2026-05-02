@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Scan, ArrowRight, X, Trash2 } from 'lucide-react';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function BulkTransfer() {
     const { token } = useAuth();
@@ -12,6 +13,7 @@ export default function BulkTransfer() {
     const [defects, setDefects] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [summary, setSummary] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const defectOptions = ["Battery", "Screen", "FaceID", "Camera", "Back Glass", "Housing"];
@@ -55,7 +57,7 @@ export default function BulkTransfer() {
             setDefects([]);
         } catch (err) {
             console.error(err);
-            alert("Transfer failed");
+            setError("Transfer failed");
         } finally {
             setIsProcessing(false);
         }
@@ -63,6 +65,7 @@ export default function BulkTransfer() {
 
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#0a0a0b]">
+            {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
             <header className="p-6 bg-white dark:bg-[#141416] border-b border-zinc-200 dark:border-[#1f1f21] flex justify-between items-center">
                 <div>
                     <h1 className="text-lg font-bold text-zinc-900 dark:text-[#e4e4e7]">Logistics Dispatch</h1>

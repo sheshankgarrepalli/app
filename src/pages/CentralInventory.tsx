@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import EditDeviceModal from '../components/EditDeviceModal';
 import DeviceStatusTransition from '../components/DeviceStatusTransition';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function CentralInventory() {
   const { token, user } = useAuth();
@@ -23,6 +24,7 @@ export default function CentralInventory() {
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+  const [error, setError] = useState<string | null>(null);
 
   const fetchInventory = async () => {
     setIsLoading(true);
@@ -58,7 +60,7 @@ export default function CentralInventory() {
       fetchInventory();
       fetchTransfers();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error receiving transfer');
+      setError(err.response?.data?.detail || 'Error receiving transfer');
     }
   };
 
@@ -96,6 +98,7 @@ export default function CentralInventory() {
 
   return (
     <div className="space-y-4">
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       {/* Incoming transfers */}
       {incomingTransfers.length > 0 && (
         <div className="bg-white dark:bg-[#141416] border border-[#e5e7eb] dark:border-[#1f1f21] rounded-xl p-5">

@@ -113,8 +113,8 @@ export default function InvoicesDashboard() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="text-zinc-300 dark:text-[#52525b] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors"><FileText size={18} /></button>
-                                            <button className="text-zinc-300 dark:text-[#52525b] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors"><Printer size={18} /></button>
+                                            <button onClick={() => window.open(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/pos/invoices/${inv.id}/pdf`, '_blank')} className="text-zinc-300 dark:text-[#52525b] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors"><FileText size={18} /></button>
+                                            <button onClick={() => window.open(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/pos/invoices/${inv.id}/pdf`, '_blank')} className="text-zinc-300 dark:text-[#52525b] hover:text-zinc-900 dark:text-[#e4e4e7] transition-colors"><Printer size={18} /></button>
                                         </div>
                                     </td>
                                 </tr>
