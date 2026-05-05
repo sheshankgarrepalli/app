@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, FormEvent } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import {
-    Scan, RefreshCw, AlertCircle,
-    Trash2, ChevronRight, Info
+    Scan, RefreshCw, AlertCircle, CheckCircle2,
+    Trash2, ChevronRight, Info, Download, Printer, Search,
+    Filter, MapPin, Calendar, Hash
 } from 'lucide-react';
 import ErrorBanner from '../components/ErrorBanner';
 
@@ -14,11 +15,10 @@ export default function RapidAudit() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [report, setReport] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [searchFilter, setSearchFilter] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
+    useEffect(() => { inputRef.current?.focus(); }, []);
 
     const handleScan = (e: FormEvent) => {
         e.preventDefault();
@@ -30,18 +30,14 @@ export default function RapidAudit() {
         inputRef.current?.focus();
     };
 
-    const removeImei = (imei: string) => {
-        setScannedImeis(scannedImeis.filter(i => i !== imei));
-    };
+    const removeImei = (imei: string) => setScannedImeis(scannedImeis.filter(i => i !== imei));
 
     const runAudit = async () => {
         setIsProcessing(true);
         try {
             const res = await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/inventory/rapid-audit', {
                 imeis: scannedImeis
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            }, { headers: { Authorization: `Bearer ${token}` } });
             setReport(res.data);
         } catch (err: any) {
             setError(err.response?.data?.detail || "Audit failed");
@@ -51,49 +47,118 @@ export default function RapidAudit() {
     };
 
     const resetAudit = () => {
-        setScannedImeis([]);
-        setReport(null);
-        setCurrentInput('');
+        setScannedImeis([]); setReport(null); setCurrentInput(''); setSearchFilter('');
         setTimeout(() => inputRef.current?.focus(), 100);
     };
 
+    const downloadCSV = () => {
+        const rows = [['Type', 'IMEI', 'Status/Last Action', 'Custodian']];
+        report.missing.forEach((m: any) => rows.push(['Missing', m.imei, m.last_action || '', (m.last_employee || '').split('@')[0]]));
+        report.unexpected.forEach((imei: string) => rows.push(['Unexpected', imei, 'Review Req', '']));
+        report.matched.forEach((m: any) => rows.push(['Matched', m.imei || m, '', '']));
+        const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit-${user?.store_id || 'warehouse'}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const printReport = () => window.print();
+
     if (report) {
+        const filterMissing = report.missing.filter((m: any) => !searchFilter || m.imei.includes(searchFilter));
+        const filterUnexpected = report.unexpected.filter((imei: string) => !searchFilter || imei.includes(searchFilter));
+        const isClean = report.missing.length === 0 && report.unexpected.length === 0;
+
         return (
-            <div className="space-y-6">
-                <div className="page-header">
+            <div className="space-y-6 max-w-7xl mx-auto">
+                {/* Report Header */}
+                <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="page-title">Audit Variance Report</h1>
-                        <p className="text-xs text-[#6b7280] dark:text-[#71717a] mt-1">
-                            Location: {user?.store_id || 'Warehouse Alpha'} • {new Date().toLocaleDateString()}
+                        <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
+                            Audit Variance Report
+                            <span className={`text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border ${
+                                isClean
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : 'bg-accent/10 text-accent border-accent/20'
+                            }`}>
+                                {isClean ? 'Clean' : 'Variance Found'}
+                            </span>
+                        </h1>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 flex items-center gap-3">
+                            <span className="flex items-center gap-1"><MapPin size={11} /> {user?.store_id || 'Warehouse Alpha'}</span>
+                            <span className="flex items-center gap-1"><Calendar size={11} /> {new Date().toLocaleDateString()}</span>
+                            <span className="flex items-center gap-1"><Hash size={11} /> {report.matched.length + report.missing.length + report.unexpected.length} records</span>
                         </p>
                     </div>
-                    <button onClick={resetAudit} className="btn-secondary">
-                        New Audit
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button onClick={downloadCSV} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-navy text-white hover:bg-navy-light transition-all text-xs font-bold border border-[var(--border-primary)]">
+                            <Download size={16} /> Download CSV
+                        </button>
+                        <button onClick={printReport} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-navy text-white hover:bg-navy-light transition-all text-xs font-bold border border-[var(--border-primary)]">
+                            <Printer size={16} /> Print Report
+                        </button>
+                        <button onClick={resetAudit} className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-5 py-2.5 rounded-md font-bold text-xs transition-all active:scale-[0.98] inline-flex items-center gap-2">
+                            <RefreshCw size={15} /> New Audit
+                        </button>
+                    </div>
                 </div>
 
-                <div className="space-y-8">
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="kpi-card">
-                            <div className="kpi-label text-emerald-600">Matched Assets</div>
-                            <div className="kpi-value">{report.matched.length}</div>
-                        </div>
-                        <div className="kpi-card border border-red-100">
-                            <div className="kpi-label text-red-500">Missing Assets</div>
-                            <div className="kpi-value text-red-500">{report.missing.length}</div>
-                        </div>
-                        <div className="kpi-card border border-amber-100">
-                            <div className="kpi-label text-amber-600">Unexpected Assets</div>
-                            <div className="kpi-value text-amber-600">{report.unexpected.length}</div>
-                        </div>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="kpi-card">
+                        <div className="kpi-label text-emerald-400">Matched Assets</div>
+                        <div className="kpi-value text-emerald-400">{report.matched.length}</div>
+                        <div className="kpi-change up">Physically verified at this location</div>
                     </div>
+                    <div className="kpi-card border-red-500/20">
+                        <div className="kpi-label text-red-400">Missing Assets</div>
+                        <div className="kpi-value text-red-400">{report.missing.length}</div>
+                        <div className="kpi-change down">In system but not found on shelf</div>
+                    </div>
+                    <div className="kpi-card border-amber-500/20">
+                        <div className="kpi-label text-amber-400">Unexpected Assets</div>
+                        <div className="kpi-value text-amber-400">{report.unexpected.length}</div>
+                        <div className="kpi-change down">On shelf but not in system</div>
+                    </div>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] flex items-center gap-2">
-                                <AlertCircle size={14} className="text-red-500" /> Missing from Physical Scan
-                            </h3>
-                            <div className="card overflow-hidden">
+                {/* Search/Filter */}
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">
+                            <Search size={14} />
+                        </div>
+                        <input
+                            value={searchFilter}
+                            onChange={e => setSearchFilter(e.target.value)}
+                            placeholder="Filter by IMEI..."
+                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg pl-9 pr-4 py-2 text-xs text-[var(--text-primary)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
+                        />
+                    </div>
+                    <div className="flex-1" />
+                    <span className="text-[11px] text-[var(--text-secondary)] flex items-center gap-1">
+                        <Filter size={12} /> {report.matched.length + filterMissing.length + filterUnexpected.length} of {report.matched.length + report.missing.length + report.unexpected.length} shown
+                    </span>
+                </div>
+
+                {/* Tables */}
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                            <AlertCircle size={14} className="text-red-400" /> Missing from Shelf
+                            <span className="text-[10px] font-normal text-[var(--text-tertiary)] normal-case">({filterMissing.length})</span>
+                        </h3>
+                        <div className="card overflow-hidden">
+                            {filterMissing.length === 0 ? (
+                                <div className="py-16 flex flex-col items-center justify-center">
+                                    <Info size={28} className="text-[var(--text-muted)] mb-2" />
+                                    <p className="text-xs font-bold text-[var(--text-tertiary)]">No missing assets</p>
+                                </div>
+                            ) : (
                                 <table className="table-standard">
                                     <thead>
                                         <tr>
@@ -103,25 +168,31 @@ export default function RapidAudit() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {report.missing.length === 0 ? (
-                                            <tr><td colSpan={3} className="py-12 text-center text-[#9ca3af] dark:text-[#52525b]">No missing assets</td></tr>
-                                        ) : report.missing.map((m: any) => (
+                                        {filterMissing.map((m: any) => (
                                             <tr key={m.imei}>
                                                 <td className="font-mono text-xs font-bold">{m.imei}</td>
-                                                <td className="text-xs text-[#6b7280] dark:text-[#71717a]">{m.last_action}</td>
-                                                <td className="text-right text-xs text-[#6b7280] dark:text-[#71717a]">{m.last_employee.split('@')[0]}</td>
+                                                <td className="text-xs text-[var(--text-secondary)]">{m.last_action || '—'}</td>
+                                                <td className="text-right text-xs text-[var(--text-secondary)]">{(m.last_employee || '—').split('@')[0]}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            )}
                         </div>
+                    </div>
 
-                        <div className="space-y-3">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a] flex items-center gap-2">
-                                <Info size={14} className="text-amber-500" /> Unexpected at this Location
-                            </h3>
-                            <div className="card overflow-hidden">
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                            <Info size={14} className="text-amber-400" /> Unexpected at this Location
+                            <span className="text-[10px] font-normal text-[var(--text-tertiary)] normal-case">({filterUnexpected.length})</span>
+                        </h3>
+                        <div className="card overflow-hidden">
+                            {filterUnexpected.length === 0 ? (
+                                <div className="py-16 flex flex-col items-center justify-center">
+                                    <Info size={28} className="text-[var(--text-muted)] mb-2" />
+                                    <p className="text-xs font-bold text-[var(--text-tertiary)]">No unexpected assets</p>
+                                </div>
+                            ) : (
                                 <table className="table-standard">
                                     <thead>
                                         <tr>
@@ -130,43 +201,86 @@ export default function RapidAudit() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {report.unexpected.length === 0 ? (
-                                            <tr><td colSpan={2} className="py-12 text-center text-[#9ca3af] dark:text-[#52525b]">No unexpected assets</td></tr>
-                                        ) : report.unexpected.map((imei: string) => (
+                                        {filterUnexpected.map((imei: string) => (
                                             <tr key={imei}>
                                                 <td className="font-mono text-xs font-bold">{imei}</td>
-                                                <td className="text-right">
-                                                    <span className="badge badge-neutral">Review Req</span>
-                                                </td>
+                                                <td className="text-right"><span className="badge badge-neutral text-[10px]">Review Req</span></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
+
+                {/* Matched Summary */}
+                {report.matched.length > 0 && (
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                            <CheckCircle2 size={14} /> Matched & Verified ({report.matched.length})
+                        </h3>
+                        <div className="card overflow-hidden opacity-60">
+                            <table className="table-standard">
+                                <thead>
+                                    <tr>
+                                        <th>IMEI / Serial</th>
+                                        <th>Model</th>
+                                        <th>Status</th>
+                                        <th className="text-right">Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {report.matched.slice(0, 20).map((m: any) => (
+                                        <tr key={m.imei || m}>
+                                            <td className="font-mono text-xs font-bold">{m.imei || m}</td>
+                                            <td className="text-xs text-[var(--text-secondary)]">{m.model_number || '—'}</td>
+                                            <td><span className="badge badge-sellable text-[10px]">{m.device_status || 'Sellable'}</span></td>
+                                            <td className="text-right text-xs text-[var(--text-secondary)]">{m.current_bin || '—'}</td>
+                                        </tr>
+                                    ))}
+                                    {report.matched.length > 20 && (
+                                        <tr>
+                                            <td colSpan={4} className="text-center text-xs text-[var(--text-tertiary)] py-4">
+                                                + {report.matched.length - 20} more matched devices
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-5xl mx-auto">
             {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-            <div className="page-header">
+
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="page-title">Rapid Inventory Audit</h1>
-                    <p className="text-xs text-[#6b7280] dark:text-[#71717a] mt-1">Continuous scanner mode enabled</p>
+                    <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
+                        Rapid Inventory Audit
+                        <span className="bg-accent/10 text-accent text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
+                            Physical Count
+                        </span>
+                    </h1>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1 flex items-center gap-3">
+                        <span className="flex items-center gap-1"><MapPin size={11} /> {user?.store_id || 'Warehouse Alpha'}</span>
+                        <span>Continuous scanner mode — scan all IMEIs at this location</span>
+                    </p>
                 </div>
                 <div className="flex items-center gap-6">
                     <div className="text-right">
-                        <div className="text-xs text-[#6b7280] dark:text-[#71717a] uppercase tracking-wider">Devices Scanned</div>
-                        <div className="text-2xl font-bold text-[#1f2937] dark:text-[#e4e4e7]">{scannedImeis.length}</div>
+                        <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Scanned</div>
+                        <div className="text-2xl font-bold text-[var(--text-primary)] tabular-nums">{scannedImeis.length}</div>
                     </div>
                     <button
                         onClick={runAudit}
                         disabled={isProcessing || scannedImeis.length === 0}
-                        className="btn-primary"
+                        className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-6 h-11 rounded-md font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-2"
                     >
                         {isProcessing ? <RefreshCw className="animate-spin" size={18} /> : <ChevronRight size={18} />}
                         Run Audit Variance Report
@@ -174,50 +288,62 @@ export default function RapidAudit() {
                 </div>
             </div>
 
-            <div className="space-y-8">
-                <div className="max-w-3xl mx-auto w-full">
+            {/* Scanner */}
+            <div className="relative bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden">
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/5 via-transparent to-purple-500/5 pointer-events-none" />
+                <div className="relative p-5">
                     <form onSubmit={handleScan} className="relative">
-                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-[#9ca3af] dark:text-[#52525b]">
-                            <Scan size={32} />
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-accent">
+                            <Scan size={26} />
                         </div>
                         <input
                             ref={inputRef}
                             type="text"
                             value={currentInput}
                             onChange={e => setCurrentInput(e.target.value)}
-                            placeholder="Awaiting Scan..."
-                            className="w-full bg-white dark:bg-[#141416] border-2 border-[#e5e7eb] dark:border-[#1f1f21] focus:border-accent rounded-xl pl-20 pr-8 py-8 text-3xl font-mono font-bold tracking-widest outline-none transition-all shadow-sm placeholder:font-sans placeholder:text-sm placeholder:tracking-normal"
+                            placeholder="Awaiting scan..."
+                            className="w-full bg-[var(--bg-tertiary)] border-2 border-[var(--border-secondary)] focus:border-accent rounded-xl pl-16 pr-6 py-6 text-2xl font-mono font-bold tracking-widest text-[var(--text-primary)] outline-none transition-all placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[var(--text-tertiary)]"
+                            autoFocus
                         />
                     </form>
                 </div>
+            </div>
 
-                <div className="max-w-5xl mx-auto w-full space-y-4">
-                    <div className="flex justify-between items-center px-2">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#6b7280] dark:text-[#71717a]">Current Scan Batch</h3>
-                        {scannedImeis.length > 0 && (
-                            <button onClick={() => setScannedImeis([])} className="text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-700 transition-colors">Clear All</button>
-                        )}
+            {/* Scan Batch */}
+            <div className="space-y-3">
+                <div className="flex justify-between items-center px-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Current Scan Batch ({scannedImeis.length})
+                    </h3>
+                    {scannedImeis.length > 0 && (
+                        <button onClick={() => setScannedImeis([])} className="text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors">
+                            Clear All
+                        </button>
+                    )}
+                </div>
+                {scannedImeis.length === 0 ? (
+                    <div className="card">
+                        <div className="card-body py-20 flex flex-col items-center justify-center space-y-3">
+                            <Scan size={48} className="text-[var(--text-muted)]" />
+                            <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">No assets in current batch</p>
+                            <p className="text-[10px] text-[var(--text-tertiary)]">Begin scanning IMEIs to populate the audit batch</p>
+                        </div>
                     </div>
-
+                ) : (
                     <div className="grid grid-cols-4 gap-3">
-                        {scannedImeis.length === 0 ? (
-                            <div className="col-span-4 py-24 border-2 border-dashed border-[#e5e7eb] dark:border-[#1f1f21] rounded-xl flex flex-col items-center justify-center text-[#d1d5db] space-y-4">
-                                <Scan size={48} className="opacity-20" />
-                                <p className="text-xs font-bold uppercase tracking-wider text-center">No assets in current batch.<br />Please begin scanning.</p>
-                            </div>
-                        ) : scannedImeis.map((imei, index) => (
-                            <div key={imei} className="card p-4 flex justify-between items-center group">
-                                <div className="space-y-1">
-                                    <div className="text-xs text-[#9ca3af] dark:text-[#52525b] uppercase tracking-wider">#{scannedImeis.length - index}</div>
-                                    <div className="text-xs font-mono font-bold text-[#1f2937] dark:text-[#e4e4e7]">{imei}</div>
+                        {scannedImeis.map((imei, index) => (
+                            <div key={imei} className="card p-4 flex justify-between items-center group hover:border-accent/30 transition-all">
+                                <div className="space-y-1 min-w-0">
+                                    <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">#{scannedImeis.length - index}</div>
+                                    <div className="text-xs font-mono font-bold text-[var(--text-primary)] truncate">{imei}</div>
                                 </div>
-                                <button onClick={() => removeImei(imei)} className="text-[#d1d5db] hover:text-red-500 transition-colors">
+                                <button onClick={() => removeImei(imei)} className="text-[var(--text-muted)] hover:text-red-400 transition-colors flex-shrink-0 ml-2">
                                     <Trash2 size={14} />
                                 </button>
                             </div>
                         ))}
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

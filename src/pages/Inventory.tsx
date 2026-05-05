@@ -82,13 +82,13 @@ export default function Inventory() {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <div>
-                <h1 className="text-[22px] font-bold text-[#e4e4e7] flex items-center gap-3">
+                <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
                     Inventory Dashboard
                     <span className="bg-accent/10 text-accent text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
                         All Devices
                     </span>
                 </h1>
-                <p className="text-xs text-[#71717a] mt-1">Browse, search, and filter your entire device inventory</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-1">Browse, search, and filter your entire device inventory</p>
             </div>
 
             {error && (
@@ -101,18 +101,18 @@ export default function Inventory() {
             {/* Filters */}
             <div className="flex gap-3">
                 <div className="flex-1 relative">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#52525b]" />
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
                     <input
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         placeholder="Search by IMEI or model..."
-                        className="w-full bg-[#0c0c0e] border border-[#1a1a1c] focus:border-accent rounded-xl pl-12 pr-4 py-2.5 text-sm text-[#e4e4e7] outline-none transition-all placeholder:text-xs placeholder:text-[#52525b]"
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] focus:border-accent rounded-xl pl-12 pr-4 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)]"
                     />
                 </div>
                 <select
                     value={statusFilter}
                     onChange={e => setStatusFilter(e.target.value)}
-                    className="bg-[#0c0c0e] border border-[#1a1a1c] rounded-xl px-4 py-2.5 text-sm text-[#e4e4e7] outline-none focus:border-accent cursor-pointer font-bold"
+                    className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-accent cursor-pointer font-bold"
                 >
                     <option value="">All Statuses</option>
                     {STATUS_OPTIONS.filter(Boolean).map(s => (
@@ -127,7 +127,7 @@ export default function Inventory() {
                     <span className="flex items-center gap-2">
                         <PackageSearch size={16} className="text-accent" /> Inventory
                     </span>
-                    <span className="text-[11px] text-[#52525b]">{total.toLocaleString()} devices</span>
+                    <span className="text-[11px] text-[var(--text-tertiary)]">{total.toLocaleString()} devices</span>
                 </div>
                 <div className="card-body p-0">
                     {loading ? (
@@ -136,15 +136,15 @@ export default function Inventory() {
                         </div>
                     ) : devices.length === 0 ? (
                         <div className="py-24 flex flex-col items-center justify-center space-y-3">
-                            <Smartphone size={56} className="text-[#1a1a1c]" />
-                            <p className="text-xs font-bold uppercase tracking-wider text-[#52525b]">No devices found</p>
-                            <p className="text-[10px] text-[#52525b]">Try adjusting your search or filter criteria</p>
+                            <Smartphone size={56} className="text-[var(--text-muted)]" />
+                            <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">No devices found</p>
+                            <p className="text-[10px] text-[var(--text-tertiary)]">Try adjusting your search or filter criteria</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-xs">
                                 <thead>
-                                    <tr className="border-b border-[#1a1a1c] text-[#52525b] font-bold uppercase tracking-wider">
+                                    <tr className="border-b border-[var(--border-primary)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
                                         <th className="text-left px-5 py-3">IMEI</th>
                                         <th className="text-left px-5 py-3">Model</th>
                                         <th className="text-left px-5 py-3">Status</th>
@@ -157,20 +157,20 @@ export default function Inventory() {
                                     {devices.map(d => {
                                         const days = Math.floor((Date.now() - new Date(d.received_date).getTime()) / 86400000);
                                         return (
-                                            <tr key={d.imei} className="border-b border-[#0c0c0e] hover:bg-[#141416]/50 transition-colors">
-                                                <td className="px-5 py-3 font-mono font-bold text-[#e4e4e7] tracking-wider">{d.imei}</td>
-                                                <td className="px-5 py-3 text-[#e4e4e7] font-bold">
+                                            <tr key={d.imei} className="border-b border-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors">
+                                                <td className="px-5 py-3 font-mono font-bold text-[var(--text-primary)] tracking-wider">{d.imei}</td>
+                                                <td className="px-5 py-3 text-[var(--text-primary)] font-bold">
                                                     {d.model_number || '—'}
-                                                    {d.model && <span className="text-[#52525b] ml-1 font-normal">{d.model.brand} {d.model.name}</span>}
+                                                    {d.model && <span className="text-[var(--text-tertiary)] ml-1 font-normal">{d.model.brand} {d.model.name}</span>}
                                                 </td>
                                                 <td className="px-5 py-3">
                                                     <span className={`badge ${getStatusBadge(d.device_status)} text-[10px]`}>
                                                         {statusLabel(d.device_status)}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-3 text-[#e4e4e7]">{d.store_name || d.location_id?.replace(/_/g, ' ') || '—'}</td>
-                                                <td className="px-5 py-3 text-right font-mono text-[#e4e4e7]">${(d.cost_basis || 0).toFixed(2)}</td>
-                                                <td className="px-5 py-3 text-right text-[#71717a]">{days}d</td>
+                                                <td className="px-5 py-3 text-[var(--text-primary)]">{d.store_name || d.location_id?.replace(/_/g, ' ') || '—'}</td>
+                                                <td className="px-5 py-3 text-right font-mono text-[var(--text-primary)]">${(d.cost_basis || 0).toFixed(2)}</td>
+                                                <td className="px-5 py-3 text-right text-[var(--text-secondary)]">{days}d</td>
                                             </tr>
                                         );
                                     })}
@@ -181,25 +181,25 @@ export default function Inventory() {
                 </div>
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="px-5 py-3 border-t border-[#1a1a1c] flex items-center justify-between text-xs">
-                        <span className="text-[#52525b]">
+                    <div className="px-5 py-3 border-t border-[var(--border-primary)] flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-tertiary)]">
                             Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of {total}
                         </span>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setPage(p => Math.max(0, p - 1))}
                                 disabled={page === 0}
-                                className="p-1.5 rounded-lg hover:bg-[#141416] disabled:opacity-30 transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] disabled:opacity-30 transition-colors"
                             >
-                                <ChevronLeft size={16} className="text-[#e4e4e7]" />
+                                <ChevronLeft size={16} className="text-[var(--text-primary)]" />
                             </button>
-                            <span className="text-[#e4e4e7] font-bold">{page + 1} / {totalPages}</span>
+                            <span className="text-[var(--text-primary)] font-bold">{page + 1} / {totalPages}</span>
                             <button
                                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                                 disabled={page >= totalPages - 1}
-                                className="p-1.5 rounded-lg hover:bg-[#141416] disabled:opacity-30 transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] disabled:opacity-30 transition-colors"
                             >
-                                <ChevronRight size={16} className="text-[#e4e4e7]" />
+                                <ChevronRight size={16} className="text-[var(--text-primary)]" />
                             </button>
                         </div>
                     </div>

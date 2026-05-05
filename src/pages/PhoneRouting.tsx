@@ -288,26 +288,26 @@ export default function PhoneRouting() {
         <div className="space-y-6 max-w-6xl mx-auto">
             {/* Page Header */}
             <div>
-                <h1 className="text-[22px] font-bold text-[#e4e4e7] flex items-center gap-3">
+                <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
                     Routing Hub
                     <span className="bg-accent/10 text-accent text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
                         Command & Control
                     </span>
                 </h1>
-                <p className="text-xs text-[#71717a] mt-1">Scan an IMEI to inspect device state and route to the next station</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-1">Scan an IMEI to inspect device state and route to the next station</p>
             </div>
 
             {/* Tab Bar */}
-            <div className="flex gap-1 bg-[#0c0c0e] rounded-xl p-1 border border-[#1a1a1c] w-fit">
+            <div className="flex gap-1 bg-[var(--bg-secondary)] rounded-xl p-1 border border-[var(--border-primary)] w-fit">
                 <button
                     onClick={() => { setActiveTab('single'); setError(null); setSuccess(null); }}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'single' ? 'bg-accent text-[#0a0a0b]' : 'text-[#71717a] hover:text-[#e4e4e7]'}`}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'single' ? 'bg-accent text-[var(--text-inverse)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                 >
                     Single Device
                 </button>
                 <button
                     onClick={() => { setActiveTab('batch'); setError(null); setSuccess(null); }}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'batch' ? 'bg-accent text-[#0a0a0b]' : 'text-[#71717a] hover:text-[#e4e4e7]'}`}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'batch' ? 'bg-accent text-[var(--text-inverse)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                 >
                     <Layers size={16} />
                     Batch Routing
@@ -331,7 +331,7 @@ export default function PhoneRouting() {
                 <>
                     {/* Scanner + Look Up Button */}
                     <div className="flex gap-3">
-                        <div className="flex-1 relative bg-[#0c0c0e] rounded-xl border border-[#1a1a1c] overflow-hidden">
+                        <div className="flex-1 relative bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden">
                             <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/5 via-transparent to-purple-500/5 pointer-events-none" />
                             <div className="relative">
                                 <div className="absolute left-5 top-1/2 -translate-y-1/2 text-accent">
@@ -343,7 +343,7 @@ export default function PhoneRouting() {
                                     onChange={e => setImei(e.target.value)}
                                     onKeyDown={handleImeiKey}
                                     placeholder="Enter IMEI to look up..."
-                                    className="w-full bg-transparent pl-14 pr-6 py-5 text-lg font-mono font-bold tracking-wider text-[#e4e4e7] outline-none placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[#52525b]"
+                                    className="w-full bg-transparent pl-14 pr-6 py-5 text-lg font-mono font-bold tracking-wider text-[var(--text-primary)] outline-none placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[var(--text-tertiary)]"
                                     autoFocus
                                     disabled={loading}
                                 />
@@ -357,7 +357,7 @@ export default function PhoneRouting() {
                         <button
                             onClick={() => lookupDevice()}
                             disabled={loading || !imei.trim()}
-                            className="bg-accent text-[#0a0a0b] hover:bg-accent-hover px-8 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                            className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-8 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
                         >
                             <Search size={18} />
                             Look Up
@@ -368,9 +368,9 @@ export default function PhoneRouting() {
                     {!device && !loading && (
                         <div className="card">
                             <div className="card-body py-24 flex flex-col items-center justify-center space-y-3">
-                                <ArrowRightLeft size={56} className="text-[#1a1a1c]" />
-                                <p className="text-xs font-bold uppercase tracking-wider text-[#52525b]">Awaiting IMEI</p>
-                                <p className="text-[10px] text-[#52525b] text-center max-w-sm">Enter an IMEI and click Look Up to view device details and routing actions</p>
+                                <ArrowRightLeft size={56} className="text-[var(--text-muted)]" />
+                                <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Awaiting IMEI</p>
+                                <p className="text-[10px] text-[var(--text-tertiary)] text-center max-w-sm">Enter an IMEI and click Look Up to view device details and routing actions</p>
                             </div>
                         </div>
                     )}
@@ -379,34 +379,34 @@ export default function PhoneRouting() {
                         <>
                             {/* Device Details Card */}
                             <div className="card overflow-hidden">
-                                <div className="px-5 py-4 bg-navy border-b border-white/10 flex items-center justify-between">
+                                <div className="px-5 py-4 bg-navy border-b border-[var(--border-primary)] flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <Smartphone size={18} className="text-accent" />
-                                        <span className="text-white font-bold text-base">{device.model_number || 'Unknown Model'}</span>
+                                        <span className="text-[var(--text-primary)] font-bold text-base">{device.model_number || 'Unknown Model'}</span>
                                         <span className={`badge ${getStatusBadge(device.device_status)} text-[10px]`}>
                                             {statusLabel(device.device_status)}
                                         </span>
                                     </div>
-                                    <button onClick={clearDevice} className="text-white/40 hover:text-white transition-colors" title="Clear device">
+                                    <button onClick={clearDevice} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors" title="Clear device">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
                                 <div className="card-body">
                                     <div className="grid grid-cols-4 gap-4">
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Hash size={11} /> IMEI
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[#e4e4e7] tracking-wider">{device.imei}</div>
+                                            <div className="font-mono text-sm font-bold text-[var(--text-primary)] tracking-wider">{device.imei}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Smartphone size={11} /> Model
                                             </div>
-                                            <div className="text-sm font-bold text-[#e4e4e7]">{device.model_number || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text-primary)]">{device.model_number || '—'}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Info size={11} /> Status
                                             </div>
                                             <span className={`badge ${getStatusBadge(device.device_status)} text-[10px]`}>
@@ -414,34 +414,34 @@ export default function PhoneRouting() {
                                             </span>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <MapPin size={11} /> Location
                                             </div>
-                                            <div className="text-sm font-bold text-[#e4e4e7]">{device.current_bin?.replace(/_/g, ' ') || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text-primary)]">{device.current_bin?.replace(/_/g, ' ') || '—'}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <DollarSign size={11} /> Cost Basis
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[#e4e4e7]">${(device.cost_basis || 0).toFixed(2)}</div>
+                                            <div className="font-mono text-sm font-bold text-[var(--text-primary)]">${(device.cost_basis || 0).toFixed(2)}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Calendar size={11} /> Days in Inventory
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[#e4e4e7]">{device.days_in_inventory ?? '—'}</div>
+                                            <div className="font-mono text-sm font-bold text-[var(--text-primary)]">{device.days_in_inventory ?? '—'}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Info size={11} /> Brand
                                             </div>
-                                            <div className="text-sm font-bold text-[#e4e4e7]">{device.brand || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text-primary)]">{device.brand || '—'}</div>
                                         </div>
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] flex items-center gap-1.5 mb-1">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Clock size={11} /> Last Action
                                             </div>
-                                            <div className="text-sm font-bold text-[#e4e4e7] truncate">{device.last_action || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text-primary)] truncate">{device.last_action || '—'}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -454,7 +454,7 @@ export default function PhoneRouting() {
                                         <span className="flex items-center gap-2">
                                             <ArrowRightLeft size={16} className="text-accent" /> Available Routing Actions
                                         </span>
-                                        <span className="text-[11px] text-[#52525b]">{transitions.length} actions</span>
+                                        <span className="text-[11px] text-[var(--text-tertiary)]">{transitions.length} actions</span>
                                     </div>
                                     <div className="card-body space-y-4">
                                         <div className="grid grid-cols-4 gap-3">
@@ -468,7 +468,7 @@ export default function PhoneRouting() {
                                                 if (isTransit && showingPicker) {
                                                     return (
                                                         <div key={t.target} className="col-span-4 space-y-2">
-                                                            <div className="text-[11px] font-bold uppercase tracking-wider text-[#71717a] flex items-center gap-2">
+                                                            <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
                                                                 <MapPin size={12} /> Select Destination Location
                                                             </div>
                                                             <div className="grid grid-cols-4 gap-3">
@@ -477,21 +477,21 @@ export default function PhoneRouting() {
                                                                         key={store.id}
                                                                         onClick={() => executeTransitToStore(store.id)}
                                                                         disabled={routing}
-                                                                        className="flex items-center gap-3 p-4 rounded-xl border-2 border-[#1f1f21] hover:border-accent bg-[#0a0a0b] transition-all text-left disabled:opacity-50"
+                                                                        className="flex items-center gap-3 p-4 rounded-xl border-2 border-[var(--border-secondary)] hover:border-accent bg-[var(--bg-primary)] transition-all text-left disabled:opacity-50"
                                                                     >
                                                                         <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
                                                                             <MapPin size={20} className="text-accent" />
                                                                         </div>
                                                                         <div>
-                                                                            <div className="text-sm font-bold text-[#e4e4e7]">{store.label}</div>
-                                                                            <div className="text-[10px] text-[#52525b]">Transfer device to this location</div>
+                                                                            <div className="text-sm font-bold text-[var(--text-primary)]">{store.label}</div>
+                                                                            <div className="text-[10px] text-[var(--text-tertiary)]">Transfer device to this location</div>
                                                                         </div>
                                                                     </button>
                                                                 ))}
                                                             </div>
                                                             <button
                                                                 onClick={() => setShowLocationPicker(null)}
-                                                                className="text-[11px] text-[#52525b] hover:text-[#71717a] transition-colors"
+                                                                className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
                                                             >
                                                                 Cancel
                                                             </button>
@@ -504,7 +504,7 @@ export default function PhoneRouting() {
                                                         key={t.target}
                                                         onClick={() => isTransit ? setShowLocationPicker(t.target) : executeRoute(t.target)}
                                                         disabled={routing}
-                                                        className="group flex flex-col gap-3 p-4 rounded-xl border-2 border-[#1f1f21] hover:border-[var(--action-color)] bg-[#0a0a0b] transition-all text-left disabled:opacity-50 disabled:pointer-events-none"
+                                                        className="group flex flex-col gap-3 p-4 rounded-xl border-2 border-[var(--border-secondary)] hover:border-[var(--action-color)] bg-[var(--bg-primary)] transition-all text-left disabled:opacity-50 disabled:pointer-events-none"
                                                         style={{ '--action-color': def.color } as React.CSSProperties}
                                                     >
                                                         <div
@@ -514,8 +514,8 @@ export default function PhoneRouting() {
                                                             <Icon size={22} style={{ color: def.color }} />
                                                         </div>
                                                         <div>
-                                                            <div className="text-sm font-bold text-[#e4e4e7]">{def.label}</div>
-                                                            <div className="text-[11px] text-[#71717a] mt-0.5 leading-tight">{def.prompt}</div>
+                                                            <div className="text-sm font-bold text-[var(--text-primary)]">{def.label}</div>
+                                                            <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-tight">{def.prompt}</div>
                                                         </div>
                                                     </button>
                                                 );
@@ -523,14 +523,14 @@ export default function PhoneRouting() {
                                         </div>
 
                                         {/* Notes */}
-                                        <div className="pt-4 border-t border-[#1a1a1c]">
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] mb-2">Routing Notes</div>
+                                        <div className="pt-4 border-t border-[var(--border-primary)]">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Routing Notes</div>
                                             <textarea
                                                 value={notes}
                                                 onChange={e => setNotes(e.target.value)}
                                                 placeholder="Add notes about this routing action..."
                                                 rows={3}
-                                                className="w-full bg-[#141416] border border-[#1f1f21] focus:border-accent rounded-lg px-4 py-3 text-sm text-[#e4e4e7] outline-none transition-all placeholder:text-xs placeholder:text-[#52525b] resize-none"
+                                                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
                                             />
                                         </div>
                                     </div>
@@ -538,9 +538,9 @@ export default function PhoneRouting() {
                             ) : (
                                 <div className="card">
                                     <div className="card-body py-12 flex flex-col items-center justify-center space-y-2">
-                                        <AlertCircle size={32} className="text-[#1a1a1c]" />
-                                        <p className="text-xs font-bold uppercase tracking-wider text-[#52525b]">No routing actions available</p>
-                                        <p className="text-[10px] text-[#52525b]">Terminal state — no valid transitions</p>
+                                        <AlertCircle size={32} className="text-[var(--text-muted)]" />
+                                        <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">No routing actions available</p>
+                                        <p className="text-[10px] text-[var(--text-tertiary)]">Terminal state — no valid transitions</p>
                                     </div>
                                 </div>
                             )}
@@ -561,7 +561,7 @@ export default function PhoneRouting() {
                         </div>
                         <div className="card-body space-y-4">
                             <div>
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] mb-2">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">
                                     Enter IMEIs (one per line or comma-separated)
                                 </div>
                                 <textarea
@@ -569,19 +569,19 @@ export default function PhoneRouting() {
                                     onChange={e => setBatchImeisText(e.target.value)}
                                     placeholder={"356644449990012\n356644449990013\n356644449990014"}
                                     rows={6}
-                                    className="w-full bg-[#141416] border border-[#1f1f21] focus:border-accent rounded-lg px-4 py-3 font-mono text-sm text-[#e4e4e7] outline-none transition-all placeholder:text-xs placeholder:text-[#52525b] resize-none"
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 font-mono text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
                                 />
                             </div>
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={lookupBatch}
                                     disabled={batchLoading || !batchImeisText.trim()}
-                                    className="bg-accent text-[#0a0a0b] hover:bg-accent-hover px-6 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                                    className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-6 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
                                 >
                                     {batchLoading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
                                     Look Up All
                                 </button>
-                                <span className="text-[11px] text-[#52525b]">
+                                <span className="text-[11px] text-[var(--text-tertiary)]">
                                     {parseImeis().length > 0 && `${parseImeis().length} IMEI(s) entered`}
                                 </span>
                             </div>
@@ -595,7 +595,7 @@ export default function PhoneRouting() {
                                 <span className="flex items-center gap-2">
                                     <Smartphone size={16} className="text-accent" /> Devices Found
                                 </span>
-                                <span className="text-[11px] text-[#52525b]">
+                                <span className="text-[11px] text-[var(--text-tertiary)]">
                                     {foundDevices.length} found{notFoundImeis.length > 0 ? `, ${notFoundImeis.length} not found` : ''}
                                 </span>
                             </div>
@@ -603,7 +603,7 @@ export default function PhoneRouting() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b border-[#1a1a1c] text-[#52525b] font-bold uppercase tracking-wider">
+                                            <tr className="border-b border-[var(--border-primary)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
                                                 <th className="text-left px-5 py-3">IMEI</th>
                                                 <th className="text-left px-5 py-3">Model</th>
                                                 <th className="text-left px-5 py-3">Status</th>
@@ -614,21 +614,21 @@ export default function PhoneRouting() {
                                         </thead>
                                         <tbody>
                                             {foundDevices.map(({ imei, device: d }) => (
-                                                <tr key={imei} className="border-b border-[#0c0c0e] hover:bg-[#141416]/50 transition-colors">
-                                                    <td className="px-5 py-3 font-mono font-bold text-[#e4e4e7] tracking-wider">{d.imei}</td>
-                                                    <td className="px-5 py-3 text-[#e4e4e7] font-bold">{d.model_number || '—'}</td>
+                                                <tr key={imei} className="border-b border-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors">
+                                                    <td className="px-5 py-3 font-mono font-bold text-[var(--text-primary)] tracking-wider">{d.imei}</td>
+                                                    <td className="px-5 py-3 text-[var(--text-primary)] font-bold">{d.model_number || '—'}</td>
                                                     <td className="px-5 py-3">
                                                         <span className={`badge ${getStatusBadge(d.device_status)} text-[10px]`}>
                                                             {statusLabel(d.device_status)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-5 py-3 text-[#e4e4e7]">{d.current_bin?.replace(/_/g, ' ') || '—'}</td>
-                                                    <td className="px-5 py-3 text-[#e4e4e7]">{d.brand || '—'}</td>
-                                                    <td className="px-5 py-3 text-right font-mono text-[#e4e4e7]">${(d.cost_basis || 0).toFixed(2)}</td>
+                                                    <td className="px-5 py-3 text-[var(--text-primary)]">{d.current_bin?.replace(/_/g, ' ') || '—'}</td>
+                                                    <td className="px-5 py-3 text-[var(--text-primary)]">{d.brand || '—'}</td>
+                                                    <td className="px-5 py-3 text-right font-mono text-[var(--text-primary)]">${(d.cost_basis || 0).toFixed(2)}</td>
                                                 </tr>
                                             ))}
                                             {notFoundImeis.map(({ imei, error: errMsg }) => (
-                                                <tr key={imei} className="border-b border-[#0c0c0e] bg-red-500/5">
+                                                <tr key={imei} className="border-b border-[var(--bg-secondary)] bg-red-500/5">
                                                     <td className="px-5 py-3 font-mono text-red-400 font-bold tracking-wider">{imei}</td>
                                                     <td className="px-5 py-3 text-red-400 italic" colSpan={5}>{errMsg}</td>
                                                 </tr>
@@ -652,7 +652,7 @@ export default function PhoneRouting() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b border-[#1a1a1c] text-[#52525b] font-bold uppercase tracking-wider">
+                                            <tr className="border-b border-[var(--border-primary)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
                                                 <th className="text-left px-5 py-3">IMEI</th>
                                                 <th className="text-left px-5 py-3">Result</th>
                                                 <th className="text-left px-5 py-3">Error</th>
@@ -660,15 +660,15 @@ export default function PhoneRouting() {
                                         </thead>
                                         <tbody>
                                             {batchResults.map(r => (
-                                                <tr key={r.imei} className={`border-b border-[#0c0c0e] ${r.success ? '' : 'bg-red-500/5'}`}>
-                                                    <td className="px-5 py-3 font-mono font-bold text-[#e4e4e7] tracking-wider">{r.imei}</td>
+                                                <tr key={r.imei} className={`border-b border-[var(--bg-secondary)] ${r.success ? '' : 'bg-red-500/5'}`}>
+                                                    <td className="px-5 py-3 font-mono font-bold text-[var(--text-primary)] tracking-wider">{r.imei}</td>
                                                     <td className="px-5 py-3">
                                                         {r.success
                                                             ? <span className="text-emerald-400 font-bold">Success</span>
                                                             : <span className="text-red-400 font-bold">Failed</span>
                                                         }
                                                     </td>
-                                                    <td className="px-5 py-3 text-[#71717a]">{r.error || '—'}</td>
+                                                    <td className="px-5 py-3 text-[var(--text-secondary)]">{r.error || '—'}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -685,14 +685,14 @@ export default function PhoneRouting() {
                                 <span className="flex items-center gap-2">
                                     <ArrowRightLeft size={16} className="text-accent" /> Batch Routing Actions
                                 </span>
-                                <span className="text-[11px] text-[#52525b]">
+                                <span className="text-[11px] text-[var(--text-tertiary)]">
                                     {commonTransitions.length} common action(s) across {foundDevices.length} device(s)
                                 </span>
                             </div>
                             <div className="card-body space-y-4">
                                 {showBatchLocationPicker && batchTargetAction ? (
                                     <div className="space-y-2">
-                                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#71717a] flex items-center gap-2">
+                                        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
                                             <MapPin size={12} /> Select Destination for {foundDevices.length} device(s)
                                         </div>
                                         <div className="grid grid-cols-4 gap-3">
@@ -701,21 +701,21 @@ export default function PhoneRouting() {
                                                     key={store.id}
                                                     onClick={() => handleBatchTransitSelect(store.id)}
                                                     disabled={batchRouting}
-                                                    className="flex items-center gap-3 p-4 rounded-xl border-2 border-[#1f1f21] hover:border-accent bg-[#0a0a0b] transition-all text-left disabled:opacity-50"
+                                                    className="flex items-center gap-3 p-4 rounded-xl border-2 border-[var(--border-secondary)] hover:border-accent bg-[var(--bg-primary)] transition-all text-left disabled:opacity-50"
                                                 >
                                                     <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
                                                         <MapPin size={20} className="text-accent" />
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-[#e4e4e7]">{store.label}</div>
-                                                        <div className="text-[10px] text-[#52525b]">Transfer all devices to this location</div>
+                                                        <div className="text-sm font-bold text-[var(--text-primary)]">{store.label}</div>
+                                                        <div className="text-[10px] text-[var(--text-tertiary)]">Transfer all devices to this location</div>
                                                     </div>
                                                 </button>
                                             ))}
                                         </div>
                                         <button
                                             onClick={() => { setShowBatchLocationPicker(false); setBatchTargetAction(null); }}
-                                            className="text-[11px] text-[#52525b] hover:text-[#71717a] transition-colors"
+                                            className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
                                         >
                                             Cancel
                                         </button>
@@ -731,7 +731,7 @@ export default function PhoneRouting() {
                                                     key={t.target}
                                                     onClick={() => handleBatchActionClick(t.target)}
                                                     disabled={batchRouting}
-                                                    className="group flex flex-col gap-3 p-4 rounded-xl border-2 border-[#1f1f21] hover:border-[var(--action-color)] bg-[#0a0a0b] transition-all text-left disabled:opacity-50 disabled:pointer-events-none"
+                                                    className="group flex flex-col gap-3 p-4 rounded-xl border-2 border-[var(--border-secondary)] hover:border-[var(--action-color)] bg-[var(--bg-primary)] transition-all text-left disabled:opacity-50 disabled:pointer-events-none"
                                                     style={{ '--action-color': def.color } as React.CSSProperties}
                                                 >
                                                     <div
@@ -741,8 +741,8 @@ export default function PhoneRouting() {
                                                         <Icon size={22} style={{ color: def.color }} />
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-[#e4e4e7]">{def.label}</div>
-                                                        <div className="text-[11px] text-[#71717a] mt-0.5 leading-tight">
+                                                        <div className="text-sm font-bold text-[var(--text-primary)]">{def.label}</div>
+                                                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-tight">
                                                             Route {foundDevices.length} device(s)
                                                         </div>
                                                     </div>
@@ -754,14 +754,14 @@ export default function PhoneRouting() {
 
                                 {/* Notes for batch */}
                                 {!showBatchLocationPicker && (
-                                    <div className="pt-4 border-t border-[#1a1a1c]">
-                                        <div className="text-[10px] font-bold uppercase tracking-wider text-[#52525b] mb-2">Batch Routing Notes</div>
+                                    <div className="pt-4 border-t border-[var(--border-primary)]">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Batch Routing Notes</div>
                                         <textarea
                                             value={notes}
                                             onChange={e => setNotes(e.target.value)}
                                             placeholder="Add notes applied to all devices in this batch..."
                                             rows={3}
-                                            className="w-full bg-[#141416] border border-[#1f1f21] focus:border-accent rounded-lg px-4 py-3 text-sm text-[#e4e4e7] outline-none transition-all placeholder:text-xs placeholder:text-[#52525b] resize-none"
+                                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
                                         />
                                     </div>
                                 )}
@@ -773,9 +773,9 @@ export default function PhoneRouting() {
                     {foundDevices.length > 0 && commonTransitions.length === 0 && !batchResults && (
                         <div className="card">
                             <div className="card-body py-12 flex flex-col items-center justify-center space-y-2">
-                                <AlertCircle size={32} className="text-[#1a1a1c]" />
-                                <p className="text-xs font-bold uppercase tracking-wider text-[#52525b]">No common routing actions</p>
-                                <p className="text-[10px] text-[#52525b] text-center max-w-sm">
+                                <AlertCircle size={32} className="text-[var(--text-muted)]" />
+                                <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">No common routing actions</p>
+                                <p className="text-[10px] text-[var(--text-tertiary)] text-center max-w-sm">
                                     The selected devices don't share any valid routing targets. Devices may be in incompatible states.
                                 </p>
                             </div>
@@ -786,9 +786,9 @@ export default function PhoneRouting() {
                     {batchDevices.size === 0 && !batchLoading && (
                         <div className="card">
                             <div className="card-body py-24 flex flex-col items-center justify-center space-y-3">
-                                <Layers size={56} className="text-[#1a1a1c]" />
-                                <p className="text-xs font-bold uppercase tracking-wider text-[#52525b]">Batch Mode Ready</p>
-                                <p className="text-[10px] text-[#52525b] text-center max-w-sm">
+                                <Layers size={56} className="text-[var(--text-muted)]" />
+                                <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Batch Mode Ready</p>
+                                <p className="text-[10px] text-[var(--text-tertiary)] text-center max-w-sm">
                                     Paste multiple IMEIs above and click "Look Up All" to inspect and route devices in bulk
                                 </p>
                             </div>
