@@ -8,10 +8,15 @@ from database import Base
 class RoleEnum(str, enum.Enum):
     admin = "admin"
     owner = "owner"
+    warehouse = "warehouse"
     store_a = "store_a"
     store_b = "store_b"
     store_c = "store_c"
     technician = "technician"
+
+class LocationType(str, enum.Enum):
+    warehouse = "warehouse"
+    retail = "retail"
 
 class DeviceStatus(str, enum.Enum):
     Sellable = "Sellable"
@@ -43,10 +48,11 @@ class CustomerType(str, enum.Enum):
 
 class StoreLocation(Base):
     __tablename__ = "store_locations"
-    id = Column(String, primary_key=True, index=True) # e.g., "Store_A", "Warehouse_Alpha"
+    id = Column(String, primary_key=True, index=True) # e.g., "warehouse", "grand-prairie"
     org_id = Column(String, index=True, nullable=True)
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
+    location_type = Column(Enum(LocationType), nullable=False, default=LocationType.retail)
 
 class OrganizationSettings(Base):
     __tablename__ = "organization_settings"
@@ -128,12 +134,15 @@ class CustomerDocument(Base):
 
 class TransferOrder(Base):
     __tablename__ = "transfer_orders"
-    id = Column(String, primary_key=True, index=True) 
+    id = Column(String, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
     transfer_type = Column(Enum(TransferType), nullable=False)
+    source_location_id = Column(String, nullable=True)
     destination_location_id = Column(String, nullable=False)
+    notes = Column(String, nullable=True)
+    created_by_email = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
-    status = Column(String, default="In_Transit") 
+    status = Column(String, default="In_Transit")
 
 class TransferManifest(Base):
     __tablename__ = "transfer_manifests"

@@ -89,9 +89,87 @@ def get_store_inventory(db: Session = Depends(get_db), current_user: models.User
         import traceback
         traceback.print_exc()
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail={"detail": "Database Error", "message": str(e)}
         )
+
+
+@router.get("/stores", response_model=List[schemas.StoreLocationOut])
+def get_store_locations(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.StoreLocation).filter(
+        models.StoreLocation.org_id == getattr(current_user, 'current_org_id', None)
+    ).all()
+
+@router.get("/", response_model=schemas.InventoryListResponse)
+def list_inventory(
+    location_id: str = None,
+    device_status: str = None,
+    search: str = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    stmt = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.org_id == org_id
+    )
+
+    # Scope: warehouse sees all, store users see only their store
+    if current_user.role == models.RoleEnum.warehouse:
+        pass  # Warehouse sees everything
+    elif current_user.role == models.RoleEnum.admin:
+        pass  # Admin sees everything
+    elif current_user.store_id:
+        stmt = stmt.filter(models.DeviceInventory.store_id == current_user.store_id)
+
+    if location_id:
+        stmt = stmt.filter(models.DeviceInventory.store_id == location_id)
+    if device_status:
+        stmt = stmt.filter(models.DeviceInventory.device_status == device_status)
+    if search:
+        stmt = stmt.filter(
+            (models.DeviceInventory.imei.ilike(f"%{search}%")) |
+            (models.DeviceInventory.model_number.ilike(f"%{search}%"))
+        )
+
+    total = stmt.count()
+    items = stmt.order_by(models.DeviceInventory.received_date.desc()).offset(offset).limit(limit).all()
+
+    # Enrich with store_name and location_type
+    store_map = {}
+    store_ids = {d.store_id for d in items if d.store_id}
+    if store_ids:
+        stores = db.query(models.StoreLocation).filter(
+            models.StoreLocation.id.in_(store_ids)
+        ).all()
+        store_map = {s.id: s for s in stores}
+
+    out_items = []
+    for d in items:
+        item = schemas.DeviceInventoryOut(
+            imei=d.imei,
+            serial_number=d.serial_number,
+            model_number=d.model_number,
+            location_id=d.location_id,
+            sub_location_bin=d.sub_location_bin,
+            device_status=d.device_status,
+            assigned_technician_id=d.assigned_technician_id,
+            cost_basis=d.cost_basis or 0.0,
+            received_date=d.received_date,
+            model=schemas.PhoneModelOut(
+                model_number=d.model.model_number,
+                brand=d.model.brand,
+                name=d.model.name,
+                color=d.model.color,
+                storage_gb=d.model.storage_gb,
+            ) if d.model else None,
+            store_name=store_map[d.store_id].name if d.store_id and d.store_id in store_map else None,
+            location_type=store_map[d.store_id].location_type.value if d.store_id and d.store_id in store_map else None,
+        )
+        out_items.append(item)
+
+    return schemas.InventoryListResponse(items=out_items, total=total, limit=limit, offset=offset)
         
 @router.post("/routing", response_model=schemas.DeviceInventoryOut)
 def route_device_internally(
@@ -101,7 +179,7 @@ def route_device_internally(
     current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
 ):
     try:
-        wms_core.update_device_internal_status(db, imei, request.new_bin, request.new_status, current_user.email)
+        wms_core.update_device_internal_status(db, imei, request.new_bin, request.new_status, current_user.email, request.notes or "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
         
@@ -515,3 +593,33 @@ def update_device_by_imei(imei: str, req: schemas.DeviceUpdateRequest, db: Sessi
         db.refresh(device)
 
     return device
+
+
+@router.post("/routing/batch", response_model=schemas.BatchRoutingResponse)
+def batch_route_devices(
+    request: schemas.BatchRoutingRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+):
+    results: list[schemas.BatchRoutingResult] = []
+    for item in request.items:
+        try:
+            wms_core.update_device_internal_status(
+                db, item.imei, item.new_bin, item.new_status,
+                current_user.email, item.notes or ""
+            )
+            results.append(schemas.BatchRoutingResult(imei=item.imei, success=True))
+        except ValueError as e:
+            db.rollback()
+            results.append(schemas.BatchRoutingResult(imei=item.imei, success=False, error=str(e)))
+        except Exception as e:
+            db.rollback()
+            results.append(schemas.BatchRoutingResult(imei=item.imei, success=False, error=str(e)))
+
+    succeeded = sum(1 for r in results if r.success)
+    return schemas.BatchRoutingResponse(
+        results=results,
+        total=len(results),
+        succeeded=succeeded,
+        failed=len(results) - succeeded,
+    )

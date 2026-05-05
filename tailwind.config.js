@@ -14,9 +14,9 @@ export default {
           dark: '#12121f',
         },
         accent: {
-          DEFAULT: '#e94560',
-          hover: '#d63d52',
-          light: 'rgba(233,69,96,0.1)',
+          DEFAULT: '#00f0ff',
+          hover: '#00d4e6',
+          light: 'rgba(0,240,255,0.1)',
         },
         success: {
           DEFAULT: '#0f3460',
@@ -33,10 +33,10 @@ export default {
         },
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #e94560, #a855f7)',
+        'gradient-brand': 'linear-gradient(135deg, #00f0ff, #a855f7)',
         'gradient-cyan': 'linear-gradient(135deg, #00f0ff, #a855f7)',
-        'gradient-mesh': 'radial-gradient(ellipse at top left, rgba(233,69,96,0.08), transparent 50%), radial-gradient(ellipse at bottom right, rgba(168,85,247,0.08), transparent 50%)',
-        'gradient-sidebar': 'linear-gradient(135deg, rgba(233,69,96,0.15), rgba(168,85,247,0.1))',
+        'gradient-mesh': 'radial-gradient(ellipse at top left, rgba(0,240,255,0.08), transparent 50%), radial-gradient(ellipse at bottom right, rgba(168,85,247,0.08), transparent 50%)',
+        'gradient-sidebar': 'linear-gradient(135deg, rgba(0,240,255,0.15), rgba(168,85,247,0.1))',
       },
       boxShadow: {
         'card': '0 1px 3px rgba(0,0,0,0.08)',

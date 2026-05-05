@@ -70,14 +70,23 @@ TRANSITION_MAP: Dict[Optional[DeviceStatus], Set[DeviceStatus]] = {
     },
     DeviceStatus.Transit_to_Repair: {
         DeviceStatus.In_Repair,
+        DeviceStatus.In_QC,
+        DeviceStatus.Sellable,
+        DeviceStatus.In_Transit,
         DeviceStatus.Scrapped,
     },
     DeviceStatus.Transit_to_QC: {
         DeviceStatus.In_QC,
+        DeviceStatus.In_Repair,
+        DeviceStatus.Sellable,
+        DeviceStatus.In_Transit,
         DeviceStatus.Scrapped,
     },
     DeviceStatus.Transit_to_Main_Bin: {
         DeviceStatus.Sellable,
+        DeviceStatus.In_QC,
+        DeviceStatus.In_Repair,
+        DeviceStatus.In_Transit,
         DeviceStatus.Scrapped,
     },
     DeviceStatus.Reserved_Layaway: {

@@ -193,3 +193,26 @@ def require_role(roles: List[str]):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return current_user
     return role_checker
+
+
+def get_user_location_id(current_user: models.User) -> str:
+    """Return the effective location_id for the current user."""
+    return current_user.store_id or "warehouse"
+
+
+def warehouse_cannot_modify_retail(db: Session, current_user: models.User, imei: str = None, device: models.DeviceInventory = None):
+    """Raise 403 if a warehouse user tries to modify a retail store's device."""
+    if current_user.role == models.RoleEnum.warehouse:
+        if device is None and imei:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == imei
+            ).first()
+        if device and device.store_id:
+            store = db.query(models.StoreLocation).filter(
+                models.StoreLocation.id == device.store_id
+            ).first()
+            if store and store.location_type == models.LocationType.retail:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Warehouse staff cannot modify retail store inventory"
+                )

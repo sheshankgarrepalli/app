@@ -199,13 +199,18 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
         db.rollback()
         raise e
 
-def create_transfer_order(db: Session, imei_list: List[str], destination_location_id: str, transfer_type: str, employee_id: str, org_id: str) -> str:
+def create_transfer_order(db: Session, imei_list: List[str], destination_location_id: str, transfer_type: str, employee_id: str, org_id: str, source_location_id: str = None, notes: str = None) -> str:
     try:
         devices = db.query(DeviceInventory).filter(DeviceInventory.imei.in_(imei_list)).all()
         if len(devices) != len(imei_list):
             found_imeis = {d.imei for d in devices}
             missing = set(imei_list) - found_imeis
             raise ValueError(f"Devices not found in inventory: {missing}")
+
+        # Determine source location from first device
+        if not source_location_id:
+            first_device = devices[0]
+            source_location_id = first_device.store_id or first_device.location_id
 
         transfer_order_id = f"TO-{uuid.uuid4().hex[:8].upper()}"
         try:
@@ -216,7 +221,10 @@ def create_transfer_order(db: Session, imei_list: List[str], destination_locatio
         new_to = TransferOrder(
             id=transfer_order_id,
             transfer_type=t_type,
+            source_location_id=source_location_id,
             destination_location_id=destination_location_id,
+            notes=notes,
+            created_by_email=employee_id,
             org_id=org_id
         )
         db.add(new_to)
@@ -366,17 +374,14 @@ def verify_manifest_imeis(db: Session, manifest_id: str, imei_list: List[str], e
     }
 
 
-def update_device_internal_status(db: Session, imei: str, new_bin: str, new_status: str, employee_id: str) -> dict:
+def update_device_internal_status(db: Session, imei: str, new_bin: str, new_status: str, employee_id: str, notes: str = "") -> dict:
     try:
         device = db.query(DeviceInventory).filter(DeviceInventory.imei == imei).first()
         if not device:
             raise ValueError(f"Device with IMEI {imei} not found.")
-            
+
         if device.device_status == DeviceStatus.Sold:
             raise ValueError(f"Cannot route IMEI {imei} internally because it is Sold.")
-            
-        if device.device_status == DeviceStatus.In_Transit:
-            raise ValueError(f"Cannot route IMEI {imei} internally because it is In_Transit.")
 
         try:
             parsed_status = DeviceStatus(new_status)
@@ -386,8 +391,12 @@ def update_device_internal_status(db: Session, imei: str, new_bin: str, new_stat
         prev_status = device.device_status.value
         device.sub_location_bin = new_bin
         device.device_status = parsed_status
-        
-        _log_history(db, device.imei, "Internal_Routing", employee_id, device.device_status.value, prev_status, f"Moved to bin: {new_bin}", org_id=device.org_id)
+
+        history_note = f"Moved to bin: {new_bin}"
+        if notes:
+            history_note += f" | Notes: {notes}"
+
+        _log_history(db, device.imei, "Internal_Routing", employee_id, device.device_status.value, prev_status, history_note, org_id=device.org_id)
         
         db.commit()
         db.refresh(device)

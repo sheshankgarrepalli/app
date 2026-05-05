@@ -39,3 +39,4 @@ build/
 .vercel
 .env*.local
 .gstack/
+.env.skyvern

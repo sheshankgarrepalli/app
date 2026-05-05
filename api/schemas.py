@@ -239,7 +239,7 @@ class InventoryCreateItem(BaseModel):
 class FastReceiveRequest(BaseModel):
     inventory: InventoryCreateItem
     phone_model: Optional[PhoneModelCreate] = None
-    location_id: str = "Warehouse_Alpha"
+    location_id: str = "warehouse"
 
 class ManualDeviceIntakeRow(BaseModel):
     imei: str
@@ -262,6 +262,8 @@ class DeviceInventoryOut(BaseModel):
     cost_basis: float
     received_date: datetime
     model: Optional[PhoneModelOut]
+    store_name: Optional[str] = None
+    location_type: Optional[str] = None
     class Config: from_attributes = True
 
 class DeviceHistoryLogOut(BaseModel):
@@ -284,12 +286,45 @@ class TransferOrderCreate(BaseModel):
     imei_list: List[str]
     destination_location_id: str
     transfer_type: str
+    notes: Optional[str] = None
+
+class TransferOrderOut(BaseModel):
+    id: str
+    transfer_type: TransferType
+    source_location_id: Optional[str]
+    destination_location_id: str
+    notes: Optional[str]
+    created_by_email: Optional[str]
+    created_at: datetime
+    status: str
+    class Config: from_attributes = True
+
+class TransferOrderDetailOut(TransferOrderOut):
+    devices: List[DeviceInventoryOut]
+    received_count: int
+    total_count: int
+
+class ReceiveItemRequest(BaseModel):
+    imei: str
 
 class TransferDispatchRequest(BaseModel):
     imeis: List[str]
     destination: str
     courier_name: Optional[str] = None
-    origin: Optional[str] = "Store_A" # Default or can be dynamic from context
+    origin: Optional[str] = "warehouse" # Default or can be dynamic from context
+
+class StoreLocationOut(BaseModel):
+    id: str
+    name: str
+    location_type: str
+    address: Optional[str] = None
+    class Config: from_attributes = True
+
+class InventoryListResponse(BaseModel):
+    items: List[DeviceInventoryOut]
+    total: int
+    limit: int
+    offset: int
 
 class ManifestItemOut(BaseModel):
     imei: str
@@ -309,6 +344,27 @@ class TransferManifestOut(BaseModel):
 class InternalRoutingRequest(BaseModel):
     new_bin: str
     new_status: str
+    notes: Optional[str] = None
+
+class BatchRoutingItem(BaseModel):
+    imei: str
+    new_status: str
+    new_bin: str
+    notes: Optional[str] = None
+
+class BatchRoutingRequest(BaseModel):
+    items: List[BatchRoutingItem]
+
+class BatchRoutingResult(BaseModel):
+    imei: str
+    success: bool
+    error: Optional[str] = None
+
+class BatchRoutingResponse(BaseModel):
+    results: List[BatchRoutingResult]
+    total: int
+    succeeded: int
+    failed: int
 
 class RepairAssignmentRequest(BaseModel):
     imei: str

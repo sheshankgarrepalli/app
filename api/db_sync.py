@@ -48,6 +48,12 @@ def db_sync():
 
         # transfer_orders: org_id
         _safe_add_column(db, "transfer_orders", "org_id", "TEXT")
+        _safe_add_column(db, "transfer_orders", "source_location_id", "TEXT")
+        _safe_add_column(db, "transfer_orders", "notes", "TEXT")
+        _safe_add_column(db, "transfer_orders", "created_by_email", "TEXT")
+
+        # store_locations: location_type
+        _safe_add_column(db, "store_locations", "location_type", "TEXT", "'retail'")
 
         # transfer_manifests: org_id (table may not exist yet after create_all)
         _safe_add_column(db, "transfer_manifests", "org_id", "TEXT")
@@ -93,9 +99,10 @@ def db_sync():
         _safe_add_enum_value(db, "devicestatus", "Scrapped")
         _safe_add_enum_value(db, "devicestatus", "Awaiting_Parts")
         _safe_add_enum_value(db, "repairstatus", "Awaiting_Parts")
+        _safe_add_enum_value(db, "roleenum", "warehouse")
 
         # ── Ensure Default Store exists ──
-        default_store_id = "Warehouse_Alpha"
+        default_store_id = "warehouse"
         default_org_id = "org_3Com6Msekl6q0o4KuRxiKybuhTU"
         default_store = db.query(models.StoreLocation).filter(
             models.StoreLocation.id == default_store_id
@@ -104,12 +111,126 @@ def db_sync():
             print(f"Creating default store: {default_store_id}")
             default_store = models.StoreLocation(
                 id=default_store_id,
-                name="Main Warehouse",
-                org_id=default_org_id
+                name="Warehouse",
+                org_id=default_org_id,
+                location_type=models.LocationType.warehouse
             )
             db.add(default_store)
             db.commit()
             db.refresh(default_store)
+
+        # ── Location migration: remap old IDs → new IDs ──
+        location_remap = {
+            "Warehouse_Alpha": "warehouse",
+            "Store_A": "grand-prairie",
+            "Store_B": "foodland",
+            "Store_C": "fiesta",
+        }
+        location_type_map = {
+            "Warehouse_Alpha": "warehouse",
+            "warehouse": "warehouse",
+            "Store_A": "retail",
+            "Store_B": "retail",
+            "Store_C": "retail",
+            "grand-prairie": "retail",
+            "foodland": "retail",
+            "fiesta": "retail",
+        }
+
+        # Update store_locations table
+        for old_id, new_id in location_remap.items():
+            existing = db.query(models.StoreLocation).filter(
+                models.StoreLocation.id == old_id
+            ).first()
+            if existing:
+                # Check if new_id already exists (from a previous partial migration)
+                new_exists = db.query(models.StoreLocation).filter(
+                    models.StoreLocation.id == new_id
+                ).first()
+                if new_exists and new_id != old_id:
+                    # Merge: update referencing tables to point to new_id, then delete old
+                    for table, col in [
+                        ("users", "store_id"),
+                        ("device_inventory", "store_id"),
+                        ("device_inventory", "location_id"),
+                        ("invoices", "store_id"),
+                        ("inventory_audits", "store_id"),
+                        ("transfer_orders", "destination_location_id"),
+                        ("transfer_orders", "source_location_id"),
+                        ("transfer_manifests", "origin_id"),
+                        ("transfer_manifests", "destination_id"),
+                    ]:
+                        try:
+                            db.execute(text(
+                                f"UPDATE {table} SET {col} = :new WHERE {col} = :old"
+                            ), {"new": new_id, "old": old_id})
+                            db.commit()
+                        except Exception:
+                            db.rollback()
+                    db.delete(existing)
+                    db.commit()
+                else:
+                    # Rename the store location
+                    existing.id = new_id
+                    if existing.name in ("Main Warehouse", "Warehouse Alpha", "Warehouse"):
+                        existing.name = "Warehouse"
+                    elif existing.name in ("Store A", "Downtown Store", "Store A -- Downtown"):
+                        existing.name = "Grand Prairie"
+                    elif existing.name in ("Store B", "Eastside Store", "Store B -- Eastside"):
+                        existing.name = "Foodland"
+                    elif existing.name in ("Store C", "Westend Store", "Store C -- Westend"):
+                        existing.name = "Fiesta"
+                    lt_val = location_type_map.get(new_id, "retail")
+                    if lt_val == "warehouse":
+                        existing.location_type = models.LocationType.warehouse
+                    else:
+                        existing.location_type = models.LocationType.retail
+                    db.commit()
+                    print(f"Renamed store location {old_id} → {new_id}")
+
+            # Also remap string values in non-FK columns (location_id on device_inventory is a string)
+            for table, col in [
+                ("device_inventory", "location_id"),
+                ("device_inventory", "store_id"),
+                ("users", "store_id"),
+                ("invoices", "store_id"),
+                ("inventory_audits", "store_id"),
+                ("transfer_orders", "destination_location_id"),
+                ("transfer_orders", "source_location_id"),
+                ("transfer_manifests", "origin_id"),
+                ("transfer_manifests", "destination_id"),
+            ]:
+                try:
+                    result = db.execute(text(
+                        f"UPDATE {table} SET {col} = :new WHERE {col} = :old"
+                    ), {"new": new_id, "old": old_id})
+                    if result.rowcount > 0:
+                        print(f"  {table}.{col}: {old_id} → {new_id} ({result.rowcount} rows)")
+                    db.commit()
+                except Exception:
+                    db.rollback()
+
+        # ── Seed missing store locations ──
+        seed_stores = [
+            {"id": "warehouse", "name": "Warehouse", "type": models.LocationType.warehouse},
+            {"id": "grand-prairie", "name": "Grand Prairie", "type": models.LocationType.retail},
+            {"id": "foodland", "name": "Foodland", "type": models.LocationType.retail},
+            {"id": "fiesta", "name": "Fiesta", "type": models.LocationType.retail},
+        ]
+        for store_def in seed_stores:
+            existing = db.query(models.StoreLocation).filter(
+                models.StoreLocation.id == store_def["id"]
+            ).first()
+            if not existing:
+                print(f"Creating store: {store_def['id']} - {store_def['name']}")
+                s = models.StoreLocation(
+                    id=store_def["id"],
+                    name=store_def["name"],
+                    org_id=default_org_id,
+                    location_type=store_def["type"]
+                )
+                db.add(s)
+                db.commit()
 
         # ── Backfill null org_id values ──
         org_backfill_tables = [
@@ -132,19 +253,20 @@ def db_sync():
                 db.rollback()
 
         # ── Backfill null store_id values ──
+        fallback_store_id = "warehouse"
         devices_updated = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.store_id == None
-        ).update({models.DeviceInventory.store_id: default_store_id})
+        ).update({models.DeviceInventory.store_id: fallback_store_id})
         print(f"Updated {devices_updated} devices to default store.")
 
         users_updated = db.query(models.User).filter(
             models.User.store_id == None
-        ).update({models.User.store_id: default_store_id})
+        ).update({models.User.store_id: fallback_store_id})
         print(f"Updated {users_updated} users to default store.")
 
         invoices_updated = db.query(models.Invoice).filter(
             models.Invoice.store_id == None
-        ).update({models.Invoice.store_id: default_store_id})
+        ).update({models.Invoice.store_id: fallback_store_id})
         print(f"Updated {invoices_updated} invoices to default store.")
 
         db.commit()
