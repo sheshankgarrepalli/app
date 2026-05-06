@@ -178,7 +178,7 @@ def bulk_receive_devices(req: schemas.BulkReceiveRequest, db: Session = Depends(
     return {"success_count": success_count, "errors": errors}
 
 @router.post("/")
-def create_transfer(transfer: schemas.TransferOrderCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def create_transfer(transfer: schemas.TransferOrderCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     source_loc = current_user.store_id or "warehouse"
     try:
@@ -192,7 +192,7 @@ def create_transfer(transfer: schemas.TransferOrderCreate, db: Session = Depends
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{transfer_order_id}/receive")
-def receive_transfer(transfer_order_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def receive_transfer(transfer_order_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     try:
         received = wms_core.receive_transfer_order(db, transfer_order_id, current_user.email)
@@ -201,7 +201,7 @@ def receive_transfer(transfer_order_id: str, db: Session = Depends(get_db), curr
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/")
-def get_transfers(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def get_transfers(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     query = db.query(models.TransferOrder).filter(models.TransferOrder.org_id == org_id)
     if current_user.role.value not in ("admin", "warehouse"):
@@ -211,7 +211,7 @@ def get_transfers(db: Session = Depends(get_db), current_user: models.User = Dep
 
 
 @router.get("/incoming")
-def get_incoming_transfers(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def get_incoming_transfers(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     user_loc = current_user.store_id or "warehouse"
     query = db.query(models.TransferOrder).filter(
@@ -223,7 +223,7 @@ def get_incoming_transfers(db: Session = Depends(get_db), current_user: models.U
 
 
 @router.get("/incoming/{to_id}")
-def get_incoming_transfer_detail(to_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def get_incoming_transfer_detail(to_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     to = db.query(models.TransferOrder).filter(
         models.TransferOrder.id == to_id,
@@ -262,7 +262,7 @@ def get_incoming_transfer_detail(to_id: str, db: Session = Depends(get_db), curr
 
 
 @router.post("/{to_id}/receive-item")
-def receive_transfer_item(to_id: str, req: schemas.ReceiveItemRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def receive_transfer_item(to_id: str, req: schemas.ReceiveItemRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == req.imei,
@@ -299,7 +299,7 @@ def receive_transfer_item(to_id: str, req: schemas.ReceiveItemRequest, db: Sessi
 
 
 @router.post("/{to_id}/receive-all")
-def receive_transfer_all(to_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def receive_transfer_all(to_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     devices = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.assigned_transfer_order_id == to_id,
@@ -328,7 +328,7 @@ def receive_transfer_all(to_id: str, db: Session = Depends(get_db), current_user
 
 
 @router.get("/{to_id}/pdf")
-def download_transfer_pdf(to_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store_a", "store_b", "store_c"]))):
+def download_transfer_pdf(to_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     from pdf.transfer import generate_transfer_pdf  # lazy import — base.py needs requests
     org_id = getattr(current_user, 'current_org_id', None)
     to = db.query(models.TransferOrder).filter(
@@ -376,7 +376,7 @@ def download_transfer_pdf(to_id: str, db: Session = Depends(get_db), current_use
 # ── Manifest-based Smart Receiving ─────────────────────────────────────────
 
 @router.get("/manifests")
-def get_incoming_manifests(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def get_incoming_manifests(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     dest_id = current_user.role if current_user.role != "admin" else None
 
@@ -390,7 +390,7 @@ def get_incoming_manifests(db: Session = Depends(get_db), current_user: models.U
 
 
 @router.get("/manifests/{manifest_id}")
-def get_manifest_detail(manifest_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def get_manifest_detail(manifest_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     manifest = db.query(models.TransferManifest).filter(
         models.TransferManifest.manifest_id == manifest_id,
@@ -425,7 +425,7 @@ def get_manifest_detail(manifest_id: str, db: Session = Depends(get_db), current
 
 
 @router.post("/manifests/{manifest_id}/verify")
-def verify_manifest_imeis(manifest_id: str, req: schemas.BulkReceiveRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def verify_manifest_imeis(manifest_id: str, req: schemas.BulkReceiveRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     try:
         result = wms_core.verify_manifest_imeis(db, manifest_id, req.imeis, current_user.email)
         return result

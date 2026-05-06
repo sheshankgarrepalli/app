@@ -16,15 +16,13 @@ def seed_db():
     db = SessionLocal()
     
     admin = models.User(email="admin@test.com", role=models.RoleEnum.admin)
-    store_a = models.User(email="store_a@test.com", role=models.RoleEnum.store_a)
-    store_b = models.User(email="store_b@test.com", role=models.RoleEnum.store_b)
-    store_c = models.User(email="store_c@test.com", role=models.RoleEnum.store_c)
-    
+    store = models.User(email="store@test.com", role=models.RoleEnum.store)
+
     # New Technician
     tech_1 = models.User(email="tech1@test.com", role=models.RoleEnum.technician)
     tech_2 = models.User(email="tech2@test.com", role=models.RoleEnum.technician)
-    
-    db.add_all([admin, store_a, store_b, store_c, tech_1, tech_2])
+
+    db.add_all([admin, store, tech_1, tech_2])
     
     m1 = models.PhoneModel(model_number="IPH14", brand="Apple", name="iPhone 14", color="Midnight", storage_gb=128)
     m2 = models.PhoneModel(model_number="IPH15", brand="Apple", name="iPhone 15", color="Blue", storage_gb=256)

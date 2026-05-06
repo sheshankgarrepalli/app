@@ -118,7 +118,7 @@ async def get_current_user(
         # Some Clerk configurations put metadata in a top-level 'metadata' claim
         private_metadata = payload.get("metadata", {})
         
-        role = public_metadata.get("role") or private_metadata.get("role") or "store_a"
+        role = public_metadata.get("role") or private_metadata.get("role") or "store"
         store_id = public_metadata.get("store_id") or private_metadata.get("store_id")
         org_id = payload.get("org_id")
         
@@ -143,7 +143,7 @@ async def get_current_user(
             user = models.User(
                 clerk_id=clerk_id,
                 email=email,
-                role=models.RoleEnum(role) if role in models.RoleEnum.__members__ else models.RoleEnum.store_a,
+                role=models.RoleEnum(role) if role in models.RoleEnum.__members__ else models.RoleEnum.store,
                 store_id=store_id
             )
             db.add(user)
@@ -161,11 +161,11 @@ async def get_current_user(
                 updated = True
             
             # Prevent demoting an existing admin if the token role is different/lower
-            if user.role.value == "admin" and token_role != "admin" and token_role != "owner":
+            if user.role.value == "admin" and token_role != "admin":
                 print(f"AUTH INFO: Preserving DB admin status for {email}. Ignoring Clerk role '{token_role}'.", file=sys.stderr)
             elif user.role.value != role or user.store_id != store_id:
                 print(f"AUTH INFO: Syncing roles for {email}. Token role: {token_role}", file=sys.stderr)
-                user.role = models.RoleEnum(role) if role in models.RoleEnum.__members__ else models.RoleEnum.store_a
+                user.role = models.RoleEnum(role) if role in models.RoleEnum.__members__ else models.RoleEnum.store
                 user.store_id = store_id
                 updated = True
             

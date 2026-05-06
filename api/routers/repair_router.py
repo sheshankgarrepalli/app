@@ -415,7 +415,7 @@ def complete_repair_legacy(req: RepairCompleteRequest, db: Session = Depends(get
 def get_device_for_repair(
     imei: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "owner"]))
+    current_user: User = Depends(require_role(["admin"]))
 ):
     org_id = _org(current_user)
     device = db.query(DeviceInventory).filter(
@@ -517,7 +517,7 @@ def record_repair(
     imei: str,
     req: RepairRecordRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "owner"]))
+    current_user: User = Depends(require_role(["admin"]))
 ):
     org_id = _org(current_user)
     device = db.query(DeviceInventory).filter(
@@ -576,7 +576,7 @@ def route_after_repair(
     imei: str,
     req: RepairRouteRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "owner"]))
+    current_user: User = Depends(require_role(["admin"]))
 ):
     org_id = _org(current_user)
     device = db.query(DeviceInventory).filter(

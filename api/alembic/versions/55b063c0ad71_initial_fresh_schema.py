@@ -185,7 +185,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('email', sa.String(), nullable=True),
     sa.Column('password_hash', sa.String(), nullable=True),
-    sa.Column('role', sa.Enum('admin', 'store_a', 'store_b', 'store_c', 'technician', name='roleenum'), nullable=True),
+    sa.Column('role', sa.Enum('admin', 'warehouse', 'store', 'technician', name='roleenum'), nullable=True),
     sa.Column('store_id', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['store_id'], ['store_locations.id'], ),
     sa.PrimaryKeyConstraint('id')

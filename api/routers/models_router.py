@@ -38,7 +38,7 @@ def get_model(model_number: str, db: Session = Depends(get_db), current_user: mo
     return db_model
 
 @router.post("/", response_model=schemas.PhoneModelOut)
-def create_model(model: schemas.PhoneModelCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def create_model(model: schemas.PhoneModelCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     db_model = models.PhoneModel(**model.model_dump())
     db_model.org_id = getattr(current_user, 'current_org_id', None)
     db.add(db_model)

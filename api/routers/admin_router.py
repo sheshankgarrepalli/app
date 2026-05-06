@@ -78,7 +78,7 @@ def create_user(req: schemas.UserCreate, db: Session = Depends(get_db), current_
 
 
 @router.get("/stores", response_model=List[schemas.StoreLocationOut])
-def get_stores(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
+def get_stores(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store", "technician"]))):
     try:
         return db.query(models.StoreLocation).filter(models.StoreLocation.org_id == getattr(current_user, 'current_org_id', None)).all()
     except Exception as e:

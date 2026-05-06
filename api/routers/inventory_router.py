@@ -176,7 +176,7 @@ def route_device_internally(
     request: schemas.InternalRoutingRequest, 
     imei: str, 
     db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     try:
         wms_core.update_device_internal_status(db, imei, request.new_bin, request.new_status, current_user.email, request.notes or "")
@@ -265,7 +265,7 @@ def rapid_audit(
 def audit_reconcile(
     request: schemas.AuditReconciliationRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     try:
         report = wms_core.generate_audit_report(db, request.location_id, request.scanned_imeis_list)
@@ -277,7 +277,7 @@ def audit_reconcile(
 def audit_finalize(
     request: schemas.AuditFinalizeRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     try:
         res = wms_core.finalize_audit(db, request.location_id, current_user.email, getattr(current_user, 'current_org_id', None), request.report.model_dump())
@@ -289,7 +289,7 @@ def audit_finalize(
 def batch_manual_intake(
     request: schemas.BatchManualIntakeRequest, 
     db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     results = []
     # Check for duplicates first
@@ -368,7 +368,7 @@ def batch_manual_intake(
 def bulk_blind_intake(
     request: schemas.BulkReceiveRequest, 
     db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     """
     IMEI-Centric Blind Scan: Accepts only a list of IMEIs and creates raw records.
@@ -485,7 +485,7 @@ def batch_reconcile(
     return {"status": "success", "reconciled_count": updated_count}
 
 @router.get("/{imei}", response_model=schemas.DeviceInventoryOut)
-def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
+def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store", "technician"]))):
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
         models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
@@ -496,7 +496,7 @@ def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: m
 
 
 @router.get("/{imei}/transitions")
-def get_allowed_transitions(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c", "technician"]))):
+def get_allowed_transitions(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store", "technician"]))):
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
         models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
@@ -507,7 +507,7 @@ def get_allowed_transitions(imei: str, db: Session = Depends(get_db), current_us
 
 
 @router.post("/{imei}/transition", response_model=schemas.DeviceTransitionOut)
-def transition_device(imei: str, req: schemas.DeviceTransitionRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def transition_device(imei: str, req: schemas.DeviceTransitionRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
@@ -538,7 +538,7 @@ def transition_device(imei: str, req: schemas.DeviceTransitionRequest, db: Sessi
 
 
 @router.put("/{imei}", response_model=schemas.DeviceInventoryOut)
-def update_device_by_imei(imei: str, req: schemas.DeviceUpdateRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def update_device_by_imei(imei: str, req: schemas.DeviceUpdateRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
@@ -599,7 +599,7 @@ def update_device_by_imei(imei: str, req: schemas.DeviceUpdateRequest, db: Sessi
 def batch_route_devices(
     request: schemas.BatchRoutingRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     results: list[schemas.BatchRoutingResult] = []
     for item in request.items:

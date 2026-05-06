@@ -64,7 +64,7 @@ def _inspection_to_out(insp: models.QCInspection) -> schemas.QCInspectionOut:
 def get_qc_details(
     imei: str,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
+    current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
     device = db.query(models.DeviceInventory).filter(
         models.DeviceInventory.imei == imei,
@@ -94,7 +94,7 @@ def save_qc_inspection(
     imei: str,
     req: schemas.QCInspectionCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
+    current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     device = db.query(models.DeviceInventory).filter(

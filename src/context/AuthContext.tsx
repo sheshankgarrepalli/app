@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setToken(jwt);
 
           // Extract role and store_id from Clerk public metadata
-          const role = (clerkUser.publicMetadata.role as string) || 'store_a';
+          const role = (clerkUser.publicMetadata.role as string) || 'store';
           const store_id = (clerkUser.publicMetadata.store_id as string) || null;
           const email = clerkUser.primaryEmailAddress?.emailAddress || '';
 

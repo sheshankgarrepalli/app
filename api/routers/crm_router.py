@@ -12,7 +12,7 @@ def get_all_customers(
     search: str = None,
     include_inactive: bool = False, 
     db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     query = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.org_id == getattr(current_user, 'current_org_id', None))
     if not include_inactive:
@@ -31,7 +31,7 @@ def get_all_customers(
     return query.limit(20).all()
 
 @router.post("/", response_model=schemas.UnifiedCustomerOut)
-def create_customer(customer: schemas.UnifiedCustomerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def create_customer(customer: schemas.UnifiedCustomerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     crm_id = f"CRM-{uuid.uuid4().hex[:8].upper()}"
     customer_data = customer.model_dump()
     
@@ -51,7 +51,7 @@ def create_customer(customer: schemas.UnifiedCustomerCreate, db: Session = Depen
     return new_customer
 
 @router.get("/{crm_id}/history", response_model=schemas.UnifiedCustomerHistoryOut)
-def get_customer_history(crm_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def get_customer_history(crm_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     customer = db.query(models.UnifiedCustomer).filter(
         models.UnifiedCustomer.crm_id == crm_id,
         models.UnifiedCustomer.org_id == getattr(current_user, 'current_org_id', None)
@@ -79,7 +79,7 @@ def get_customer_history(crm_id: str, db: Session = Depends(get_db), current_use
     }
 
 @router.put("/{crm_id}", response_model=schemas.UnifiedCustomerOut)
-def update_customer(crm_id: str, customer_update: schemas.UnifiedCustomerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
+def update_customer(crm_id: str, customer_update: schemas.UnifiedCustomerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store"]))):
     customer = db.query(models.UnifiedCustomer).filter(
         models.UnifiedCustomer.crm_id == crm_id,
         models.UnifiedCustomer.org_id == getattr(current_user, 'current_org_id', None)

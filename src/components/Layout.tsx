@@ -20,19 +20,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     {
       label: 'Operations',
       items: [
-        { id: 'intake', label: 'Quick Intake', path: '/admin/manual-intake', icon: PackagePlus, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
-        { id: 'routing', label: 'Phone Routing', path: '/admin/phone-routing', icon: ArrowRightLeft, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
-        { id: 'audit', label: 'Rapid Audit', path: '/admin/rapid-audit', icon: ClipboardCheck, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
-        { id: 'qc', label: 'QC', path: '/admin/qc', icon: BadgeCheck, roles: ['admin', 'owner'] },
-        { id: 'repairs', label: 'Repairs', path: '/admin/repairs', icon: Wrench, roles: ['admin', 'owner'] },
-        { id: 'track', label: 'Track Device', path: '/admin/track', icon: MapPin, roles: ['admin', 'owner', 'warehouse', 'store_a', 'store_b', 'store_c', 'technician'] },
+        { id: 'intake', label: 'Quick Intake', path: '/admin/manual-intake', icon: PackagePlus, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'routing', label: 'Phone Routing', path: '/admin/phone-routing', icon: ArrowRightLeft, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'audit', label: 'Rapid Audit', path: '/admin/rapid-audit', icon: ClipboardCheck, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'qc', label: 'QC', path: '/admin/qc', icon: BadgeCheck, roles: ['admin'] },
+        { id: 'repairs', label: 'Repairs', path: '/admin/repairs', icon: Wrench, roles: ['admin'] },
+        { id: 'track', label: 'Track Device', path: '/admin/track', icon: MapPin, roles: ['admin', 'warehouse', 'store', 'technician'] },
       ]
     },
     {
       label: 'Inventory',
       items: [
-        { id: 'inventory', label: 'All Inventory', path: '/admin/inventory', icon: PackageSearch, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
-        { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
+        { id: 'inventory', label: 'All Inventory', path: '/admin/inventory', icon: PackageSearch, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store'] },
       ]
     },
   ];
@@ -41,9 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const map: Record<string, string> = {
       admin: 'Administrator',
       warehouse: 'Warehouse',
-      store_a: 'Store A',
-      store_b: 'Store B',
-      store_c: 'Store C',
+      store: 'Store',
       technician: 'Technician',
     };
     return map[role] || role;

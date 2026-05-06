@@ -96,16 +96,16 @@ function AuthRoutes() {
       } />
 
       {/* Core Operations Routes */}
-      <Route path="/admin/manual-intake" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><ManualIntake /></ProtectedRoute>} />
-      <Route path="/admin/phone-routing" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><PhoneRouting /></ProtectedRoute>} />
-      <Route path="/admin/rapid-audit" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><RapidAudit /></ProtectedRoute>} />
-      <Route path="/admin/qc" element={<ProtectedRoute allowedRoles={['admin', 'owner']}><QC /></ProtectedRoute>} />
-      <Route path="/admin/repairs" element={<ProtectedRoute allowedRoles={['admin', 'owner']}><Repairs /></ProtectedRoute>} />
-      <Route path="/admin/track" element={<ProtectedRoute allowedRoles={['admin', 'owner', 'warehouse', 'store_a', 'store_b', 'store_c', 'technician']}><Track /></ProtectedRoute>} />
+      <Route path="/admin/manual-intake" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><ManualIntake /></ProtectedRoute>} />
+      <Route path="/admin/phone-routing" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><PhoneRouting /></ProtectedRoute>} />
+      <Route path="/admin/rapid-audit" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><RapidAudit /></ProtectedRoute>} />
+      <Route path="/admin/qc" element={<ProtectedRoute allowedRoles={['admin']}><QC /></ProtectedRoute>} />
+      <Route path="/admin/repairs" element={<ProtectedRoute allowedRoles={['admin']}><Repairs /></ProtectedRoute>} />
+      <Route path="/admin/track" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store', 'technician']}><Track /></ProtectedRoute>} />
 
       {/* Inventory Routes */}
-      <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><Inventory /></ProtectedRoute>} />
-      <Route path="/admin/incoming-transfers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><IncomingTransfers /></ProtectedRoute>} />
+      <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><Inventory /></ProtectedRoute>} />
+      <Route path="/admin/incoming-transfers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><IncomingTransfers /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

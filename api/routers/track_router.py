@@ -7,7 +7,7 @@ from database import get_db
 router = APIRouter(prefix="/api/track", tags=["track"])
 
 @router.get("/", response_model=schemas.DeviceJourneyOut)
-def track_device(identifier: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "owner", "warehouse", "store_a", "store_b", "store_c", "technician"]))):
+def track_device(identifier: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store", "technician"]))):
     try:
         org_id = getattr(current_user, 'current_org_id', None)
         stmt = db.query(models.DeviceInventory).filter(
@@ -63,7 +63,7 @@ def track_device(identifier: str, db: Session = Depends(get_db), current_user: m
                 raise HTTPException(status_code=404, detail="Device not found")
 
         # Admin/Technician bypass store filter, others only see their store
-        if current_user.role not in ["admin", "owner", "technician"] and current_user.store_id:
+        if current_user.role not in ["admin", "technician"] and current_user.store_id:
             if device and device.store_id != current_user.store_id:
                 raise HTTPException(status_code=404, detail="Device not found or access denied")
 

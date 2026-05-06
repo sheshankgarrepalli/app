@@ -7,11 +7,8 @@ from database import Base
 
 class RoleEnum(str, enum.Enum):
     admin = "admin"
-    owner = "owner"
     warehouse = "warehouse"
-    store_a = "store_a"
-    store_b = "store_b"
-    store_c = "store_c"
+    store = "store"
     technician = "technician"
 
 class LocationType(str, enum.Enum):

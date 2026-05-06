@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/pos", tags=["pos"])
 def retail_checkout(
     req: schemas.RetailCheckoutRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     customer_id = req.customer_id
@@ -45,7 +45,7 @@ def retail_checkout(
     for item in req.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
-            models.DeviceInventory.location_id == current_user.role,
+            models.DeviceInventory.location_id == current_user.store_id,
             models.DeviceInventory.org_id == org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
         ).with_for_update().first()
@@ -83,7 +83,7 @@ def retail_checkout(
     db_invoice = models.Invoice(
         invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
-        store_id=current_user.store_id or current_user.role,
+        store_id=current_user.store_id,
         subtotal=subtotal,
         tax_percent=final_tax_percent,
         tax_amount=tax_amount,
@@ -139,7 +139,7 @@ def retail_checkout(
     return db_invoice
 
 @router.post("/invoice", response_model=schemas.InvoiceOut)
-def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["store_a", "store_b", "store_c"]))):
+def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["store"]))):
     org_id = getattr(current_user, 'current_org_id', None)
     customer_id = invoice.customer_id
     if not customer_id and invoice.customer:
@@ -162,7 +162,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     for item in invoice.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
-            models.DeviceInventory.location_id == current_user.role,
+            models.DeviceInventory.location_id == current_user.store_id,
             models.DeviceInventory.org_id == org_id,
             models.DeviceInventory.device_status == models.DeviceStatus.Sellable
         ).with_for_update().first()
@@ -187,7 +187,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     db_invoice = models.Invoice(
         invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
-        store_id=current_user.store_id or current_user.role,
+        store_id=current_user.store_id,
         subtotal=subtotal,
         tax_percent=final_tax_percent,
         tax_amount=tax_amount,
@@ -233,7 +233,7 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
 def wholesale_checkout(
     req: schemas.BulkCheckoutRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     """
     Direct endpoint for Wholesale POS: Processes checkout and returns binary PDF.
@@ -270,7 +270,7 @@ def wholesale_checkout(
 def convert_estimate(
     invoice_id: str,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
@@ -354,7 +354,7 @@ def process_payment(
     invoice_id: str,
     payment: schemas.PaymentSchema,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
@@ -436,7 +436,7 @@ def update_invoice(
     invoice_id: str,
     req: schemas.InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
@@ -520,7 +520,7 @@ def update_invoice(
 def process_returns(
     req: schemas.RMARequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     results = []
@@ -634,7 +634,7 @@ def get_client_statement(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     customer = db.query(models.UnifiedCustomer).filter(
@@ -756,14 +756,14 @@ def get_next_number(type: str = Query("invoice"), db: Session = Depends(get_db))
         return {"next_number": safe_default}
 
 @router.get("/locations")
-def get_locations(current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))):
-    # Standard locations mapping from RoleEnum
-    return [
-        {"id": "Warehouse_Alpha", "name": "Main Warehouse"},
-        {"id": "store_a", "name": "Store A (Downtown)"},
-        {"id": "store_b", "name": "Store B (Uptown)"},
-        {"id": "store_c", "name": "Store C (Plaza)"}
-    ]
+def get_locations(current_user: models.User = Depends(auth.require_role(["admin", "store"])), db: Session = Depends(get_db)):
+    org_id = getattr(current_user, 'current_org_id', None)
+    stores = db.query(models.StoreLocation).filter(
+        models.StoreLocation.org_id == org_id
+    ).all()
+    if stores:
+        return [{"id": s.id, "name": s.name} for s in stores]
+    return [{"id": "warehouse", "name": "Main Warehouse"}]
 
 
 # ── Returns, Corrections & Void (Module 5) ───────────────────────────────────
@@ -920,7 +920,7 @@ def employee_error_report(db: Session = Depends(get_db),
 def create_invoice_from_form(
     req: schemas.InvoiceFormCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     customer_id = req.customer_id
@@ -945,7 +945,7 @@ def create_invoice_from_form(
         if item.imei:
             db_store_inv = db.query(models.DeviceInventory).filter(
                 models.DeviceInventory.imei == item.imei,
-                models.DeviceInventory.location_id == current_user.role,
+                models.DeviceInventory.location_id == current_user.store_id,
                 models.DeviceInventory.org_id == org_id,
                 models.DeviceInventory.device_status == models.DeviceStatus.Sellable
             ).with_for_update().first()
@@ -985,7 +985,7 @@ def create_invoice_from_form(
     db_invoice = models.Invoice(
         invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
-        store_id=current_user.store_id or current_user.role,
+        store_id=current_user.store_id,
         subtotal=subtotal,
         tax_percent=final_tax_percent,
         tax_amount=tax_amount,
@@ -1051,7 +1051,7 @@ def update_invoice_header(
     invoice_id: str,
     req: schemas.InvoiceUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
@@ -1075,7 +1075,7 @@ def update_invoice_header(
 def batch_create_invoices(
     req: schemas.BatchInvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     if len(req.invoices) > 50:
         raise HTTPException(status_code=400, detail="Maximum 50 invoices per batch")
@@ -1100,7 +1100,7 @@ def batch_create_invoices(
 def batch_send_invoices(
     req: schemas.BatchActionRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     results = []
@@ -1123,7 +1123,7 @@ def batch_send_invoices(
 def batch_print_invoices(
     req: schemas.BatchActionRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     try:
@@ -1177,7 +1177,7 @@ def mark_estimate_sent(
     invoice_id: str,
     req: Optional[schemas.EstimateStatusRequest] = None,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     invoice = db.query(models.Invoice).filter(
@@ -1238,7 +1238,7 @@ def create_progress_invoice(
     estimate_id: str,
     req: schemas.ProgressInvoiceRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     estimate = db.query(models.Invoice).filter(
@@ -1270,7 +1270,7 @@ def create_progress_invoice(
     db_invoice = models.Invoice(
         invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=estimate.customer_id,
-        store_id=current_user.store_id or current_user.role,
+        store_id=current_user.store_id,
         subtotal=progress_subtotal,
         tax_percent=estimate.tax_percent,
         tax_amount=progress_subtotal * (estimate.tax_percent / 100.0),
@@ -1323,7 +1323,7 @@ def create_progress_invoice(
 def create_recurring_template(
     req: schemas.RecurringInvoiceTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     template = models.RecurringInvoiceTemplate(
@@ -1347,7 +1347,7 @@ def create_recurring_template(
 @router.get("/invoices/recurring", response_model=List[schemas.RecurringInvoiceTemplateOut])
 def list_recurring_templates(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     return db.query(models.RecurringInvoiceTemplate).filter(
@@ -1360,7 +1360,7 @@ def update_recurring_template(
     template_id: int,
     req: schemas.RecurringInvoiceTemplateUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     template = db.query(models.RecurringInvoiceTemplate).filter(
@@ -1404,7 +1404,7 @@ def delete_recurring_template(
 def pause_recurring_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     template = db.query(models.RecurringInvoiceTemplate).filter(
@@ -1423,7 +1423,7 @@ def pause_recurring_template(
 def resume_recurring_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     template = db.query(models.RecurringInvoiceTemplate).filter(
@@ -1442,7 +1442,7 @@ def resume_recurring_template(
 def get_recurring_template_log(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role(["admin", "store_a", "store_b", "store_c"]))
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     return db.query(models.RecurringInvoiceLog).filter(

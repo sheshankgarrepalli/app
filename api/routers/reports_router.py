@@ -30,7 +30,7 @@ def _resolve_start(date_range: str) -> datetime:
 def get_dashboard(
         date_range: str = Query("Today"),
         db: Session = Depends(get_db),
-        current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
+        current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
     import traceback, sys
     try:
@@ -48,7 +48,7 @@ def get_dashboard(
         ).join(models.InvoiceItem).filter(
             models.Invoice.created_at >= start, models.Invoice.org_id == org_id
         ).group_by(models.Invoice.store_id).all()
-        sales_by_location = defaultdict(int, {s: 0 for s in ["store_a", "store_b", "store_c"]})
+        sales_by_location = defaultdict(int)
         for sid, cnt in loc_rows:
             sales_by_location[sid] = cnt
 
@@ -162,7 +162,7 @@ def get_dashboard(
 def export_dashboard_csv(
         date_range: str = Query("This Month"),
         db: Session = Depends(get_db),
-        current_user: models.User = Depends(auth.require_role(["admin", "owner"]))
+        current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
     data = get_dashboard(date_range, db, current_user)
     buf = io.StringIO()
