@@ -93,11 +93,33 @@ def db_sync():
         # payment_transactions: org_id
         _safe_add_column(db, "payment_transactions", "org_id", "TEXT")
 
+        # ── Missing columns from CRM/consignment feature ──
+        _safe_add_column(db, "unified_customers", "wholesale_subtype", "VARCHAR")
+        _safe_add_column(db, "unified_customers", "default_consignment_days", "INTEGER", "15")
+
+        _safe_add_column(db, "invoices", "sent_at", "TIMESTAMP")
+        _safe_add_column(db, "invoices", "viewed_at", "TIMESTAMP")
+        _safe_add_column(db, "invoices", "emailed_at", "TIMESTAMP")
+        _safe_add_column(db, "invoices", "message_on_invoice", "TEXT")
+        _safe_add_column(db, "invoices", "statement_memo", "TEXT")
+        _safe_add_column(db, "invoices", "discount_percent", "FLOAT", "0.0")
+        _safe_add_column(db, "invoices", "discount_amount", "FLOAT", "0.0")
+
+        _safe_add_column(db, "organization_settings", "logo_url", "TEXT")
+        _safe_add_column(db, "organization_settings", "invoice_template", "TEXT", "'modern'")
+        _safe_add_column(db, "organization_settings", "primary_color", "TEXT", "'#e94560'")
+        _safe_add_column(db, "organization_settings", "email_template_body", "TEXT")
+        _safe_add_column(db, "organization_settings", "reminder_template_body", "TEXT")
+
+        _safe_add_column(db, "invoice_items", "org_id", "TEXT")
+        _safe_add_column(db, "manifest_items", "org_id", "TEXT")
+
         # ── Ensure PostgreSQL enum types have all values ──
         _safe_add_enum_value(db, "devicestatus", "Pending_Acknowledgment")
         _safe_add_enum_value(db, "devicestatus", "Reserved_Layaway")
         _safe_add_enum_value(db, "devicestatus", "Scrapped")
         _safe_add_enum_value(db, "devicestatus", "Awaiting_Parts")
+        _safe_add_enum_value(db, "devicestatus", "On_Consignment")
         _safe_add_enum_value(db, "repairstatus", "Awaiting_Parts")
         _safe_add_enum_value(db, "roleenum", "warehouse")
 
