@@ -46,6 +46,7 @@ TRANSITION_MAP: Dict[Optional[DeviceStatus], Set[DeviceStatus]] = {
         DeviceStatus.Sold,
         DeviceStatus.Reserved_Layaway,
         DeviceStatus.Scrapped,
+        DeviceStatus.On_Consignment,
     },
     DeviceStatus.In_QC: {
         DeviceStatus.Sellable,
@@ -105,6 +106,11 @@ TRANSITION_MAP: Dict[Optional[DeviceStatus], Set[DeviceStatus]] = {
         DeviceStatus.In_QC,
         DeviceStatus.Sellable,
     },
+    DeviceStatus.On_Consignment: {
+        DeviceStatus.Sold,
+        DeviceStatus.In_QC,
+        DeviceStatus.Sellable,
+    },
     DeviceStatus.Scrapped: set(),
 }
 
@@ -131,6 +137,7 @@ TARGET_REQUIREMENTS: Dict[DeviceStatus, Set[Requirement]] = {
     DeviceStatus.Reserved_Layaway: set(),
     DeviceStatus.Pending_Acknowledgment: {Requirement.NOTES},
     DeviceStatus.Sold:            set(),
+    DeviceStatus.On_Consignment:  {Requirement.NOTES},
     DeviceStatus.Scrapped:        {Requirement.NOTES},
 }
 

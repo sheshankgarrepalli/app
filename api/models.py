@@ -28,6 +28,7 @@ class DeviceStatus(str, enum.Enum):
     Reserved_Layaway = "Reserved_Layaway"
     Scrapped = "Scrapped"
     Awaiting_Parts = "Awaiting_Parts"
+    On_Consignment = "On_Consignment"
 
 class TransferType(str, enum.Enum):
     Restock = "Restock"
@@ -42,6 +43,19 @@ class ManifestStatus(str, enum.Enum):
 class CustomerType(str, enum.Enum):
     Retail = "Retail"
     Wholesale = "Wholesale"
+
+class WholesaleSubtype(str, enum.Enum):
+    Standard = "standard"
+    Consignee = "consignee"
+
+class ConsignmentBatchStatus(str, enum.Enum):
+    Active = "active"
+    Settled = "settled"
+
+class ConsignmentItemOutcome(str, enum.Enum):
+    Pending = "pending"
+    Sold = "sold"
+    Returned = "returned"
 
 class StoreLocation(Base):
     __tablename__ = "store_locations"
@@ -103,11 +117,14 @@ class UnifiedCustomer(Base):
     credit_limit = Column(Float, default=0.0)
     current_balance = Column(Float, default=0.0)
     payment_terms_days = Column(Integer, default=0)
+    wholesale_subtype = Column(Enum(WholesaleSubtype), nullable=True)
+    default_consignment_days = Column(Integer, default=15)
     notes = Column(String, nullable=True)
     is_active = Column(Integer, default=1) # Boolean logic handling inside SQLite
 
     contacts = relationship("CustomerContact", back_populates="customer")
     documents = relationship("CustomerDocument", back_populates="customer")
+    consignment_batches = relationship("ConsignmentBatch", back_populates="customer")
 
 class CustomerContact(Base):
     __tablename__ = "customer_contacts"
@@ -459,3 +476,40 @@ class QCInspection(Base):
     notes = Column(String, nullable=True)
     inspector_id = Column(String, nullable=False)
     created_at = Column(DateTime, default=func.now())
+
+class ConsignmentBatch(Base):
+    __tablename__ = "consignment_batches"
+    id = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    crm_id = Column(String, ForeignKey("unified_customers.crm_id"), nullable=False, index=True)
+    status = Column(Enum(ConsignmentBatchStatus), default=ConsignmentBatchStatus.Active)
+    handoff_date = Column(DateTime, default=func.now())
+    due_date = Column(DateTime, nullable=False)
+    settled_date = Column(DateTime, nullable=True)
+    notes = Column(String, nullable=True)
+    created_by_email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    customer = relationship("UnifiedCustomer", back_populates="consignment_batches")
+    items = relationship("ConsignmentItem", back_populates="batch")
+
+class ConsignmentItem(Base):
+    __tablename__ = "consignment_items"
+    id = Column(Integer, primary_key=True, index=True)
+    batch_id = Column(String, ForeignKey("consignment_batches.id"), nullable=False, index=True)
+    imei = Column(String, ForeignKey("device_inventory.imei"), nullable=True, index=True)
+    sku = Column(String, nullable=True)
+    description = Column(String, nullable=False)
+    quantity = Column(Integer, default=1)
+    unit_price = Column(Float, nullable=False, default=0.0)
+    outcome = Column(Enum(ConsignmentItemOutcome), default=ConsignmentItemOutcome.Pending)
+    settled_qty = Column(Integer, default=0)
+    returned_qty = Column(Integer, default=0)
+    settled_date = Column(DateTime, nullable=True)
+    resulting_invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True)
+    notes = Column(String, nullable=True)
+
+    batch = relationship("ConsignmentBatch", back_populates="items")
+    device = relationship("DeviceInventory")
+    resulting_invoice = relationship("Invoice")

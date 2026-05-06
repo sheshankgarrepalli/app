@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, date
-from models import RoleEnum, DeviceStatus, TransferType, CustomerType, InvoiceStatus, RepairStatus, ManifestStatus, PaymentMethodEnum, PaymentStatus, RecurringFrequency, RecurringTemplateStatus
+from models import RoleEnum, DeviceStatus, TransferType, CustomerType, WholesaleSubtype, ConsignmentBatchStatus, ConsignmentItemOutcome, InvoiceStatus, RepairStatus, ManifestStatus, PaymentMethodEnum, PaymentStatus, RecurringFrequency, RecurringTemplateStatus
 
 # --- ERP SCHEMAS ---
 
@@ -410,6 +410,8 @@ class UnifiedCustomerCreate(BaseModel):
     credit_limit: float = 0.0
     current_balance: float = 0.0
     payment_terms_days: int = 0
+    wholesale_subtype: Optional[WholesaleSubtype] = None
+    default_consignment_days: int = 15
     notes: Optional[str] = None
 
 class UnifiedCustomerOut(BaseModel):
@@ -429,6 +431,8 @@ class UnifiedCustomerOut(BaseModel):
     credit_limit: float
     current_balance: float
     payment_terms_days: int
+    wholesale_subtype: Optional[WholesaleSubtype] = None
+    default_consignment_days: int = 15
     notes: Optional[str]
     is_active: int
     contacts: List[CustomerContactOut] = []
@@ -787,3 +791,64 @@ class RepairDeviceDetailOut(BaseModel):
     repair_ticket: Optional[RepairTicketOut] = None
     available_parts: List[PartOptionOut] = []
     recent_history: List[DeviceHistoryLogOut] = []
+
+# ── Consignment Schemas ─────────────────────────────────────────────────────
+
+class ConsignmentItemCreate(BaseModel):
+    imei: Optional[str] = None
+    sku: Optional[str] = None
+    description: str
+    quantity: int = 1
+    unit_price: float
+
+class ConsignmentBatchCreate(BaseModel):
+    crm_id: str
+    items: List[ConsignmentItemCreate]
+    notes: Optional[str] = None
+
+class ConsignmentItemOut(BaseModel):
+    id: int
+    batch_id: str
+    imei: Optional[str] = None
+    sku: Optional[str] = None
+    description: str
+    quantity: int
+    unit_price: float
+    outcome: ConsignmentItemOutcome
+    settled_qty: int
+    returned_qty: int
+    settled_date: Optional[datetime] = None
+    resulting_invoice_id: Optional[int] = None
+    notes: Optional[str] = None
+    device: Optional[DeviceInventoryOut] = None
+    class Config: from_attributes = True
+
+class ConsignmentBatchOut(BaseModel):
+    id: str
+    org_id: Optional[str] = None
+    crm_id: str
+    status: ConsignmentBatchStatus
+    handoff_date: datetime
+    due_date: datetime
+    settled_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_by_email: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    customer: Optional[UnifiedCustomerOut] = None
+    items: List[ConsignmentItemOut] = []
+    class Config: from_attributes = True
+
+class ConsignmentSettleItem(BaseModel):
+    item_id: int
+    outcome: ConsignmentItemOutcome  # sold or returned
+    settled_qty: Optional[int] = None  # for bulk items, how many sold
+    returned_qty: Optional[int] = None  # for bulk items, how many returned
+
+class ConsignmentSettleRequest(BaseModel):
+    items: List[ConsignmentSettleItem]
+    payment_method: Optional[PaymentMethodEnum] = None
+    payment_amount: Optional[float] = None
+    payment_reference: Optional[str] = None
+    skip_qc: bool = False  # employee can override QC for returned devices
+    notes: Optional[str] = None
