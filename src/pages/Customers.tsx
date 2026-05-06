@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Phone, Mail, Building2, User, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
-import { fetchCustomers, Customer } from '../api/crm';
+import { fetchCustomers, Customer, extractError } from '../api/crm';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -16,7 +16,7 @@ export default function Customers() {
       const data = await fetchCustomers(searchTerm || undefined);
       setCustomers(data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load customers');
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }

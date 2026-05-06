@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, Save, ArrowLeft, Building2, User, Phone, Mail, MapPin, FileText } from 'lucide-react';
-import { fetchCustomer, updateCustomer, createCustomer, CustomerCreate } from '../api/crm';
+import { fetchCustomer, updateCustomer, createCustomer, CustomerCreate, extractError } from '../api/crm';
 
 const emptyForm: CustomerCreate = {
   customer_type: 'Retail',
@@ -21,6 +21,21 @@ const emptyForm: CustomerCreate = {
   default_consignment_days: 15,
   notes: '',
 };
+
+function sanitize(form: CustomerCreate): CustomerCreate {
+  return {
+    ...form,
+    first_name: form.first_name || undefined,
+    last_name: form.last_name || undefined,
+    company_name: form.company_name || undefined,
+    contact_person: form.contact_person || undefined,
+    shipping_address: form.shipping_address || undefined,
+    email: form.email || undefined,
+    tax_exempt_id: form.tax_exempt_id || undefined,
+    tax_exempt_expiry: form.tax_exempt_expiry || undefined,
+    notes: form.notes || undefined,
+  };
+}
 
 export default function CustomerDetail() {
   const { crmId } = useParams<{ crmId: string }>();
@@ -57,7 +72,7 @@ export default function CustomerDetail() {
         notes: c.notes || '',
       });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load customer');
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
@@ -70,16 +85,17 @@ export default function CustomerDetail() {
     setError(null);
     setSuccess(null);
     try {
+      const clean = sanitize(form);
       if (isNew) {
-        const c = await createCustomer(form);
+        const c = await createCustomer(clean);
         setSuccess('Customer created');
         navigate(`/admin/customers/${c.crm_id}`, { replace: true });
       } else {
-        await updateCustomer(crmId!, form);
+        await updateCustomer(crmId!, clean);
         setSuccess('Customer updated');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save customer');
+      setError(extractError(err));
     } finally {
       setSaving(false);
     }

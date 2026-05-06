@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Loader2, AlertCircle, PackageOpen, Clock, CheckCircle2, ChevronRight } from 'lucide-react';
-import { fetchBatches, ConsignmentBatch } from '../api/crm';
+import { fetchBatches, ConsignmentBatch, extractError } from '../api/crm';
 
 const statusBadge = (s: string) => {
   if (s === 'active') return 'badge-sellable';
@@ -20,7 +20,7 @@ export default function Consignments() {
       const data = await fetchBatches();
       setBatches(data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load consignments');
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   fetchConsignees, fetchBatch, createBatch, settleBatch,
-  ConsignmentBatch, ConsignmentItemCreate, Customer, SettleItem
+  ConsignmentBatch, ConsignmentItemCreate, Customer, SettleItem, extractError
 } from '../api/crm';
 
 interface LocalItem extends ConsignmentItemCreate {
@@ -61,7 +61,7 @@ export default function ConsignmentDetail() {
         setPaymentAmount(total);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load batch');
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function ConsignmentDetail() {
       setSuccess('Consignment handoff created');
       navigate(`/admin/consignments/${b.id}`, { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create handoff');
+      setError(extractError(err));
     } finally {
       setSaving(false);
     }
@@ -164,7 +164,7 @@ export default function ConsignmentDetail() {
       setBatch(result);
       setSuccess('Batch settled successfully');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to settle batch');
+      setError(extractError(err));
     } finally {
       setSaving(false);
     }

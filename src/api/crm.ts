@@ -1,6 +1,15 @@
 // CRM & Consignment API helpers
 import api from './api';
 
+export function extractError(err: any): string {
+  const detail = err.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    return detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
+  }
+  if (typeof detail === 'string') return detail;
+  return 'An unexpected error occurred';
+}
+
 // ── Customers ──
 
 export interface CustomerContact {

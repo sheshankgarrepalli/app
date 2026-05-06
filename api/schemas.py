@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 from datetime import datetime, date
 from models import RoleEnum, DeviceStatus, TransferType, CustomerType, WholesaleSubtype, ConsignmentBatchStatus, ConsignmentItemOutcome, InvoiceStatus, RepairStatus, ManifestStatus, PaymentMethodEnum, PaymentStatus, RecurringFrequency, RecurringTemplateStatus
@@ -413,6 +413,13 @@ class UnifiedCustomerCreate(BaseModel):
     wholesale_subtype: Optional[WholesaleSubtype] = None
     default_consignment_days: int = 15
     notes: Optional[str] = None
+
+    @field_validator('tax_exempt_expiry', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if isinstance(v, str) and v.strip() == '':
+            return None
+        return v
 
 class UnifiedCustomerOut(BaseModel):
     crm_id: str
