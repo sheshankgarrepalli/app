@@ -18,7 +18,8 @@ from database import engine, Base, get_db
 from routers import (
     inventory_router, models_router, transfers_router,
     track_router, pos_router, reports_router, crm_router,
-    parts_router, repair_router, import_router, admin_router
+    parts_router, repair_router, import_router, admin_router,
+    qc_router
 )
 from db_sync import db_sync
 
@@ -66,6 +67,7 @@ app.include_router(crm_router.router)
 app.include_router(parts_router.router)
 app.include_router(repair_router.router)
 app.include_router(admin_router.router)
+app.include_router(qc_router.router)
 
 
 @app.get("/api/health")

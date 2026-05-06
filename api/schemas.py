@@ -724,3 +724,31 @@ class SchedulerRunResult(BaseModel):
     templates_checked: int
     invoices_created: int
     errors: List[str] = []
+
+# ── QC Inspection Schemas ─────────────────────────────────────────────────
+
+class QCInspectionCreate(BaseModel):
+    screen_condition: Optional[str] = None
+    frame_condition: Optional[str] = None
+    camera_lens_damage: bool = False
+    face_id_issue: bool = False
+    battery_service: bool = False
+    speaker_issue_ear: bool = False
+    speaker_issue_loud: bool = False
+    charging_port_issue: bool = False
+    network_locked: bool = False
+    grade: Optional[str] = None
+    needs_repair: bool = False
+    repair_items: Optional[List[str]] = None
+    notes: Optional[str] = None
+
+class QCInspectionOut(QCInspectionCreate):
+    id: str
+    imei: str
+    inspector_id: str
+    created_at: datetime
+    class Config: from_attributes = True
+
+class QCDeviceDetailOut(BaseModel):
+    device: DeviceInventoryOut
+    inspections: List[QCInspectionOut]

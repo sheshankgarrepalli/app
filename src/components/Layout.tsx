@@ -6,7 +6,7 @@ import { useLocationFilter } from '../context/LocationContext';
 import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'intake', label: 'Quick Intake', path: '/admin/manual-intake', icon: PackagePlus, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
         { id: 'routing', label: 'Phone Routing', path: '/admin/phone-routing', icon: ArrowRightLeft, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
         { id: 'audit', label: 'Rapid Audit', path: '/admin/rapid-audit', icon: ClipboardCheck, roles: ['admin', 'warehouse', 'store_a', 'store_b', 'store_c'] },
+        { id: 'qc', label: 'QC', path: '/admin/qc', icon: BadgeCheck, roles: ['admin', 'owner'] },
       ]
     },
     {
