@@ -13,6 +13,7 @@ import RapidAudit from './pages/RapidAudit';
 import Inventory from './pages/Inventory';
 import IncomingTransfers from './pages/IncomingTransfers';
 import QC from './pages/QC';
+import Repairs from './pages/Repairs';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -98,6 +99,7 @@ function AuthRoutes() {
       <Route path="/admin/phone-routing" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><PhoneRouting /></ProtectedRoute>} />
       <Route path="/admin/rapid-audit" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><RapidAudit /></ProtectedRoute>} />
       <Route path="/admin/qc" element={<ProtectedRoute allowedRoles={['admin', 'owner']}><QC /></ProtectedRoute>} />
+      <Route path="/admin/repairs" element={<ProtectedRoute allowedRoles={['admin', 'owner']}><Repairs /></ProtectedRoute>} />
 
       {/* Inventory Routes */}
       <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store_a', 'store_b', 'store_c']}><Inventory /></ProtectedRoute>} />

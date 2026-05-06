@@ -5,13 +5,17 @@ from typing import List
 from database import get_db
 from models import (
     RepairTicket, RepairStatus, DeviceInventory, DeviceCostLedger,
-    RepairMapping, PartsInventory, User, LaborRateConfig, DeviceHistoryLog, DeviceStatus
+    RepairMapping, PartsInventory, User, LaborRateConfig, DeviceHistoryLog, DeviceStatus,
+    QCInspection
 )
 from schemas import (
     RepairTicketOut, RepairTicketCreate, RepairTicketUpdate,
-    RepairCompleteRequest, RepairConsumePartRequest, RepairScrapRequest, RepairAssignRequest
+    RepairCompleteRequest, RepairConsumePartRequest, RepairScrapRequest, RepairAssignRequest,
+    RepairRecordRequest, RepairRouteRequest, RepairDeviceDetailOut,
+    PartOptionOut, QCInspectionOut, PhoneModelOut, DeviceHistoryLogOut
 )
-from auth import get_current_user
+from auth import get_current_user, require_role
+import json
 from datetime import datetime
 
 router = APIRouter(prefix="/api/repair", tags=["Repair"])
@@ -403,3 +407,211 @@ def complete_repair_legacy(req: RepairCompleteRequest, db: Session = Depends(get
     if not ticket:
         raise HTTPException(status_code=404, detail="Active repair ticket not found")
     return complete_repair(ticket.id, req, db, current_user)
+
+
+# ── Technician-Facing Endpoints (no cost exposure) ─────────────────────────────
+
+@router.get("/imei/{imei}", response_model=RepairDeviceDetailOut)
+def get_device_for_repair(
+    imei: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "owner"]))
+):
+    org_id = _org(current_user)
+    device = db.query(DeviceInventory).filter(
+        DeviceInventory.imei == imei, DeviceInventory.org_id == org_id
+    ).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Latest QC inspection
+    qc = db.query(QCInspection).filter(
+        QCInspection.imei == imei, QCInspection.org_id == org_id
+    ).order_by(desc(QCInspection.created_at)).first()
+
+    qc_out = None
+    if qc:
+        repair_items = json.loads(qc.repair_items) if qc.repair_items else None
+        qc_out = QCInspectionOut(
+            id=qc.id, imei=qc.imei,
+            screen_condition=qc.screen_condition, frame_condition=qc.frame_condition,
+            camera_lens_damage=qc.camera_lens_damage or False,
+            face_id_issue=qc.face_id_issue or False,
+            battery_service=qc.battery_service or False,
+            speaker_issue_ear=qc.speaker_issue_ear or False,
+            speaker_issue_loud=qc.speaker_issue_loud or False,
+            charging_port_issue=qc.charging_port_issue or False,
+            network_locked=qc.network_locked or False,
+            grade=qc.grade, needs_repair=qc.needs_repair or False,
+            repair_items=repair_items, notes=qc.notes,
+            inspector_id=qc.inspector_id, created_at=qc.created_at
+        )
+
+    # Existing repair ticket
+    ticket = db.query(RepairTicket).filter(
+        RepairTicket.imei == imei,
+        RepairTicket.status.in_([RepairStatus.Pending_Triage, RepairStatus.In_Repair, RepairStatus.Awaiting_Parts]),
+        RepairTicket.org_id == org_id
+    ).first()
+
+    ticket_out = None
+    if ticket:
+        ticket_out = RepairTicketOut(
+            id=ticket.id, imei=ticket.imei, symptoms=ticket.symptoms, notes=ticket.notes,
+            status=ticket.status, assigned_tech_id=ticket.assigned_tech_id,
+            device_model=device.model_number, device_status=device.device_status,
+            created_at=ticket.created_at, completed_at=ticket.completed_at,
+            consumed_parts=[]
+        )
+
+    # Available parts (no cost info)
+    parts = db.query(PartsInventory).filter(
+        PartsInventory.org_id == org_id,
+        PartsInventory.current_stock_qty > 0
+    ).order_by(PartsInventory.part_name).all()
+    part_options = [PartOptionOut(sku=p.sku, part_name=p.part_name, in_stock=p.current_stock_qty) for p in parts]
+
+    # Store info
+    store_name = None
+    if device.store_id:
+        from models import StoreLocation
+        store = db.query(StoreLocation).filter(StoreLocation.id == device.store_id).first()
+        if store:
+            store_name = store.name
+
+    # Recent history
+    history = db.query(DeviceHistoryLog).filter(
+        DeviceHistoryLog.imei == imei, DeviceHistoryLog.org_id == org_id
+    ).order_by(desc(DeviceHistoryLog.timestamp)).limit(15).all()
+
+    return RepairDeviceDetailOut(
+        imei=device.imei,
+        serial_number=device.serial_number,
+        model_number=device.model_number,
+        location_id=device.location_id,
+        sub_location_bin=device.sub_location_bin,
+        device_status=device.device_status,
+        received_date=device.received_date,
+        model=PhoneModelOut(
+            model_number=device.model.model_number,
+            brand=device.model.brand,
+            name=device.model.name,
+            color=device.model.color,
+            storage_gb=device.model.storage_gb,
+        ) if device.model else None,
+        store_name=store_name,
+        qc_findings=qc_out,
+        repair_ticket=ticket_out,
+        available_parts=part_options,
+        recent_history=[DeviceHistoryLogOut(
+            log_id=h.log_id, imei=h.imei, timestamp=h.timestamp,
+            action_type=h.action_type, employee_id=h.employee_id,
+            previous_status=h.previous_status, new_status=h.new_status,
+            notes=h.notes
+        ) for h in history]
+    )
+
+
+@router.post("/imei/{imei}/record")
+def record_repair(
+    imei: str,
+    req: RepairRecordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "owner"]))
+):
+    org_id = _org(current_user)
+    device = db.query(DeviceInventory).filter(
+        DeviceInventory.imei == imei, DeviceInventory.org_id == org_id
+    ).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Find or create repair ticket
+    ticket = db.query(RepairTicket).filter(
+        RepairTicket.imei == imei,
+        RepairTicket.status.in_([RepairStatus.Pending_Triage, RepairStatus.In_Repair, RepairStatus.Awaiting_Parts]),
+        RepairTicket.org_id == org_id
+    ).first()
+
+    if not ticket:
+        ticket = RepairTicket(
+            imei=imei, org_id=org_id,
+            symptoms="", notes="",
+            status=RepairStatus.In_Repair
+        )
+        db.add(ticket)
+        db.flush()
+
+        old_status = device.device_status
+        device.device_status = DeviceStatus.In_Repair
+        db.add(DeviceHistoryLog(
+            imei=imei, org_id=org_id,
+            action_type="Repair Started", employee_id=current_user.email,
+            previous_status=old_status, new_status=DeviceStatus.In_Repair,
+            notes=f"Ticket #{ticket.id}: repair in progress"
+        ))
+
+    ticket.symptoms = ", ".join(req.work_completed) if req.work_completed else ""
+    ticket.notes = req.notes
+    ticket.assigned_tech_id = current_user.email
+
+    # Consume parts (deduct from inventory, but don't expose cost)
+    for pc in req.parts_consumed:
+        part = db.query(PartsInventory).filter(
+            PartsInventory.sku == pc.sku, PartsInventory.org_id == org_id
+        ).first()
+        if part and part.current_stock_qty >= pc.qty:
+            part.current_stock_qty -= pc.qty
+            db.add(DeviceCostLedger(
+                imei=imei, org_id=org_id,
+                cost_type=f"Part: {part.part_name}", amount=part.moving_average_cost * pc.qty
+            ))
+
+    db.commit()
+    return {"status": "recorded", "ticket_id": ticket.id, "imei": imei}
+
+
+@router.post("/imei/{imei}/route")
+def route_after_repair(
+    imei: str,
+    req: RepairRouteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "owner"]))
+):
+    org_id = _org(current_user)
+    device = db.query(DeviceInventory).filter(
+        DeviceInventory.imei == imei, DeviceInventory.org_id == org_id
+    ).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Parse target status
+    import state_machine
+    target = state_machine.parse_target(req.target)
+    if target is None:
+        raise HTTPException(status_code=400, detail=f"Invalid target status: '{req.target}'")
+
+    # Complete any active repair ticket
+    ticket = db.query(RepairTicket).filter(
+        RepairTicket.imei == imei,
+        RepairTicket.status.in_([RepairStatus.Pending_Triage, RepairStatus.In_Repair, RepairStatus.Awaiting_Parts]),
+        RepairTicket.org_id == org_id
+    ).first()
+
+    if ticket:
+        ticket.status = RepairStatus.Completed
+        ticket.completed_at = datetime.utcnow()
+        ticket.assigned_tech_id = current_user.email
+
+    # Execute transition
+    result = state_machine.execute_transition(
+        db, device, target,
+        employee_id=current_user.email,
+        notes=req.notes or f"Repair completed, routed to {target.value}"
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.errors[0] if result.errors else "Transition failed")
+
+    db.commit()
+    return {"status": "routed", "imei": imei, "new_status": target.value, "ticket_id": ticket.id if ticket else None}

@@ -752,3 +752,38 @@ class QCInspectionOut(QCInspectionCreate):
 class QCDeviceDetailOut(BaseModel):
     device: DeviceInventoryOut
     inspections: List[QCInspectionOut]
+
+# ── Repair (Technician-Facing) Schemas ─────────────────────────────────────
+
+class PartOptionOut(BaseModel):
+    sku: str
+    part_name: str
+    in_stock: int
+
+class RepairPartConsume(BaseModel):
+    sku: str
+    qty: int = 1
+
+class RepairRecordRequest(BaseModel):
+    work_completed: List[str] = []
+    parts_consumed: List[RepairPartConsume] = []
+    notes: Optional[str] = None
+
+class RepairRouteRequest(BaseModel):
+    target: str
+    notes: Optional[str] = None
+
+class RepairDeviceDetailOut(BaseModel):
+    imei: str
+    serial_number: Optional[str] = None
+    model_number: Optional[str] = None
+    location_id: str
+    sub_location_bin: Optional[str] = None
+    device_status: Optional[DeviceStatus] = None
+    received_date: datetime
+    model: Optional[PhoneModelOut] = None
+    store_name: Optional[str] = None
+    qc_findings: Optional[QCInspectionOut] = None
+    repair_ticket: Optional[RepairTicketOut] = None
+    available_parts: List[PartOptionOut] = []
+    recent_history: List[DeviceHistoryLogOut] = []
