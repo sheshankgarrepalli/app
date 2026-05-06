@@ -432,7 +432,7 @@ class UnifiedCustomerOut(BaseModel):
     current_balance: float
     payment_terms_days: int
     wholesale_subtype: Optional[WholesaleSubtype] = None
-    default_consignment_days: int = 15
+    default_consignment_days: Optional[int] = 15
     notes: Optional[str]
     is_active: int
     contacts: List[CustomerContactOut] = []

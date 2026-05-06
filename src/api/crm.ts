@@ -36,7 +36,7 @@ export interface Customer {
   current_balance: number;
   payment_terms_days: number;
   wholesale_subtype?: 'standard' | 'consignee';
-  default_consignment_days: number;
+  default_consignment_days?: number;
   notes?: string;
   is_active: number;
   contacts: CustomerContact[];
