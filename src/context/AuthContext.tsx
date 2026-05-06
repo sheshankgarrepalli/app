@@ -34,7 +34,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setToken(jwt);
 
           // Extract role and store_id from Clerk public metadata
-          const role = (clerkUser.publicMetadata.role as string) || 'store';
+          const rawRole = (clerkUser.publicMetadata.role as string) || 'store';
+          // Normalize legacy roles from before consolidation
+          const legacyMap: Record<string, string> = {
+            store_a: 'store', store_b: 'store', store_c: 'store',
+            owner: 'admin'
+          };
+          const role = legacyMap[rawRole] || rawRole;
           const store_id = (clerkUser.publicMetadata.store_id as string) || null;
           const email = clerkUser.primaryEmailAddress?.emailAddress || '';
 
