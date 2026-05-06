@@ -64,22 +64,22 @@ export interface CustomerCreate {
 
 export async function fetchCustomers(search?: string): Promise<Customer[]> {
   const params = search ? { search } : {};
-  const { data } = await api.get('/crm/', { params });
+  const { data } = await api.get('/api/crm/', { params });
   return data;
 }
 
 export async function fetchCustomer(crmId: string): Promise<Customer> {
-  const { data } = await api.get(`/crm/${crmId}/history`);
+  const { data } = await api.get(`/api/crm/${crmId}/history`);
   return data.customer;
 }
 
 export async function createCustomer(customer: CustomerCreate): Promise<Customer> {
-  const { data } = await api.post('/crm/', customer);
+  const { data } = await api.post('/api/crm/', customer);
   return data;
 }
 
 export async function updateCustomer(crmId: string, customer: CustomerCreate): Promise<Customer> {
-  const { data } = await api.put(`/crm/${crmId}`, customer);
+  const { data } = await api.put(`/api/crm/${crmId}`, customer);
   return data;
 }
 
@@ -150,7 +150,7 @@ export interface SettleRequest {
 
 export async function fetchConsignees(search?: string): Promise<Customer[]> {
   const params = search ? { search } : {};
-  const { data } = await api.get('/consignment/customers/consignees', { params });
+  const { data } = await api.get('/api/consignment/customers/consignees', { params });
   return data;
 }
 
@@ -158,21 +158,21 @@ export async function fetchBatches(crmId?: string, status?: string): Promise<Con
   const params: any = {};
   if (crmId) params.crm_id = crmId;
   if (status) params.status = status;
-  const { data } = await api.get('/consignment/batches', { params });
+  const { data } = await api.get('/api/consignment/batches', { params });
   return data;
 }
 
 export async function fetchBatch(batchId: string): Promise<ConsignmentBatch> {
-  const { data } = await api.get(`/consignment/batches/${batchId}`);
+  const { data } = await api.get(`/api/consignment/batches/${batchId}`);
   return data;
 }
 
 export async function createBatch(batch: ConsignmentBatchCreate): Promise<ConsignmentBatch> {
-  const { data } = await api.post('/consignment/batches', batch);
+  const { data } = await api.post('/api/consignment/batches', batch);
   return data;
 }
 
 export async function settleBatch(batchId: string, request: SettleRequest): Promise<ConsignmentBatch> {
-  const { data } = await api.post(`/consignment/batches/${batchId}/settle`, request);
+  const { data } = await api.post(`/api/consignment/batches/${batchId}/settle`, request);
   return data;
 }
