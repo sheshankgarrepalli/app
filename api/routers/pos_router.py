@@ -1019,15 +1019,33 @@ def create_invoice_from_form(
     total = discounted_subtotal + tax_amount
 
     total_payments = sum(p.amount for p in req.payments)
+    has_payments = len(req.payments) > 0
+
     if total_payments > total + 0.01:
         raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
 
-    if total_payments < total - 0.01:
+    # If user is making a partial payment, enforce 10% layaway minimum
+    if has_payments and total_payments < total - 0.01:
         min_deposit = total * 0.10
         if total_payments < min_deposit:
-            raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f})")
+            raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f}). Current payments: ${total_payments:.2f}")
 
-    is_paid_in_full = total_payments >= total - 0.01
+    is_paid_in_full = has_payments and total_payments >= total - 0.01
+    is_layaway = has_payments and not is_paid_in_full
+
+    # Determine status: Draft if explicit, otherwise based on payments
+    if req.status == models.InvoiceStatus.Draft:
+        inv_status = models.InvoiceStatus.Draft
+        pay_status = models.PaymentStatus.Unpaid
+    elif is_paid_in_full:
+        inv_status = models.InvoiceStatus.Paid
+        pay_status = models.PaymentStatus.Paid_in_Full
+    elif is_layaway:
+        inv_status = models.InvoiceStatus.Partially_Paid
+        pay_status = models.PaymentStatus.Partial_Layaway
+    else:
+        inv_status = models.InvoiceStatus.Unpaid
+        pay_status = models.PaymentStatus.Unpaid
 
     db_invoice = models.Invoice(
         customer_id=customer_id,
@@ -1038,13 +1056,13 @@ def create_invoice_from_form(
         total=total,
         fulfillment_method=req.fulfillment_method,
         shipping_address=req.shipping_address,
-        status=models.InvoiceStatus.Paid if is_paid_in_full else models.InvoiceStatus.Partially_Paid,
-        payment_status=models.PaymentStatus.Paid_in_Full if is_paid_in_full else models.PaymentStatus.Partial_Layaway,
+        status=inv_status,
+        payment_status=pay_status,
         message_on_invoice=req.message_on_invoice,
         statement_memo=req.statement_memo,
         discount_percent=req.discount_percent or 0.0,
         discount_amount=discount_amount,
-        due_date=req.due_date,
+        due_date=req.due_date or (datetime.utcnow() + timedelta(days=30)),
         org_id=org_id
     )
     db.add(db_invoice)
@@ -1061,9 +1079,12 @@ def create_invoice_from_form(
             ).with_for_update().first()
             if is_paid_in_full:
                 db_store_inv.device_status = models.DeviceStatus.Sold
-            else:
+            elif is_layaway:
                 db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
-            db_store_inv.warranty_expiry_date = warranty_expiry
+            else:
+                db_store_inv.device_status = models.DeviceStatus.Sellable  # unpaid invoice, device still sellable
+            if is_paid_in_full or is_layaway:
+                db_store_inv.warranty_expiry_date = warranty_expiry
 
         line_total = item.rate * item.qty
         db_item = models.InvoiceItem(

@@ -22,6 +22,7 @@ import ConsignmentDetail from './pages/ConsignmentDetail';
 import PublicInvoice from './pages/PublicInvoice';
 import InvoiceForm from './pages/InvoiceForm';
 import InvoicesList from './pages/InvoicesList';
+import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -123,6 +124,9 @@ function AuthRoutes() {
       {/* Invoice Routes */}
       <Route path="/admin/invoices" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoicesList /></ProtectedRoute>} />
       <Route path="/admin/invoices/new" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceForm /></ProtectedRoute>} />
+
+      {/* Settings Route */}
+      <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
 
       {/* Public Invoice Route — no auth */}
       <Route path="/invoice/:shareToken" element={<PublicInvoice />} />

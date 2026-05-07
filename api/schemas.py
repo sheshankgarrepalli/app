@@ -669,6 +669,7 @@ class InvoiceFormCreate(BaseModel):
     tax_percent: Optional[float] = 8.5
     fulfillment_method: Optional[str] = "Walk-in"
     shipping_address: Optional[str] = None
+    status: Optional[InvoiceStatus] = None  # Draft or None (auto-determined from payments)
     payments: List[PaymentSchema] = []
 
 class InvoiceUpdate(BaseModel):

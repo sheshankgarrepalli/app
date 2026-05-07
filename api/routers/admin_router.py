@@ -157,18 +157,13 @@ def update_org_settings(req: schemas.OrgSettingsRequest,
         cfg = models.OrganizationSettings(org_id=org_id)
         db.add(cfg)
 
-    if req.default_tax_rate is not None:
-        cfg.default_tax_rate = req.default_tax_rate
-    if req.currency is not None:
-        cfg.currency = req.currency
-    if req.timezone is not None:
-        cfg.timezone = req.timezone
-    if req.invoice_terms is not None:
-        cfg.invoice_terms = req.invoice_terms
+    update_data = req.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(cfg, key, value)
 
     db.commit()
     db.refresh(cfg)
-    _audit(db, org_id, current_user.email, "update_org_settings", details=f"tax_rate={cfg.default_tax_rate}, currency={cfg.currency}")
+    _audit(db, org_id, current_user.email, "update_org_settings", details=f"fields={list(update_data.keys())}")
     return cfg
 
 

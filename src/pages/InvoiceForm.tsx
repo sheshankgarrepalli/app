@@ -1,10 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, Save, Plus, Trash2, Search, X, Building2, User, ArrowLeft } from 'lucide-react';
-import { createInvoice, fetchAutocomplete, InvoiceFormItem, AutocompleteResult, extractError } from '../api/invoices';
+import { Loader2, AlertCircle, Save, Plus, Trash2, Search, X, Building2, User, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
+import { createInvoice, fetchAutocomplete, InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS } from '../api/invoices';
 import { fetchCustomers, Customer } from '../api/crm';
 
+interface PaymentRow {
+  amount: number;
+  payment_method: string;
+  reference_id: string;
+}
+
 const emptyItem: InvoiceFormItem = { description: '', qty: 1, rate: 0, taxable: true };
+const emptyPayment: PaymentRow = { amount: 0, payment_method: 'Cash', reference_id: '' };
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
@@ -19,6 +26,7 @@ export default function InvoiceForm() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [taxPercent, setTaxPercent] = useState(8.5);
   const [fulfillmentMethod, setFulfillmentMethod] = useState('Walk-in');
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +36,6 @@ export default function InvoiceForm() {
   const acRef = useRef<HTMLDivElement>(null);
   const acTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Load customers on search
   const searchCustomers = useCallback(async (q: string) => {
     setCustomerSearch(q);
     if (!q || q.length < 1) {
@@ -45,7 +52,6 @@ export default function InvoiceForm() {
     }
   }, []);
 
-  // Autocomplete search
   const doAutocomplete = useCallback(async (q: string, idx: number) => {
     if (!q || q.length < 2) {
       setAutocompleteResults([]);
@@ -61,17 +67,14 @@ export default function InvoiceForm() {
     }
   }, []);
 
-  // Debounced autocomplete
   const handleItemDescChange = useCallback((idx: number, value: string) => {
     const next = [...items];
     next[idx] = { ...next[idx], description: value };
     setItems(next);
-
     if (acTimer.current) clearTimeout(acTimer.current);
     acTimer.current = setTimeout(() => doAutocomplete(value, idx), 250);
   }, [items, doAutocomplete]);
 
-  // Select autocomplete result
   const selectAutocomplete = (idx: number, result: AutocompleteResult) => {
     const next = [...items];
     next[idx] = {
@@ -87,7 +90,6 @@ export default function InvoiceForm() {
     setAutocompleteIdx(null);
   };
 
-  // Close autocomplete on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (acRef.current && !acRef.current.contains(e.target as Node)) {
@@ -107,13 +109,32 @@ export default function InvoiceForm() {
     setItems(next);
   };
 
+  const addPayment = () => setPayments(prev => [...prev, { ...emptyPayment }]);
+  const removePayment = (idx: number) => setPayments(prev => prev.filter((_, i) => i !== idx));
+  const updatePayment = (idx: number, field: keyof PaymentRow, value: any) => {
+    const next = [...payments];
+    next[idx] = { ...next[idx], [field]: value };
+    setPayments(next);
+  };
+
   const subtotal = items.reduce((s, i) => s + i.rate * i.qty, 0);
   const discountAmount = discountPercent > 0 ? subtotal * (discountPercent / 100) : 0;
   const discountedSubtotal = subtotal - discountAmount;
   const taxAmount = discountedSubtotal * (taxPercent / 100);
   const total = discountedSubtotal + taxAmount;
+  const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const balanceDue = total - totalPaid;
+  const isFullyPaid = totalPaid >= total - 0.01;
+  const hasAnyPayment = payments.length > 0 && totalPaid > 0;
 
   const selectedCustomer = customers.find(c => c.crm_id === customerId);
+
+  // Auto-fill remaining payment amount on new payment row
+  useEffect(() => {
+    if (payments.length === 1 && payments[0].amount === 0 && !payments[0].reference_id) {
+      // Don't auto-fill — let user decide
+    }
+  }, [payments.length]);
 
   const handleSave = async () => {
     const validItems = items.filter(i => i.description || i.model_number || i.imei);
@@ -125,10 +146,19 @@ export default function InvoiceForm() {
       setError('Select a customer');
       return;
     }
+    // Filter out zero-amount payments
+    const validPayments = payments
+      .filter(p => p.amount > 0 && p.payment_method)
+      .map(p => ({
+        amount: p.amount,
+        payment_method: p.payment_method,
+        reference_id: p.reference_id || undefined,
+      }));
+
     setSaving(true);
     setError(null);
     try {
-      const payload = {
+      await createInvoice({
         customer_id: customerId,
         items: validItems,
         terms,
@@ -137,9 +167,8 @@ export default function InvoiceForm() {
         discount_percent: discountPercent || 0,
         tax_percent: taxPercent,
         fulfillment_method: fulfillmentMethod,
-        payments: [],
-      };
-      await createInvoice(payload);
+        payments: validPayments,
+      });
       navigate(`/admin/invoices`, { replace: true });
     } catch (err: any) {
       setError(extractError(err));
@@ -165,7 +194,7 @@ export default function InvoiceForm() {
           className="btn-primary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          Save Invoice
+          {hasAnyPayment ? (isFullyPaid ? 'Save & Close' : 'Save & Reserve') : 'Save Invoice'}
         </button>
       </div>
 
@@ -186,7 +215,7 @@ export default function InvoiceForm() {
                 <p className="text-sm font-medium text-[var(--text-primary)]">
                   {selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim()}
                 </p>
-                <p className="text-xs text-[var(--text-tertiary)]">{selectedCustomer.phone}</p>
+                <p className="text-xs text-[var(--text-tertiary)]">{selectedCustomer.phone}{selectedCustomer.email ? ` · ${selectedCustomer.email}` : ''}</p>
               </div>
             </div>
             <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setCustomers([]); }} className="text-[var(--text-tertiary)] hover:text-red-400">
@@ -322,7 +351,91 @@ export default function InvoiceForm() {
         )}
       </div>
 
-      {/* Summary & Settings */}
+      {/* Payments */}
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-tertiary)]">
+          <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Payments Received</p>
+          <button onClick={addPayment} className="flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 font-medium">
+            <Plus size={14} /> Split Payment
+          </button>
+        </div>
+
+        {payments.length === 0 ? (
+          <div className="px-4 py-6 text-center">
+            <p className="text-sm text-[var(--text-tertiary)] mb-3">No payments yet — invoice will be created as Unpaid</p>
+            <button onClick={addPayment} className="btn-secondary flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium mx-auto">
+              <Wallet size={13} /> Add Payment
+            </button>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
+                <th className="text-left p-3">Method</th>
+                <th className="text-right p-3 w-32">Amount ($)</th>
+                <th className="text-left p-3 w-40">Reference</th>
+                <th className="w-8"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-primary)]">
+              {payments.map((p, idx) => (
+                <tr key={idx}>
+                  <td className="p-2">
+                    <select
+                      className="form-input text-sm py-1.5"
+                      value={p.payment_method}
+                      onChange={e => updatePayment(idx, 'payment_method', e.target.value)}
+                    >
+                      {PAYMENT_METHODS.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input text-sm text-right py-1.5"
+                      placeholder="0.00"
+                      value={p.amount || ''}
+                      onChange={e => updatePayment(idx, 'amount', parseFloat(e.target.value) || 0)}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      className="form-input text-sm py-1.5"
+                      placeholder="e.g. last 4 digits..."
+                      value={p.reference_id}
+                      onChange={e => updatePayment(idx, 'reference_id', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <button onClick={() => removePayment(idx)} className="text-[var(--text-tertiary)] hover:text-red-400">
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Quick-fill: Pay in Full */}
+        {payments.length === 1 && totalPaid < total - 0.01 && total > 0 && (
+          <div className="px-4 py-2 border-t border-[var(--border-primary)]">
+            <button
+              onClick={() => updatePayment(0, 'amount', parseFloat(total.toFixed(2)))}
+              className="text-xs text-accent hover:text-accent/80 font-medium"
+            >
+              <CreditCard size={12} className="inline mr-1" />
+              Pay in Full (${total.toFixed(2)})
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Settings + Summary */}
       <div className="grid grid-cols-2 gap-5">
         {/* Settings */}
         <div className="card p-4 space-y-3">
@@ -382,9 +495,18 @@ export default function InvoiceForm() {
             <span>Total</span>
             <span>${total.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          {hasAnyPayment && (
+            <>
+              <div className="flex justify-between text-sm text-emerald-400">
+                <span>Paid</span>
+                <span>${totalPaid.toFixed(2)}</span>
+              </div>
+              <hr className="border-[var(--border-primary)]" />
+            </>
+          )}
+          <div className="flex justify-between text-sm font-bold">
             <span className="text-[var(--text-tertiary)]">Balance Due</span>
-            <span className="text-accent font-bold">${total.toFixed(2)}</span>
+            <span className={balanceDue > 0.01 ? 'text-red-400' : 'text-emerald-400'}>${balanceDue.toFixed(2)}</span>
           </div>
         </div>
       </div>

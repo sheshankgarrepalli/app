@@ -76,8 +76,11 @@ export interface InvoiceCreate {
   tax_percent?: number;
   fulfillment_method?: string;
   shipping_address?: string;
+  status?: string;
   payments?: { amount: number; payment_method: string; reference_id?: string }[];
 }
+
+export const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Wire', 'Store Credit', 'On Terms', 'Zelle'] as const;
 
 export interface AutocompleteResult {
   type: 'device_inventory' | 'device_catalog' | 'parts_inventory';
