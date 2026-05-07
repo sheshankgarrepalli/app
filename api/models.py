@@ -268,6 +268,7 @@ class Invoice(Base):
     discount_percent = Column(Float, default=0.0)
     discount_amount = Column(Float, default=0.0)
     share_token = Column(String, unique=True, index=True, nullable=True)
+    internal_notes = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
     customer = relationship("UnifiedCustomer")

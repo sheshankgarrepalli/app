@@ -22,6 +22,7 @@ import ConsignmentDetail from './pages/ConsignmentDetail';
 import PublicInvoice from './pages/PublicInvoice';
 import InvoiceForm from './pages/InvoiceForm';
 import InvoicesList from './pages/InvoicesList';
+import InvoiceDetail from './pages/InvoiceDetail';
 import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
@@ -124,6 +125,7 @@ function AuthRoutes() {
       {/* Invoice Routes */}
       <Route path="/admin/invoices" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoicesList /></ProtectedRoute>} />
       <Route path="/admin/invoices/new" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceForm /></ProtectedRoute>} />
+      <Route path="/admin/invoices/:invoiceNumber" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceDetail /></ProtectedRoute>} />
 
       {/* Settings Route */}
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />

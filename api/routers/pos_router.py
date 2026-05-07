@@ -73,11 +73,27 @@ def retail_checkout(
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.location_id == current_user.store_id,
-            models.DeviceInventory.org_id == org_id,
-            models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+            models.DeviceInventory.org_id == org_id
         ).with_for_update().first()
+
         if not db_store_inv:
-            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
+            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found at your store")
+
+        # Warn if reserved in a draft invoice
+        if db_store_inv.device_status == models.DeviceStatus.Reserved_Layaway and db_store_inv.sold_to_crm_id:
+            draft_inv = db.query(models.Invoice).filter(
+                models.Invoice.customer_id == db_store_inv.sold_to_crm_id,
+                models.Invoice.status == models.InvoiceStatus.Draft,
+                models.Invoice.org_id == org_id
+            ).first()
+            if draft_inv:
+                cust_name = draft_inv.customer.company_name or f"{draft_inv.customer.first_name or ''} {draft_inv.customer.last_name or ''}".strip() or draft_inv.customer_id
+                raise HTTPException(status_code=400,
+                    detail=f"IMEI {item.imei} is reserved in Draft Invoice {draft_inv.invoice_number} for {cust_name}. Void that draft first.")
+
+        if db_store_inv.device_status != models.DeviceStatus.Sellable:
+            raise HTTPException(status_code=400,
+                detail=f"IMEI {item.imei} is not Sellable (currently {db_store_inv.device_status.value})")
 
         # device_status is set below based on total payments
         db_store_inv.sold_to_crm_id = customer_id
@@ -196,11 +212,27 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.location_id == current_user.store_id,
-            models.DeviceInventory.org_id == org_id,
-            models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+            models.DeviceInventory.org_id == org_id
         ).with_for_update().first()
+
         if not db_store_inv:
-            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
+            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found at your store")
+
+        # Warn if reserved in a draft invoice
+        if db_store_inv.device_status == models.DeviceStatus.Reserved_Layaway and db_store_inv.sold_to_crm_id:
+            draft_inv = db.query(models.Invoice).filter(
+                models.Invoice.customer_id == db_store_inv.sold_to_crm_id,
+                models.Invoice.status == models.InvoiceStatus.Draft,
+                models.Invoice.org_id == org_id
+            ).first()
+            if draft_inv:
+                cust_name = draft_inv.customer.company_name or f"{draft_inv.customer.first_name or ''} {draft_inv.customer.last_name or ''}".strip() or draft_inv.customer_id
+                raise HTTPException(status_code=400,
+                    detail=f"IMEI {item.imei} is reserved in Draft Invoice {draft_inv.invoice_number} for {cust_name}. Void that draft first.")
+
+        if db_store_inv.device_status != models.DeviceStatus.Sellable:
+            raise HTTPException(status_code=400,
+                detail=f"IMEI {item.imei} is not Sellable (currently {db_store_inv.device_status.value})")
         
         db_store_inv.device_status = models.DeviceStatus.Sold
         
@@ -988,17 +1020,44 @@ def create_invoice_from_form(
     ).first()
 
     subtotal = 0.0
+    is_draft = req.status == models.InvoiceStatus.Draft
+
     for item in req.items:
         if item.imei:
             db_store_inv = db.query(models.DeviceInventory).filter(
                 models.DeviceInventory.imei == item.imei,
-                models.DeviceInventory.location_id == current_user.store_id,
                 models.DeviceInventory.org_id == org_id,
-                models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+                models.DeviceInventory.location_id == current_user.store_id,
             ).with_for_update().first()
+
             if not db_store_inv:
-                raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not sellable at your store")
-            db_store_inv.sold_to_crm_id = customer_id
+                raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found at your store")
+
+            # For draft: allow Sellable or already Reserved_Layaway (re-reserving)
+            # For non-draft: require Sellable
+            if is_draft:
+                if db_store_inv.device_status not in (models.DeviceStatus.Sellable, models.DeviceStatus.Reserved_Layaway):
+                    raise HTTPException(status_code=400,
+                        detail=f"IMEI {item.imei} is {db_store_inv.device_status.value} — cannot reserve")
+            else:
+                if db_store_inv.device_status == models.DeviceStatus.Reserved_Layaway and db_store_inv.sold_to_crm_id:
+                    draft_inv = db.query(models.Invoice).filter(
+                        models.Invoice.customer_id == db_store_inv.sold_to_crm_id,
+                        models.Invoice.status == models.InvoiceStatus.Draft,
+                        models.Invoice.org_id == org_id
+                    ).first()
+                    if draft_inv:
+                        raise HTTPException(status_code=400,
+                            detail=f"IMEI {item.imei} is reserved in Draft Invoice {draft_inv.invoice_number} for {draft_inv.customer.company_name or draft_inv.customer_id}. Void that draft first.")
+                if db_store_inv.device_status != models.DeviceStatus.Sellable:
+                    raise HTTPException(status_code=400,
+                        detail=f"IMEI {item.imei} is not Sellable (currently {db_store_inv.device_status.value})")
+
+            if is_draft:
+                db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
+                db_store_inv.sold_to_crm_id = customer_id
+            else:
+                db_store_inv.sold_to_crm_id = customer_id
 
         applied_rate = item.rate
         if customer_db_obj and customer_db_obj.pricing_tier > 0:
@@ -1063,11 +1122,22 @@ def create_invoice_from_form(
         discount_percent=req.discount_percent or 0.0,
         discount_amount=discount_amount,
         due_date=req.due_date or (datetime.utcnow() + timedelta(days=30)),
+        internal_notes=req.internal_notes,
         org_id=org_id
     )
     db.add(db_invoice)
     db.flush()
     db_invoice.invoice_number = _generate_invoice_number(db, current_user.store_id, org_id)
+
+    # Audit log
+    from models import AdminAuditLog
+    db.add(AdminAuditLog(
+        org_id=org_id,
+        actor_email=current_user.email,
+        action="create_invoice",
+        target=db_invoice.invoice_number,
+        details=f"status={inv_status.value}, customer={customer_id}, total={total:.2f}, items={len(req.items)}"
+    ))
 
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
 
@@ -1077,12 +1147,15 @@ def create_invoice_from_form(
                 models.DeviceInventory.imei == item.imei,
                 models.DeviceInventory.org_id == org_id
             ).with_for_update().first()
-            if is_paid_in_full:
+            if is_draft:
+                # Draft: device stays Reserved_Layaway (already set above)
+                pass
+            elif is_paid_in_full:
                 db_store_inv.device_status = models.DeviceStatus.Sold
             elif is_layaway:
                 db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
             else:
-                db_store_inv.device_status = models.DeviceStatus.Sellable  # unpaid invoice, device still sellable
+                db_store_inv.device_status = models.DeviceStatus.Sellable
             if is_paid_in_full or is_layaway:
                 db_store_inv.warranty_expiry_date = warranty_expiry
 
@@ -1710,3 +1783,106 @@ def get_public_invoice(
     ).first()
     invoice.invoice_terms = org_settings.invoice_terms if org_settings else None
     return invoice
+
+
+# ── Invoice Detail with Activity Timeline ──────────────────────────────────
+
+@router.get("/invoices/{invoice_id}/timeline")
+def get_invoice_timeline(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    events = []
+
+    # Audit log entries
+    audit_entries = db.query(models.AdminAuditLog).filter(
+        models.AdminAuditLog.org_id == org_id,
+        models.AdminAuditLog.target == invoice_id
+    ).order_by(models.AdminAuditLog.timestamp.asc()).all()
+    for entry in audit_entries:
+        events.append({
+            "ts": entry.timestamp.isoformat(),
+            "actor": entry.actor_email,
+            "action": entry.action,
+            "details": entry.details or "",
+        })
+
+    # Payment events
+    payments = db.query(models.PaymentTransaction).filter(
+        models.PaymentTransaction.invoice_id == invoice.id,
+        models.PaymentTransaction.org_id == org_id
+    ).order_by(models.PaymentTransaction.timestamp.asc()).all()
+    for p in payments:
+        events.append({
+            "ts": p.timestamp.isoformat(),
+            "actor": "system",
+            "action": "payment_received",
+            "details": f"{p.payment_method.value}: ${p.amount:.2f}" + (f" (ref: {p.reference_id})" if p.reference_id else ""),
+        })
+
+    events.sort(key=lambda e: e["ts"])
+
+    return {
+        "invoice_number": invoice.invoice_number,
+        "status": invoice.status.value if invoice.status else None,
+        "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
+        "events": events,
+    }
+
+
+# ── Void Draft / Release Devices ───────────────────────────────────────────
+
+@router.post("/invoices/{invoice_id}/void")
+def void_draft_invoice(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status == models.InvoiceStatus.Voided:
+        raise HTTPException(status_code=400, detail="Invoice already voided")
+
+    # Release reserved devices back to Sellable
+    items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice.id
+    ).all()
+    released = 0
+    for item in items:
+        if item.imei:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == item.imei,
+                models.DeviceInventory.org_id == org_id
+            ).first()
+            if device and device.device_status in (models.DeviceStatus.Reserved_Layaway,):
+                device.device_status = models.DeviceStatus.Sellable
+                device.sold_to_crm_id = None
+                released += 1
+
+    invoice.status = models.InvoiceStatus.Voided
+    invoice.payment_status = models.PaymentStatus.Voided
+
+    db.add(models.AdminAuditLog(
+        org_id=org_id,
+        actor_email=current_user.email,
+        action="void_invoice",
+        target=invoice_id,
+        details=f"Released {released} devices back to Sellable"
+    ))
+    db.commit()
+
+    return {"status": "voided", "invoice_number": invoice.invoice_number, "devices_released": released}

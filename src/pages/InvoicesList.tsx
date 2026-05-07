@@ -105,6 +105,7 @@ export default function InvoicesList() {
                 <th className="text-left p-3">Customer</th>
                 <th className="text-right p-3">Total</th>
                 <th className="text-center p-3">Status</th>
+                <th className="text-center p-3">Payment</th>
                 <th className="text-right p-3">Date</th>
                 <th className="text-center p-3 w-24">Actions</th>
               </tr>
@@ -113,7 +114,9 @@ export default function InvoicesList() {
               {invoices.map(inv => (
                 <tr key={inv.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
                   <td className="p-3">
-                    <span className="font-mono text-xs font-semibold text-[var(--text-primary)]">{inv.invoice_number}</span>
+                    <Link to={`/admin/invoices/${inv.invoice_number}`} className="font-mono text-xs font-semibold text-accent hover:underline">
+                      {inv.invoice_number}
+                    </Link>
                   </td>
                   <td className="p-3 text-[var(--text-secondary)] text-xs">
                     {inv.customer?.company_name || `${inv.customer?.first_name || ''} ${inv.customer?.last_name || ''}`.trim() || '—'}
@@ -124,6 +127,11 @@ export default function InvoicesList() {
                   <td className="p-3 text-center">
                     <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${statusBadge(inv.status)}`}>
                       {inv.status.replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${statusBadge(inv.payment_status)}`}>
+                      {inv.payment_status?.replace(/_/g, ' ') || '—'}
                     </span>
                   </td>
                   <td className="p-3 text-right text-[var(--text-tertiary)] text-xs">

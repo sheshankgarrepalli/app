@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, Save, Plus, Trash2, Search, X, Building2, User, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
+import { Loader2, AlertCircle, Save, Plus, Trash2, Search, X, Building2, User, ArrowLeft, Wallet, CreditCard, FileEdit } from 'lucide-react';
 import { createInvoice, fetchAutocomplete, InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS } from '../api/invoices';
 import { fetchCustomers, Customer } from '../api/crm';
 
@@ -23,6 +23,8 @@ export default function InvoiceForm() {
   const [terms, setTerms] = useState('Due on Receipt');
   const [messageOnInvoice, setMessageOnInvoice] = useState('');
   const [statementMemo, setStatementMemo] = useState('');
+  const [internalNotes, setInternalNotes] = useState('');
+  const [invoiceStatus, setInvoiceStatus] = useState<'Active' | 'Draft'>('Active');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [taxPercent, setTaxPercent] = useState(8.5);
   const [fulfillmentMethod, setFulfillmentMethod] = useState('Walk-in');
@@ -167,6 +169,8 @@ export default function InvoiceForm() {
         discount_percent: discountPercent || 0,
         tax_percent: taxPercent,
         fulfillment_method: fulfillmentMethod,
+        status: invoiceStatus,
+        internal_notes: internalNotes || undefined,
         payments: validPayments,
       });
       navigate(`/admin/invoices`, { replace: true });
@@ -185,7 +189,14 @@ export default function InvoiceForm() {
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">New Invoice</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">New Invoice</h1>
+            {invoiceStatus === 'Draft' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <FileEdit size={11} /> DRAFT
+              </span>
+            )}
+          </div>
           <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Create a structured invoice with line items</p>
         </div>
         <button
@@ -194,7 +205,7 @@ export default function InvoiceForm() {
           className="btn-primary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {hasAnyPayment ? (isFullyPaid ? 'Save & Close' : 'Save & Reserve') : 'Save Invoice'}
+          {invoiceStatus === 'Draft' ? 'Save Draft' : hasAnyPayment ? (isFullyPaid ? 'Save & Close' : 'Save & Reserve') : 'Save Invoice'}
         </button>
       </div>
 
@@ -470,6 +481,17 @@ export default function InvoiceForm() {
           <div className="form-group">
             <label className="form-label text-xs">Statement Memo</label>
             <input type="text" className="form-input" value={statementMemo} onChange={e => setStatementMemo(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label text-xs">Status</label>
+            <select className="form-input" value={invoiceStatus} onChange={e => setInvoiceStatus(e.target.value as 'Active' | 'Draft')}>
+              <option value="Active">Active</option>
+              <option value="Draft">Draft (reserves devices)</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label text-xs">Internal Notes (staff only)</label>
+            <textarea className="form-input" rows={2} value={internalNotes} onChange={e => setInternalNotes(e.target.value)} placeholder="Internal notes — not visible to customer" />
           </div>
         </div>
 

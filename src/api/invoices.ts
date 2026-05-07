@@ -37,6 +37,7 @@ export interface Invoice {
   discount_percent: number;
   discount_amount: number;
   share_token?: string | null;
+  internal_notes?: string | null;
   created_at: string;
   items: InvoiceItem[];
   customer?: Customer | null;
@@ -77,6 +78,7 @@ export interface InvoiceCreate {
   fulfillment_method?: string;
   shipping_address?: string;
   status?: string;
+  internal_notes?: string;
   payments?: { amount: number; payment_method: string; reference_id?: string }[];
 }
 
@@ -143,5 +145,29 @@ export async function fetchPublicInvoice(shareToken: string): Promise<Invoice> {
 export async function fetchAutocomplete(query: string): Promise<AutocompleteResult[]> {
   if (!query || query.length < 2) return [];
   const { data } = await api.get('/api/inventory/autocomplete', { params: { q: query } });
+  return data;
+}
+
+export interface TimelineEvent {
+  ts: string;
+  actor: string;
+  action: string;
+  details: string;
+}
+
+export interface InvoiceTimeline {
+  invoice_number: string;
+  status: string;
+  created_at: string;
+  events: TimelineEvent[];
+}
+
+export async function fetchInvoiceTimeline(invoiceNumber: string): Promise<InvoiceTimeline> {
+  const { data } = await api.get(`/api/pos/invoices/${invoiceNumber}/timeline`);
+  return data;
+}
+
+export async function voidInvoice(invoiceNumber: string): Promise<{ status: string; invoice_number: string; devices_released: number }> {
+  const { data } = await api.post(`/api/pos/invoices/${invoiceNumber}/void`);
   return data;
 }

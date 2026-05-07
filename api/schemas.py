@@ -544,6 +544,7 @@ class InvoiceOut(BaseModel):
     discount_percent: float = 0.0
     discount_amount: float = 0.0
     share_token: Optional[str] = None
+    internal_notes: Optional[str] = None
     created_at: datetime
     items: List[InvoiceItemOut]
     customer: Optional[UnifiedCustomerOut]
@@ -670,6 +671,7 @@ class InvoiceFormCreate(BaseModel):
     fulfillment_method: Optional[str] = "Walk-in"
     shipping_address: Optional[str] = None
     status: Optional[InvoiceStatus] = None  # Draft or None (auto-determined from payments)
+    internal_notes: Optional[str] = None
     payments: List[PaymentSchema] = []
 
 class InvoiceUpdate(BaseModel):
