@@ -70,6 +70,8 @@ def db_sync():
         _safe_add_column(db, "invoices", "org_id", "TEXT")
         _safe_add_column(db, "invoices", "store_id", "TEXT")
         _safe_add_column(db, "invoices", "payment_status", "TEXT")
+        _safe_add_column(db, "invoices", "discount_total", "FLOAT", "0.0")
+        _safe_add_column(db, "invoices", "currency", "TEXT", "'USD'")
 
         # inventory_audits: org_id, store_id
         _safe_add_column(db, "inventory_audits", "org_id", "TEXT")
@@ -120,6 +122,10 @@ def db_sync():
         _safe_add_column(db, "invoice_items", "amount", "FLOAT", "0.0")
         _safe_add_column(db, "invoice_items", "taxable", "BOOLEAN DEFAULT TRUE")
         _safe_add_column(db, "invoice_items", "product_source", "TEXT")
+        _safe_add_column(db, "invoice_items", "sku", "TEXT")
+        _safe_add_column(db, "invoice_items", "batch_serial", "TEXT")
+        _safe_add_column(db, "invoice_items", "item_discount_amount", "FLOAT", "0.0")
+        _safe_add_column(db, "invoice_items", "item_discount_percent", "FLOAT", "0.0")
         _safe_add_column(db, "store_locations", "invoice_prefix", "TEXT")
         _safe_add_column(db, "manifest_items", "org_id", "TEXT")
 
@@ -302,6 +308,17 @@ def db_sync():
         print(f"Updated {invoices_updated} invoices to default store.")
 
         db.commit()
+
+        # ── Backfill discount_total from discount_amount ──
+        try:
+            result = db.execute(
+                text("UPDATE invoices SET discount_total = discount_amount WHERE discount_total = 0 AND discount_amount != 0")
+            )
+            if result.rowcount > 0:
+                print(f"Backfilled discount_total from discount_amount: {result.rowcount} rows")
+            db.commit()
+        except Exception:
+            db.rollback()
 
         # ── Backfill invoice_prefix on existing stores ──
         prefix_map = {

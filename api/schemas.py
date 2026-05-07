@@ -486,6 +486,10 @@ class InvoiceItemCreate(BaseModel):
     amount: float = 0.0
     taxable: bool = True
     product_source: Optional[str] = None
+    sku: Optional[str] = None
+    batch_serial: Optional[str] = None
+    item_discount_amount: float = 0.0
+    item_discount_percent: float = 0.0
     unit_price: float = 0.0
 
 class InvoiceItemOut(BaseModel):
@@ -499,6 +503,10 @@ class InvoiceItemOut(BaseModel):
     amount: float
     taxable: bool
     product_source: Optional[str] = None
+    sku: Optional[str] = None
+    batch_serial: Optional[str] = None
+    item_discount_amount: float = 0.0
+    item_discount_percent: float = 0.0
     class Config: from_attributes = True
 
 class RetailCheckoutRequest(BaseModel):
@@ -542,7 +550,9 @@ class InvoiceOut(BaseModel):
     message_on_invoice: Optional[str] = None
     statement_memo: Optional[str] = None
     discount_percent: float = 0.0
-    discount_amount: float = 0.0
+    discount_total: float = 0.0
+    currency: str = "USD"
+    paid_amount: float = 0.0
     share_token: Optional[str] = None
     internal_notes: Optional[str] = None
     created_at: datetime
@@ -654,6 +664,10 @@ class InvoiceFormItemCreate(BaseModel):
     qty: int = 1
     rate: float = 0.0
     taxable: bool = True
+    sku: Optional[str] = None
+    batch_serial: Optional[str] = None
+    item_discount_amount: float = 0.0
+    item_discount_percent: float = 0.0
 
 class InvoiceFormCreate(BaseModel):
     """Create an invoice from structured form data (not barcode scan)."""
@@ -666,7 +680,8 @@ class InvoiceFormCreate(BaseModel):
     message_on_invoice: Optional[str] = None
     statement_memo: Optional[str] = None
     discount_percent: Optional[float] = 0.0
-    discount_amount: Optional[float] = 0.0
+    discount_total: Optional[float] = 0.0
+    currency: Optional[str] = "USD"
     tax_percent: Optional[float] = 8.5
     fulfillment_method: Optional[str] = "Walk-in"
     shipping_address: Optional[str] = None
@@ -683,7 +698,8 @@ class InvoiceUpdate(BaseModel):
     message_on_invoice: Optional[str] = None
     statement_memo: Optional[str] = None
     discount_percent: Optional[float] = None
-    discount_amount: Optional[float] = None
+    discount_total: Optional[float] = None
+    currency: Optional[str] = None
     fulfillment_method: Optional[str] = None
     shipping_address: Optional[str] = None
 

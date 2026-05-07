@@ -137,10 +137,10 @@ export default function PublicInvoice() {
             <span className="text-[var(--text-tertiary)]">Subtotal</span>
             <span className="text-[var(--text-primary)]">${invoice.subtotal.toFixed(2)}</span>
           </div>
-          {invoice.discount_amount > 0 && (
+          {invoice.discount_total > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-[var(--text-tertiary)]">Discount</span>
-              <span className="text-red-400">-${invoice.discount_amount.toFixed(2)}</span>
+              <span className="text-red-400">-${invoice.discount_total.toFixed(2)}</span>
             </div>
           )}
           {invoice.tax_amount > 0 && (

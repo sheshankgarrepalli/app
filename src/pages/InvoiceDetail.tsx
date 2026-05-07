@@ -283,10 +283,10 @@ export default function InvoiceDetail() {
               <span className="text-[var(--text-tertiary)]">Subtotal</span>
               <span className="text-[var(--text-primary)]">${invoice.subtotal.toFixed(2)}</span>
             </div>
-            {invoice.discount_amount > 0 && (
+            {invoice.discount_total > 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-[var(--text-tertiary)]">Discount ({invoice.discount_percent}%)</span>
-                <span className="text-red-400">-${invoice.discount_amount.toFixed(2)}</span>
+                <span className="text-red-400">-${invoice.discount_total.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-xs">

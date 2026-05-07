@@ -164,10 +164,14 @@ def retail_checkout(
             amount=line_total,
             taxable=final_tax_percent > 0,
             product_source="device_inventory",
+            sku=getattr(item, 'sku', None),
+            batch_serial=getattr(item, 'batch_serial', None),
+            item_discount_amount=getattr(item, 'item_discount_amount', 0.0),
+            item_discount_percent=getattr(item, 'item_discount_percent', 0.0),
             unit_price=item.unit_price
         )
         db.add(db_item)
-        
+
     for p in req.payments:
         db_payment = models.PaymentTransaction(
             invoice_id=db_invoice.id,
@@ -178,7 +182,7 @@ def retail_checkout(
         )
         db_payment.org_id = org_id
         db.add(db_payment)
-        
+
     db.commit()
     db.refresh(db_invoice)
     org_settings = db.query(models.OrganizationSettings).filter(
@@ -286,10 +290,14 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
             amount=line_total,
             taxable=final_tax_percent > 0,
             product_source="device_inventory",
+            sku=getattr(item, 'sku', None),
+            batch_serial=getattr(item, 'batch_serial', None),
+            item_discount_amount=getattr(item, 'item_discount_amount', 0.0),
+            item_discount_percent=getattr(item, 'item_discount_percent', 0.0),
             unit_price=item.unit_price
         )
         db.add(db_item)
-        
+
     db.commit()
     db.refresh(db_invoice)
     org_settings = db.query(models.OrganizationSettings).filter(
@@ -1069,11 +1077,11 @@ def create_invoice_from_form(
     if customer_db_obj and customer_db_obj.tax_exempt_id:
         final_tax_percent = 0.0
 
-    discount_amount = req.discount_amount or 0.0
+    discount_total = req.discount_total or 0.0
     if req.discount_percent and req.discount_percent > 0:
-        discount_amount = subtotal * (req.discount_percent / 100.0)
+        discount_total = subtotal * (req.discount_percent / 100.0)
 
-    discounted_subtotal = subtotal - discount_amount
+    discounted_subtotal = subtotal - discount_total
     tax_amount = discounted_subtotal * (final_tax_percent / 100.0)
     total = discounted_subtotal + tax_amount
 
@@ -1120,7 +1128,8 @@ def create_invoice_from_form(
         message_on_invoice=req.message_on_invoice,
         statement_memo=req.statement_memo,
         discount_percent=req.discount_percent or 0.0,
-        discount_amount=discount_amount,
+        discount_total=discount_total,
+        currency=req.currency or "USD",
         due_date=req.due_date or (datetime.utcnow() + timedelta(days=30)),
         internal_notes=req.internal_notes,
         org_id=org_id
@@ -1170,6 +1179,10 @@ def create_invoice_from_form(
             amount=line_total,
             taxable=item.taxable and final_tax_percent > 0,
             product_source="device_inventory" if item.imei else "manual",
+            sku=item.sku,
+            batch_serial=item.batch_serial,
+            item_discount_amount=item.item_discount_amount,
+            item_discount_percent=item.item_discount_percent,
             unit_price=item.rate
         )
         db.add(db_item)
@@ -1441,6 +1454,10 @@ def create_progress_invoice(
             amount=line_total,
             taxable=item.taxable and estimate.tax_percent > 0,
             product_source="device_inventory" if item.imei else "manual",
+            sku=getattr(item, 'sku', None),
+            batch_serial=getattr(item, 'batch_serial', None),
+            item_discount_amount=getattr(item, 'item_discount_amount', 0.0),
+            item_discount_percent=getattr(item, 'item_discount_percent', 0.0),
             unit_price=item.rate
         )
         db.add(db_item)
@@ -1676,6 +1693,10 @@ def scheduler_run(db: Session = Depends(get_db)):
                     amount=rate_val * qty_val,
                     taxable=li.get("taxable", True) and tax_rate > 0,
                     product_source=li.get("product_source", "manual"),
+                    sku=li.get("sku"),
+                    batch_serial=li.get("batch_serial"),
+                    item_discount_amount=li.get("item_discount_amount", 0.0),
+                    item_discount_percent=li.get("item_discount_percent", 0.0),
                     unit_price=rate_val
                 )
                 db.add(db_item)
@@ -1886,3 +1907,125 @@ def void_draft_invoice(
     db.commit()
 
     return {"status": "voided", "invoice_number": invoice.invoice_number, "devices_released": released}
+
+
+# ── PDF Download ────────────────────────────────────────────────────────────
+
+@router.get("/invoices/{invoice_id}/pdf")
+def download_invoice_pdf(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    customer_info = {}
+    if invoice.customer:
+        customer_info = {
+            "crm_id": invoice.customer_id,
+            "name": invoice.customer.company_name or f"{invoice.customer.first_name or ''} {invoice.customer.last_name or ''}".strip(),
+            "phone": invoice.customer.phone,
+            "email": invoice.customer.email,
+        }
+
+    invoice_data = {
+        "invoice_id": invoice.invoice_number,
+        "date": invoice.created_at.isoformat(),
+        "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
+        "customer": customer_info,
+        "lines": [{
+            "imei": i.imei,
+            "model": i.model_number,
+            "description": i.description,
+            "sku": i.sku,
+            "batch_serial": i.batch_serial,
+            "qty": i.quantity,
+            "rate": i.rate,
+            "amount": i.amount,
+            "item_discount_amount": i.item_discount_amount,
+            "final_price": i.unit_price or i.rate,
+        } for i in invoice.items],
+        "summary": {
+            "subtotal": invoice.subtotal,
+            "discount_percent": invoice.discount_percent,
+            "discount_total": invoice.discount_total,
+            "tax_percent": invoice.tax_percent,
+            "tax_amount": invoice.tax_amount,
+            "total_due": invoice.total,
+            "paid_amount": invoice.paid_amount,
+            "balance_due": invoice.total - invoice.paid_amount,
+        },
+        "terms": invoice.invoice_terms,
+        "message": invoice.message_on_invoice,
+        "memo": invoice.statement_memo,
+    }
+    pdf_bytes = generate_wholesale_invoice_pdf(invoice_data)
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={invoice.invoice_number}.pdf"}
+    )
+
+
+# ── Email Invoice ──────────────────────────────────────────────────────────
+
+@router.post("/invoices/{invoice_id}/email")
+def email_invoice(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if not invoice.customer or not invoice.customer.email:
+        raise HTTPException(status_code=400, detail="Customer has no email address")
+
+    invoice.emailed_at = datetime.utcnow()
+    invoice.sent_at = invoice.sent_at or datetime.utcnow()
+    db.commit()
+
+    return {
+        "status": "sent",
+        "invoice_number": invoice.invoice_number,
+        "recipient": invoice.customer.email,
+        "sent_at": invoice.emailed_at.isoformat(),
+    }
+
+
+# ── Attachments ─────────────────────────────────────────────────────────────
+
+@router.post("/invoices/{invoice_id}/attachments")
+def upload_invoice_attachment(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    db.add(models.AdminAuditLog(
+        org_id=org_id,
+        actor_email=current_user.email,
+        action="attachment_upload",
+        target=invoice_id,
+        details="Attachment uploaded to invoice"
+    ))
+    db.commit()
+
+    return {"status": "uploaded", "invoice_number": invoice.invoice_number}

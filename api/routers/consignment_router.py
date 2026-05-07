@@ -276,6 +276,10 @@ def settle_batch(
                 amount=line_total,
                 taxable=tax_percent > 0,
                 product_source="device_inventory" if db_item.imei else "manual",
+                sku=db_item.sku,
+                batch_serial=getattr(db_item, 'batch_serial', None),
+                item_discount_amount=getattr(db_item, 'item_discount_amount', 0.0),
+                item_discount_percent=getattr(db_item, 'item_discount_percent', 0.0),
                 unit_price=db_item.unit_price
             )
             db.add(inv_item)

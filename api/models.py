@@ -266,7 +266,8 @@ class Invoice(Base):
     message_on_invoice = Column(String, nullable=True)
     statement_memo = Column(String, nullable=True)
     discount_percent = Column(Float, default=0.0)
-    discount_amount = Column(Float, default=0.0)
+    discount_total = Column(Float, default=0.0)
+    currency = Column(String, default="USD")
     share_token = Column(String, unique=True, index=True, nullable=True)
     internal_notes = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
@@ -274,6 +275,10 @@ class Invoice(Base):
     customer = relationship("UnifiedCustomer")
     items = relationship("InvoiceItem", back_populates="invoice")
     payments = relationship("PaymentTransaction", back_populates="invoice")
+
+    @property
+    def paid_amount(self) -> float:
+        return sum(p.amount for p in (self.payments or []))
 
 class RecurringFrequency(str, enum.Enum):
     Weekly = "Weekly"
@@ -330,6 +335,10 @@ class InvoiceItem(Base):
     amount = Column(Float, default=0.0)
     taxable = Column(Boolean, default=True)
     product_source = Column(String, nullable=True)  # "device_inventory", "device_catalog", "parts_inventory", "manual"
+    sku = Column(String, nullable=True)
+    batch_serial = Column(String, nullable=True)
+    item_discount_amount = Column(Float, default=0.0)
+    item_discount_percent = Column(Float, default=0.0)
     unit_price = Column(Float)  # deprecated, use rate
 
     invoice = relationship("Invoice", back_populates="items")

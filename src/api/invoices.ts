@@ -12,6 +12,10 @@ export interface InvoiceItem {
   amount: number;
   taxable: boolean;
   product_source?: string | null;
+  sku?: string | null;
+  batch_serial?: string | null;
+  item_discount_amount: number;
+  item_discount_percent: number;
 }
 
 export interface Invoice {
@@ -35,7 +39,9 @@ export interface Invoice {
   message_on_invoice?: string | null;
   statement_memo?: string | null;
   discount_percent: number;
-  discount_amount: number;
+  discount_total: number;
+  currency: string;
+  paid_amount: number;
   share_token?: string | null;
   internal_notes?: string | null;
   created_at: string;
@@ -61,6 +67,10 @@ export interface InvoiceFormItem {
   qty: number;
   rate: number;
   taxable: boolean;
+  sku?: string;
+  batch_serial?: string;
+  item_discount_amount: number;
+  item_discount_percent: number;
 }
 
 export interface InvoiceCreate {
@@ -73,7 +83,8 @@ export interface InvoiceCreate {
   message_on_invoice?: string;
   statement_memo?: string;
   discount_percent?: number;
-  discount_amount?: number;
+  discount_total?: number;
+  currency?: string;
   tax_percent?: number;
   fulfillment_method?: string;
   shipping_address?: string;
@@ -169,5 +180,19 @@ export async function fetchInvoiceTimeline(invoiceNumber: string): Promise<Invoi
 
 export async function voidInvoice(invoiceNumber: string): Promise<{ status: string; invoice_number: string; devices_released: number }> {
   const { data } = await api.post(`/api/pos/invoices/${invoiceNumber}/void`);
+  return data;
+}
+
+export function invoicePdfUrl(invoiceNumber: string): string {
+  return `/api/pos/invoices/${invoiceNumber}/pdf`;
+}
+
+export async function emailInvoice(invoiceNumber: string): Promise<{ status: string; invoice_number: string; recipient: string; sent_at: string }> {
+  const { data } = await api.post(`/api/pos/invoices/${invoiceNumber}/email`);
+  return data;
+}
+
+export async function uploadAttachment(invoiceNumber: string): Promise<{ status: string; invoice_number: string }> {
+  const { data } = await api.post(`/api/pos/invoices/${invoiceNumber}/attachments`);
   return data;
 }

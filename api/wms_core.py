@@ -162,6 +162,10 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
                 amount=line["final_price"],
                 taxable=tax_percent > 0,
                 product_source="device_inventory",
+                sku=line.get("sku"),
+                batch_serial=line.get("batch_serial"),
+                item_discount_amount=line.get("item_discount_amount", 0.0),
+                item_discount_percent=line.get("item_discount_percent", 0.0),
                 unit_price=line["final_price"]
             )
             db.add(db_item)
