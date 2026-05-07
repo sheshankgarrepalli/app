@@ -452,16 +452,44 @@ export default function InvoiceForm() {
                             const results = await fetchAutocomplete(val);
                             if (results.length > 0) {
                               const r = results[0];
-                              const next = [...items];
-                              next[idx] = {
-                                ...next[idx],
-                                description: next[idx].description || r.label,
-                                imei: next[idx].imei || r.imei || val,
-                                model_number: next[idx].model_number || r.model_number || r.sku || '',
-                                sku: next[idx].sku || r.sku || r.model_number || '',
-                                rate: next[idx].rate || r.price || 0,
-                              };
-                              setItems(next);
+                              const matchedModel = r.model_number || r.sku || r.label;
+                              // Check if any existing row already has this model
+                              const existingIdx = items.findIndex((it, i) =>
+                                i !== idx && it.model_number === matchedModel && (it.description || it.imei)
+                              );
+                              if (existingIdx >= 0) {
+                                // Stack onto existing row
+                                const next = [...items];
+                                const existing = next[existingIdx];
+                                const existingImeis = (existing.batch_serial || '').split(',').map(s => s.trim()).filter(Boolean);
+                                if (!existingImeis.includes(val)) existingImeis.push(val);
+                                next[existingIdx] = {
+                                  ...existing,
+                                  qty: existing.qty + 1,
+                                  batch_serial: existingImeis.join(', '),
+                                };
+                                // Clear current row or remove if empty
+                                const currentRow = next[idx];
+                                if (!currentRow.description && !currentRow.imei && !currentRow.sku) {
+                                  next.splice(idx, 1);
+                                } else {
+                                  next[idx] = { ...currentRow, batch_serial: '' };
+                                }
+                                setItems(next);
+                              } else {
+                                // New model — populate current row
+                                const next = [...items];
+                                next[idx] = {
+                                  ...next[idx],
+                                  description: next[idx].description || r.label,
+                                  imei: r.imei || val,
+                                  model_number: next[idx].model_number || matchedModel,
+                                  sku: next[idx].sku || r.sku || '',
+                                  rate: next[idx].rate || r.price || 0,
+                                  batch_serial: val,
+                                };
+                                setItems(next);
+                              }
                             }
                           } catch { /* ignore */ }
                         }}
