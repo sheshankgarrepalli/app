@@ -104,6 +104,7 @@ def db_sync():
         _safe_add_column(db, "invoices", "statement_memo", "TEXT")
         _safe_add_column(db, "invoices", "discount_percent", "FLOAT", "0.0")
         _safe_add_column(db, "invoices", "discount_amount", "FLOAT", "0.0")
+        _safe_add_column(db, "invoices", "share_token", "TEXT")
 
         _safe_add_column(db, "organization_settings", "logo_url", "TEXT")
         _safe_add_column(db, "organization_settings", "invoice_template", "TEXT", "'modern'")

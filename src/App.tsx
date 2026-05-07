@@ -19,6 +19,9 @@ import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import Consignments from './pages/Consignments';
 import ConsignmentDetail from './pages/ConsignmentDetail';
+import PublicInvoice from './pages/PublicInvoice';
+import InvoiceForm from './pages/InvoiceForm';
+import InvoicesList from './pages/InvoicesList';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -116,6 +119,13 @@ function AuthRoutes() {
       <Route path="/admin/customers/:crmId" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><CustomerDetail /></ProtectedRoute>} />
       <Route path="/admin/consignments" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><Consignments /></ProtectedRoute>} />
       <Route path="/admin/consignments/:batchId" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><ConsignmentDetail /></ProtectedRoute>} />
+
+      {/* Invoice Routes */}
+      <Route path="/admin/invoices" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoicesList /></ProtectedRoute>} />
+      <Route path="/admin/invoices/new" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceForm /></ProtectedRoute>} />
+
+      {/* Public Invoice Route — no auth */}
+      <Route path="/invoice/:shareToken" element={<PublicInvoice />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

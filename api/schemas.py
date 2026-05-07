@@ -543,6 +543,7 @@ class InvoiceOut(BaseModel):
     statement_memo: Optional[str] = None
     discount_percent: float = 0.0
     discount_amount: float = 0.0
+    share_token: Optional[str] = None
     created_at: datetime
     items: List[InvoiceItemOut]
     customer: Optional[UnifiedCustomerOut]

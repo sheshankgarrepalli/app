@@ -1624,3 +1624,68 @@ def scheduler_run(db: Session = Depends(get_db)):
         invoices_created=invoices_created,
         errors=errors
     )
+
+
+# ── Shareable Invoice Links ─────────────────────────────────────────────────
+
+@router.post("/invoices/{invoice_id}/share")
+def generate_share_link(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if not invoice.share_token:
+        invoice.share_token = uuid.uuid4().hex
+        db.commit()
+
+    return {"share_token": invoice.share_token,
+            "url": f"/invoice/{invoice.share_token}"}
+
+
+@router.delete("/invoices/{invoice_id}/share")
+def revoke_share_link(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    invoice.share_token = None
+    db.commit()
+    return {"status": "revoked"}
+
+
+@router.get("/public/invoice/{share_token}", response_model=schemas.InvoiceOut)
+def get_public_invoice(
+    share_token: str,
+    db: Session = Depends(get_db)
+):
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.share_token == share_token
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if invoice.viewed_at is None:
+        invoice.viewed_at = datetime.utcnow()
+        db.commit()
+
+    org_settings = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == invoice.org_id
+    ).first()
+    invoice.invoice_terms = org_settings.invoice_terms if org_settings else None
+    return invoice

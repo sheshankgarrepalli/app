@@ -623,3 +623,72 @@ def batch_route_devices(
         succeeded=succeeded,
         failed=len(results) - succeeded,
     )
+
+
+# ── Autocomplete for Invoice Line Items ─────────────────────────────────────
+
+@router.get("/autocomplete")
+def autocomplete(
+    q: str = "",
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    results = []
+    sf = f"%{q}%"
+
+    # Search device_inventory (sellable devices by IMEI or model)
+    devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceInventory.device_status == models.DeviceStatus.Sellable,
+        (models.DeviceInventory.imei.ilike(sf)) |
+        (models.DeviceInventory.model_number.ilike(sf)) |
+        (models.DeviceInventory.serial_number.ilike(sf))
+    ).limit(10).all()
+    for d in devices:
+        model_info = f"{d.model.brand} {d.model.name} {d.model.storage_gb}GB" if d.model else d.model_number
+        results.append({
+            "type": "device_inventory",
+            "label": f"IMEI: {d.imei} - {model_info or 'Unknown'}",
+            "sublabel": f"Status: {d.device_status.value} | Location: {d.location_id}",
+            "imei": d.imei,
+            "model_number": d.model_number,
+            "price": d.cost_basis or 0,
+            "cost_basis": d.cost_basis or 0,
+            "status": d.device_status.value if d.device_status else None,
+            "location_id": d.location_id,
+        })
+
+    # Search device_catalog
+    catalog = db.query(models.DeviceCatalog).filter(
+        (models.DeviceCatalog.model_number.ilike(sf)) |
+        (models.DeviceCatalog.brand.ilike(sf)) |
+        (models.DeviceCatalog.name.ilike(sf))
+    ).limit(5).all()
+    for c in catalog:
+        results.append({
+            "type": "device_catalog",
+            "label": f"{c.brand} {c.name} ({c.storage}) - {c.model_number}",
+            "sublabel": f"Color: {c.color}",
+            "model_number": c.model_number,
+            "price": 0,
+        })
+
+    # Search parts_inventory
+    parts = db.query(models.PartsInventory).filter(
+        models.PartsInventory.org_id == org_id,
+        (models.PartsInventory.sku.ilike(sf)) |
+        (models.PartsInventory.part_name.ilike(sf))
+    ).limit(5).all()
+    for p in parts:
+        results.append({
+            "type": "parts_inventory",
+            "label": f"{p.part_name} ({p.sku})",
+            "sublabel": f"Stock: {p.current_stock_qty} | Avg Cost: ${p.moving_average_cost:.2f}",
+            "sku": p.sku,
+            "part_name": p.part_name,
+            "price": p.moving_average_cost or 0,
+            "stock_qty": p.current_stock_qty,
+        })
+
+    return results[:20]
