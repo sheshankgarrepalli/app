@@ -393,7 +393,7 @@ export default function InvoiceForm() {
                 <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
                   <th className="text-left p-3 w-[22%]">Product / Service</th>
                   <th className="text-left p-3 w-[12%]">SKU</th>
-                  <th className="text-left p-3 w-[12%]">Batch / Serial</th>
+                  <th className="text-left p-3 w-[12%]">Serial / IMEI</th>
                   <th className="text-center p-3 w-[7%]">Qty</th>
                   <th className="text-right p-3 w-[10%]">Price</th>
                   <th className="text-right p-3 w-[14%]">Discount</th>
@@ -442,9 +442,29 @@ export default function InvoiceForm() {
                       <input
                         type="text"
                         className="form-input text-xs py-1.5"
-                        placeholder="Serial #"
+                        placeholder="IMEI or serial #"
                         value={item.batch_serial || ''}
                         onChange={e => updateItem(idx, 'batch_serial', e.target.value)}
+                        onBlur={async (e) => {
+                          const val = e.target.value.trim();
+                          if (val.length < 5) return;
+                          try {
+                            const results = await fetchAutocomplete(val);
+                            if (results.length > 0) {
+                              const r = results[0];
+                              const next = [...items];
+                              next[idx] = {
+                                ...next[idx],
+                                description: next[idx].description || r.label,
+                                imei: next[idx].imei || r.imei || val,
+                                model_number: next[idx].model_number || r.model_number || r.sku || '',
+                                sku: next[idx].sku || r.sku || r.model_number || '',
+                                rate: next[idx].rate || r.price || 0,
+                              };
+                              setItems(next);
+                            }
+                          } catch { /* ignore */ }
+                        }}
                       />
                     </td>
                     <td className="p-2">
