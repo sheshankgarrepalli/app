@@ -506,7 +506,64 @@ export default function InvoiceForm() {
             )}
           </div>
 
-          {/* Footer Action Cards */}
+          {/* Payments */}
+          <div className="card overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-tertiary)]">
+              <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Payments Received</p>
+              <button onClick={addPayment} className="flex items-center gap-1 text-xs text-accent hover:text-accent/80 font-medium">
+                <Plus size={13} /> Split Payment
+              </button>
+            </div>
+            {payments.length === 0 ? (
+              <div className="px-5 py-4 text-center">
+                <p className="text-xs text-[var(--text-tertiary)] mb-3">No payments recorded yet</p>
+                <button onClick={addPayment} className="btn-secondary flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium mx-auto">
+                  <Wallet size={12} /> Record Payment
+                </button>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
+                    <th className="text-left p-3">Method</th>
+                    <th className="text-right p-3 w-28">Amount ($)</th>
+                    <th className="text-left p-3 w-40">Reference</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-primary)]">
+                  {payments.map((p, idx) => (
+                    <tr key={idx}>
+                      <td className="p-2">
+                        <select className="form-input text-xs py-1.5" value={p.payment_method} onChange={e => updatePayment(idx, 'payment_method', e.target.value)}>
+                          {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input type="number" step="0.01" className="form-input text-xs text-right py-1.5" value={p.amount || ''} onChange={e => updatePayment(idx, 'amount', parseFloat(e.target.value) || 0)} />
+                      </td>
+                      <td className="p-2">
+                        <input type="text" className="form-input text-xs py-1.5" placeholder="e.g. last 4 digits" value={p.reference_id} onChange={e => updatePayment(idx, 'reference_id', e.target.value)} />
+                      </td>
+                      <td className="p-2">
+                        <button onClick={() => removePayment(idx)} className="text-[var(--text-tertiary)] hover:text-red-400"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {payments.length === 1 && payments[0].amount < total - 0.01 && total > 0 && (
+              <div className="px-5 py-2 border-t border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50">
+                <button
+                  onClick={() => updatePayment(0, 'amount', parseFloat(total.toFixed(2)))}
+                  className="text-xs text-accent hover:text-accent/80 font-medium"
+                >
+                  Pay in Full (${total.toFixed(2)})
+                </button>
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <button
               onClick={handleEmailInvoice}
@@ -712,53 +769,6 @@ export default function InvoiceForm() {
           <textarea className="form-input" rows={2} value={internalNotes} onChange={e => setInternalNotes(e.target.value)} placeholder="Staff notes — not shown to customer" />
         </div>
 
-        {/* Payments */}
-        <div className="card overflow-hidden col-span-2">
-          <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-tertiary)]">
-            <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Payments Received</p>
-            <button onClick={addPayment} className="flex items-center gap-1 text-xs text-accent hover:text-accent/80 font-medium">
-              <Plus size={13} /> Split Payment
-            </button>
-          </div>
-          {payments.length === 0 ? (
-            <div className="px-4 py-3 text-center">
-              <button onClick={addPayment} className="btn-secondary flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium mx-auto">
-                <Wallet size={12} /> Add Payment
-              </button>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
-                  <th className="text-left p-2">Method</th>
-                  <th className="text-right p-2 w-24">Amount</th>
-                  <th className="text-left p-2 w-32">Reference</th>
-                  <th className="w-8"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-primary)]">
-                {payments.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="p-2">
-                      <select className="form-input text-xs py-1" value={p.payment_method} onChange={e => updatePayment(idx, 'payment_method', e.target.value)}>
-                        {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <input type="number" step="0.01" className="form-input text-xs text-right py-1" value={p.amount || ''} onChange={e => updatePayment(idx, 'amount', parseFloat(e.target.value) || 0)} />
-                    </td>
-                    <td className="p-2">
-                      <input type="text" className="form-input text-xs py-1" placeholder="Ref ID..." value={p.reference_id} onChange={e => updatePayment(idx, 'reference_id', e.target.value)} />
-                    </td>
-                    <td className="p-2">
-                      <button onClick={() => removePayment(idx)} className="text-[var(--text-tertiary)] hover:text-red-400"><Trash2 size={13} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
     </div>
   );
