@@ -265,10 +265,17 @@ def settle_batch(
 
         for db_item, sold_qty in sold_items:
             db_item.resulting_invoice_id = invoice.id
+            line_total = db_item.unit_price * sold_qty
             inv_item = models.InvoiceItem(
                 invoice_id=invoice.id,
-                imei=db_item.imei or "",
+                imei=db_item.imei or None,
                 model_number=db_item.sku or db_item.description,
+                description=db_item.description,
+                quantity=sold_qty,
+                rate=db_item.unit_price,
+                amount=line_total,
+                taxable=tax_percent > 0,
+                product_source="device_inventory" if db_item.imei else "manual",
                 unit_price=db_item.unit_price
             )
             db.add(inv_item)

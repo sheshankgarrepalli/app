@@ -318,6 +318,7 @@ class StoreLocationOut(BaseModel):
     name: str
     location_type: str
     address: Optional[str] = None
+    invoice_prefix: Optional[str] = None
     class Config: from_attributes = True
 
 class InventoryListResponse(BaseModel):
@@ -477,8 +478,28 @@ class PaymentTransactionOut(PaymentSchema):
     class Config: from_attributes = True
 
 class InvoiceItemCreate(BaseModel):
-    imei: str
-    unit_price: float
+    imei: Optional[str] = None
+    model_number: Optional[str] = None
+    description: Optional[str] = None
+    quantity: int = 1
+    rate: float = 0.0
+    amount: float = 0.0
+    taxable: bool = True
+    product_source: Optional[str] = None
+    unit_price: float = 0.0
+
+class InvoiceItemOut(BaseModel):
+    id: int
+    invoice_id: int
+    imei: Optional[str] = None
+    model_number: Optional[str] = None
+    description: Optional[str] = None
+    quantity: int
+    rate: float
+    amount: float
+    taxable: bool
+    product_source: Optional[str] = None
+    class Config: from_attributes = True
 
 class RetailCheckoutRequest(BaseModel):
     customer_id: Optional[str] = None
@@ -523,7 +544,7 @@ class InvoiceOut(BaseModel):
     discount_percent: float = 0.0
     discount_amount: float = 0.0
     created_at: datetime
-    items: List[InvoiceItemCreate]
+    items: List[InvoiceItemOut]
     customer: Optional[UnifiedCustomerOut]
     payments: List[PaymentTransactionOut] = []
     invoice_terms: Optional[str] = None

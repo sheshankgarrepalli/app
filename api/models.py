@@ -64,6 +64,7 @@ class StoreLocation(Base):
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
     location_type = Column(Enum(LocationType), nullable=False, default=LocationType.retail)
+    invoice_prefix = Column(String, nullable=True)  # e.g., "WH", "GP", "FL", "FS" for invoice numbering
 
 class OrganizationSettings(Base):
     __tablename__ = "organization_settings"
@@ -319,10 +320,16 @@ class InvoiceItem(Base):
     __tablename__ = "invoice_items"
     id = Column(Integer, primary_key=True, index=True)
     invoice_id = Column(Integer, ForeignKey("invoices.id"), index=True)
-    imei = Column(String, index=True)
-    model_number = Column(String)
-    unit_price = Column(Float)
-    
+    imei = Column(String, index=True, nullable=True)
+    model_number = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    quantity = Column(Integer, default=1)
+    rate = Column(Float, default=0.0)
+    amount = Column(Float, default=0.0)
+    taxable = Column(Boolean, default=True)
+    product_source = Column(String, nullable=True)  # "device_inventory", "device_catalog", "parts_inventory", "manual"
+    unit_price = Column(Float)  # deprecated, use rate
+
     invoice = relationship("Invoice", back_populates="items")
 
 class PaymentTransaction(Base):

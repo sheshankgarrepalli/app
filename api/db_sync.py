@@ -112,6 +112,13 @@ def db_sync():
         _safe_add_column(db, "organization_settings", "reminder_template_body", "TEXT")
 
         _safe_add_column(db, "invoice_items", "org_id", "TEXT")
+        _safe_add_column(db, "invoice_items", "description", "TEXT")
+        _safe_add_column(db, "invoice_items", "quantity", "INTEGER", "1")
+        _safe_add_column(db, "invoice_items", "rate", "FLOAT", "0.0")
+        _safe_add_column(db, "invoice_items", "amount", "FLOAT", "0.0")
+        _safe_add_column(db, "invoice_items", "taxable", "BOOLEAN DEFAULT TRUE")
+        _safe_add_column(db, "invoice_items", "product_source", "TEXT")
+        _safe_add_column(db, "store_locations", "invoice_prefix", "TEXT")
         _safe_add_column(db, "manifest_items", "org_id", "TEXT")
 
         # ── Ensure PostgreSQL enum types have all values ──
@@ -234,10 +241,10 @@ def db_sync():
 
         # ── Seed missing store locations ──
         seed_stores = [
-            {"id": "warehouse", "name": "Warehouse", "type": models.LocationType.warehouse},
-            {"id": "grand-prairie", "name": "Grand Prairie", "type": models.LocationType.retail},
-            {"id": "foodland", "name": "Foodland", "type": models.LocationType.retail},
-            {"id": "fiesta", "name": "Fiesta", "type": models.LocationType.retail},
+            {"id": "warehouse", "name": "Warehouse", "type": models.LocationType.warehouse, "prefix": "WH"},
+            {"id": "grand-prairie", "name": "Grand Prairie", "type": models.LocationType.retail, "prefix": "GP"},
+            {"id": "foodland", "name": "Foodland", "type": models.LocationType.retail, "prefix": "FL"},
+            {"id": "fiesta", "name": "Fiesta", "type": models.LocationType.retail, "prefix": "FS"},
         ]
         for store_def in seed_stores:
             existing = db.query(models.StoreLocation).filter(
@@ -249,7 +256,8 @@ def db_sync():
                     id=store_def["id"],
                     name=store_def["name"],
                     org_id=default_org_id,
-                    location_type=store_def["type"]
+                    location_type=store_def["type"],
+                    invoice_prefix=store_def.get("prefix", "")
                 )
                 db.add(s)
                 db.commit()
@@ -292,6 +300,24 @@ def db_sync():
         print(f"Updated {invoices_updated} invoices to default store.")
 
         db.commit()
+
+        # ── Backfill invoice_prefix on existing stores ──
+        prefix_map = {
+            "warehouse": "WH",
+            "grand-prairie": "GP",
+            "foodland": "FL",
+            "fiesta": "FS",
+        }
+        for sid, prefix in prefix_map.items():
+            try:
+                db.execute(
+                    text("UPDATE store_locations SET invoice_prefix = :p WHERE id = :sid AND invoice_prefix IS NULL"),
+                    {"p": prefix, "sid": sid}
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+
         print("Database sync complete.")
     except Exception as e:
         db.rollback()

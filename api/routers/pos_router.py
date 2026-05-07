@@ -16,6 +16,33 @@ from wholesale_invoice_pdf import generate_wholesale_invoice_pdf
 
 router = APIRouter(prefix="/api/pos", tags=["pos"])
 
+def _generate_invoice_number(db: Session, store_id: str, org_id: str) -> str:
+    """Generate {STORE_PREFIX}-{YYMM}-{NNNN} invoice number, per-store monthly sequence."""
+    now = datetime.utcnow()
+    yymm = now.strftime("%y%m")
+
+    store = db.query(models.StoreLocation).filter(
+        models.StoreLocation.id == store_id,
+        models.StoreLocation.org_id == org_id
+    ).first()
+    prefix = (store.invoice_prefix if store and store.invoice_prefix else store_id[:2]).upper()
+
+    last = db.query(models.Invoice).filter(
+        models.Invoice.store_id == store_id,
+        models.Invoice.org_id == org_id,
+        models.Invoice.invoice_number.like(f"{prefix}-{yymm}-%")
+    ).order_by(models.Invoice.id.desc()).first()
+
+    if last:
+        try:
+            seq = int(last.invoice_number.split("-")[-1]) + 1
+        except (ValueError, IndexError):
+            seq = 1
+    else:
+        seq = 1
+
+    return f"{prefix}-{yymm}-{seq:04d}"
+
 @router.post("/checkout", response_model=schemas.InvoiceOut)
 def retail_checkout(
     req: schemas.RetailCheckoutRequest,
@@ -81,7 +108,6 @@ def retail_checkout(
             raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f}). Current payments: ${total_payments:.2f}")
     
     db_invoice = models.Invoice(
-        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
         store_id=current_user.store_id,
         subtotal=subtotal,
@@ -97,11 +123,11 @@ def retail_checkout(
     db_invoice.org_id = org_id
     db.add(db_invoice)
     db.flush()
-    db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
+    db_invoice.invoice_number = _generate_invoice_number(db, current_user.store_id, org_id)
 
     from datetime import timedelta
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
-    
+
     for item in req.items:
         db_store_inv = device_cache[item.imei]
         if total_payments >= total - 0.01:
@@ -111,10 +137,17 @@ def retail_checkout(
 
         db_store_inv.warranty_expiry_date = warranty_expiry
 
+        line_total = item.unit_price
         db_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
             imei=item.imei,
             model_number=db_store_inv.model_number,
+            description=f"{db_store_inv.model_number or 'Device'} - IMEI: {item.imei}",
+            quantity=1,
+            rate=item.unit_price,
+            amount=line_total,
+            taxable=final_tax_percent > 0,
+            product_source="device_inventory",
             unit_price=item.unit_price
         )
         db.add(db_item)
@@ -185,7 +218,6 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     total = subtotal + tax_amount
 
     db_invoice = models.Invoice(
-        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
         store_id=current_user.store_id,
         subtotal=subtotal,
@@ -199,24 +231,29 @@ def create_invoice(invoice: schemas.InvoiceCreate, db: Session = Depends(get_db)
     db_invoice.org_id = org_id
     db.add(db_invoice)
     db.flush()
-    db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
-    db.commit()
-    db.refresh(db_invoice)
-    
+    db_invoice.invoice_number = _generate_invoice_number(db, current_user.store_id, org_id)
+
     from datetime import timedelta
     warranty_expiry = db_invoice.created_at + timedelta(days=15)
-    
+
     for item in invoice.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
             models.DeviceInventory.org_id == org_id
         ).first()
         db_store_inv.warranty_expiry_date = warranty_expiry
-        
+
+        line_total = item.unit_price
         db_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
             imei=item.imei,
             model_number=db_store_inv.model_number,
+            description=f"{db_store_inv.model_number or 'Device'} - IMEI: {item.imei}",
+            quantity=1,
+            rate=item.unit_price,
+            amount=line_total,
+            taxable=final_tax_percent > 0,
+            product_source="device_inventory",
             unit_price=item.unit_price
         )
         db.add(db_item)
@@ -480,17 +517,27 @@ def update_invoice(
     db.query(models.InvoiceItem).filter(models.InvoiceItem.invoice_id == invoice.id).delete()
     subtotal = 0.0
     for item in req.items:
-        device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first()
-        if not device:
-            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found in inventory")
+        device = None
+        if item.imei:
+            device = db.query(models.DeviceInventory).filter(models.DeviceInventory.imei == item.imei).first()
+            if not device:
+                raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found in inventory")
+
+        line_total = item.rate * item.quantity if item.rate else item.unit_price
+        subtotal += line_total
         db_item = models.InvoiceItem(
             invoice_id=invoice.id,
-            imei=item.imei,
-            model_number=device.model_number,
-            unit_price=item.unit_price
+            imei=item.imei or None,
+            model_number=item.model_number or (device.model_number if device else None),
+            description=item.description or (f"{device.model_number} - IMEI: {item.imei}" if device else item.model_number),
+            quantity=item.quantity or 1,
+            rate=item.rate or item.unit_price,
+            amount=item.amount or line_total,
+            taxable=item.taxable if item.taxable is not None else True,
+            product_source=item.product_source or ("device_inventory" if item.imei else "manual"),
+            unit_price=item.rate or item.unit_price
         )
         db.add(db_item)
-        subtotal += item.unit_price
 
     # Update Invoice Totals
     customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
@@ -983,7 +1030,6 @@ def create_invoice_from_form(
     is_paid_in_full = total_payments >= total - 0.01
 
     db_invoice = models.Invoice(
-        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=customer_id,
         store_id=current_user.store_id,
         subtotal=subtotal,
@@ -1003,7 +1049,7 @@ def create_invoice_from_form(
     )
     db.add(db_invoice)
     db.flush()
-    db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
+    db_invoice.invoice_number = _generate_invoice_number(db, current_user.store_id, org_id)
 
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
 
@@ -1019,10 +1065,17 @@ def create_invoice_from_form(
                 db_store_inv.device_status = models.DeviceStatus.Reserved_Layaway
             db_store_inv.warranty_expiry_date = warranty_expiry
 
+        line_total = item.rate * item.qty
         db_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
-            imei=item.imei or "",
+            imei=item.imei or None,
             model_number=item.model_number,
+            description=item.description or (f"{item.model_number} - IMEI: {item.imei}" if item.imei else item.model_number),
+            quantity=item.qty,
+            rate=item.rate,
+            amount=line_total,
+            taxable=item.taxable and final_tax_percent > 0,
+            product_source="device_inventory" if item.imei else "manual",
             unit_price=item.rate
         )
         db.add(db_item)
@@ -1268,7 +1321,6 @@ def create_progress_invoice(
     is_final = new_total >= estimate.total - 0.01
 
     db_invoice = models.Invoice(
-        invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
         customer_id=estimate.customer_id,
         store_id=current_user.store_id,
         subtotal=progress_subtotal,
@@ -1284,10 +1336,17 @@ def create_progress_invoice(
     db_invoice.invoice_number = f"PROG-{estimate_id}-{db_invoice.id:04d}"
 
     for item in req.items:
+        line_total = item.rate * item.qty
         db_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
-            imei=item.imei or "",
+            imei=item.imei or None,
             model_number=item.model_number,
+            description=item.description or (f"{item.model_number} - IMEI: {item.imei}" if item.imei else item.model_number),
+            quantity=item.qty,
+            rate=item.rate,
+            amount=line_total,
+            taxable=item.taxable and estimate.tax_percent > 0,
+            product_source="device_inventory" if item.imei else "manual",
             unit_price=item.rate
         )
         db.add(db_item)
@@ -1494,7 +1553,6 @@ def scheduler_run(db: Session = Depends(get_db)):
             total = subtotal + tax_amount
 
             db_invoice = models.Invoice(
-                invoice_number=f"TEMP-{uuid.uuid4().hex[:8]}",
                 customer_id=template.customer_id,
                 store_id="admin",
                 subtotal=subtotal,
@@ -1509,14 +1567,22 @@ def scheduler_run(db: Session = Depends(get_db)):
             )
             db.add(db_invoice)
             db.flush()
-            db_invoice.invoice_number = f"INV-{db_invoice.id:04d}"
+            db_invoice.invoice_number = _generate_invoice_number(db, "admin", org_id)
 
             for li in line_items:
+                qty_val = li.get("qty", 1)
+                rate_val = li.get("rate", 0)
                 db_item = models.InvoiceItem(
                     invoice_id=db_invoice.id,
-                    imei=li.get("imei", ""),
+                    imei=li.get("imei") or None,
                     model_number=li.get("model_number", ""),
-                    unit_price=li.get("rate", 0)
+                    description=li.get("description", ""),
+                    quantity=qty_val,
+                    rate=rate_val,
+                    amount=rate_val * qty_val,
+                    taxable=li.get("taxable", True) and tax_rate > 0,
+                    product_source=li.get("product_source", "manual"),
+                    unit_price=rate_val
                 )
                 db.add(db_item)
 
