@@ -125,6 +125,7 @@ function AuthRoutes() {
       {/* Invoice Routes */}
       <Route path="/admin/invoices" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoicesList /></ProtectedRoute>} />
       <Route path="/admin/invoices/new" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceForm /></ProtectedRoute>} />
+      <Route path="/admin/invoices/:invoiceNumber/edit" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceForm /></ProtectedRoute>} />
       <Route path="/admin/invoices/:invoiceNumber" element={<ProtectedRoute allowedRoles={['admin', 'store']}><InvoiceDetail /></ProtectedRoute>} />
 
       {/* Settings Route */}

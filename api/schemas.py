@@ -690,8 +690,8 @@ class InvoiceFormCreate(BaseModel):
     payments: List[PaymentSchema] = []
 
 class InvoiceUpdate(BaseModel):
-    """Update mutable invoice fields (only Draft/Unpaid)."""
-    customer_id: Optional[str] = None
+    """Update invoice — customer locked, all other fields editable."""
+    # Customer is NOT editable after creation
     invoice_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     terms: Optional[str] = None
@@ -700,8 +700,13 @@ class InvoiceUpdate(BaseModel):
     discount_percent: Optional[float] = None
     discount_total: Optional[float] = None
     currency: Optional[str] = None
+    tax_percent: Optional[float] = None
     fulfillment_method: Optional[str] = None
     shipping_address: Optional[str] = None
+    status: Optional[InvoiceStatus] = None
+    internal_notes: Optional[str] = None
+    items: Optional[List[InvoiceFormItemCreate]] = None
+    payments: Optional[List[PaymentSchema]] = None
 
 class BatchInvoiceCreate(BaseModel):
     """Create up to 50 invoices at once."""

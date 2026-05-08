@@ -1207,7 +1207,7 @@ def create_invoice_from_form(
 
 
 @router.patch("/invoices/{invoice_id}")
-def update_invoice_header(
+def update_invoice(
     invoice_id: str,
     req: schemas.InvoiceUpdate,
     db: Session = Depends(get_db),
@@ -1220,15 +1220,124 @@ def update_invoice_header(
     ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    if invoice.status not in [models.InvoiceStatus.Draft, models.InvoiceStatus.Unpaid, models.InvoiceStatus.Partially_Paid]:
-        raise HTTPException(status_code=400, detail=f"Cannot edit invoice with status {invoice.status.value}")
+    if invoice.status == models.InvoiceStatus.Voided:
+        raise HTTPException(status_code=400, detail="Cannot edit a voided invoice")
 
     update_data = req.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
+
+    # ── Update header fields (exclude items, payments, customer) ──
+    header_fields = {k: v for k, v in update_data.items() if k not in ('items', 'payments', 'customer_id')}
+    for key, value in header_fields.items():
         setattr(invoice, key, value)
 
+    # Recalculate totals if needed
+    if req.discount_percent is not None and req.discount_percent > 0:
+        invoice.discount_total = invoice.subtotal * (req.discount_percent / 100.0)
+    if req.tax_percent is not None:
+        invoice.tax_percent = req.tax_percent
+
+    # ── Update items with inventory sync ──
+    if req.items is not None:
+        # Collect old IMEIs
+        old_items = db.query(models.InvoiceItem).filter(
+            models.InvoiceItem.invoice_id == invoice.id
+        ).all()
+        old_imeis = set(i.imei for i in old_items if i.imei)
+        new_imeis = set(item.imei for item in req.items if item.imei)
+
+        # Release removed IMEIs back to Sellable
+        released_imeis = old_imeis - new_imeis
+        for imei in released_imeis:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == imei,
+                models.DeviceInventory.org_id == org_id
+            ).first()
+            if device and device.device_status in (models.DeviceStatus.Reserved_Layaway, models.DeviceStatus.Sold):
+                device.device_status = models.DeviceStatus.Sellable
+                device.sold_to_crm_id = None
+
+        # Reserve newly added IMEIs
+        added_imeis = new_imeis - old_imeis
+        for imei in added_imeis:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == imei,
+                models.DeviceInventory.org_id == org_id
+            ).first()
+            if device and device.device_status == models.DeviceStatus.Sellable:
+                if invoice.status == models.InvoiceStatus.Draft:
+                    device.device_status = models.DeviceStatus.Reserved_Layaway
+                else:
+                    device.device_status = models.DeviceStatus.Reserved_Layaway
+                device.sold_to_crm_id = invoice.customer_id
+
+        # Delete old items, insert new
+        for old_item in old_items:
+            db.delete(old_item)
+        db.flush()
+
+        new_subtotal = 0.0
+        for item in req.items:
+            line_total = item.rate * item.qty
+            new_subtotal += line_total
+            db_item = models.InvoiceItem(
+                invoice_id=invoice.id,
+                imei=item.imei or None,
+                model_number=item.model_number,
+                description=item.description or (f"{item.model_number} - IMEI: {item.imei}" if item.imei else item.model_number),
+                quantity=item.qty,
+                rate=item.rate,
+                amount=line_total,
+                taxable=item.taxable and (invoice.tax_percent or 0) > 0,
+                product_source="device_inventory" if item.imei else "manual",
+                sku=item.sku,
+                batch_serial=item.batch_serial,
+                item_discount_amount=item.item_discount_amount,
+                item_discount_percent=item.item_discount_percent,
+                unit_price=item.rate
+            )
+            db.add(db_item)
+
+        invoice.subtotal = new_subtotal
+        if invoice.discount_percent and invoice.discount_percent > 0:
+            invoice.discount_total = new_subtotal * (invoice.discount_percent / 100.0)
+        discounted = new_subtotal - (invoice.discount_total or 0)
+        invoice.tax_amount = discounted * ((invoice.tax_percent or 0) / 100.0)
+        invoice.total = discounted + invoice.tax_amount
+
+    # ── Update payments ──
+    if req.payments is not None:
+        old_payments = db.query(models.PaymentTransaction).filter(
+            models.PaymentTransaction.invoice_id == invoice.id
+        ).all()
+        for old_p in old_payments:
+            db.delete(old_p)
+        db.flush()
+
+        for p in req.payments:
+            db_payment = models.PaymentTransaction(
+                invoice_id=invoice.id,
+                amount=p.amount,
+                payment_method=p.payment_method,
+                reference_id=p.reference_id,
+                org_id=org_id
+            )
+            db.add(db_payment)
+
+    db.add(models.AdminAuditLog(
+        org_id=org_id,
+        actor_email=current_user.email,
+        action="update_invoice",
+        target=invoice_id,
+        details=f"Updated invoice {invoice_id}"
+    ))
     db.commit()
-    return {"status": "updated", "invoice_number": invoice.invoice_number}
+    db.refresh(invoice)
+
+    org_settings = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    invoice.invoice_terms = org_settings.invoice_terms if org_settings else None
+    return invoice
 
 
 @router.post("/invoices/batch")

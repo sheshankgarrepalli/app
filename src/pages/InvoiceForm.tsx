@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2, AlertCircle, Save, Plus, Trash2, Search, X, Building2, User,
-  ArrowLeft, Wallet, Mail, Printer, Paperclip, FileEdit, Barcode,
+  ArrowLeft, Wallet, Mail, Printer, Paperclip, FileEdit, Barcode, Pencil,
 } from 'lucide-react';
 import {
-  createInvoice, fetchAutocomplete, InvoiceFormItem, AutocompleteResult,
-  extractError, PAYMENT_METHODS, emailInvoice,
+  createInvoice, updateInvoice, fetchInvoice, fetchAutocomplete,
+  InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice,
 } from '../api/invoices';
 import { fetchCustomers, Customer } from '../api/crm';
 
@@ -25,6 +25,9 @@ const emptyPayment: PaymentRow = { amount: 0, payment_method: 'Cash', reference_
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
+  const { invoiceNumber } = useParams<{ invoiceNumber?: string }>();
+  const isEdit = !!invoiceNumber;
+
   const [items, setItems] = useState<InvoiceFormItem[]>([{ ...emptyItem }]);
   const [customerId, setCustomerId] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -44,6 +47,56 @@ export default function InvoiceForm() {
   const [invoiceStatus, setInvoiceStatus] = useState<'Active' | 'Draft'>('Active');
   const [internalNotes, setInternalNotes] = useState('');
   const [scanImei, setScanImei] = useState('');
+  const [loadingEdit, setLoadingEdit] = useState(isEdit);
+  const [lockedCustomer, setLockedCustomer] = useState<Customer | null>(null);
+
+  // Load existing invoice for edit mode
+  useEffect(() => {
+    if (!invoiceNumber) return;
+    (async () => {
+      setLoadingEdit(true);
+      try {
+        const inv = await fetchInvoice(invoiceNumber);
+        setCustomerId(inv.customer_id || '');
+        if (inv.customer) setLockedCustomer(inv.customer as Customer);
+        setTerms(inv.invoice_terms || 'Due on Receipt');
+        setMessageOnInvoice(inv.message_on_invoice || '');
+        setStatementMemo(inv.statement_memo || '');
+        setDiscountPercent(inv.discount_percent || 0);
+        setDiscountTotal(inv.discount_total || 0);
+        setTaxPercent(inv.tax_percent || 8.5);
+        setCurrency(inv.currency || 'USD');
+        setFulfillmentMethod(inv.fulfillment_method || 'Walk-in');
+        setInvoiceStatus(inv.status === 'Draft' ? 'Draft' : 'Active');
+        setInternalNotes(inv.internal_notes || '');
+        if (inv.items?.length) {
+          setItems(inv.items.map(i => ({
+            model_number: i.model_number || '',
+            imei: i.imei || '',
+            description: i.description || '',
+            qty: i.quantity || 1,
+            rate: i.rate || 0,
+            taxable: i.taxable,
+            sku: i.sku || '',
+            batch_serial: i.batch_serial || '',
+            item_discount_amount: i.item_discount_amount || 0,
+            item_discount_percent: i.item_discount_percent || 0,
+          })));
+        }
+        if (inv.payments?.length) {
+          setPayments(inv.payments.map(p => ({
+            amount: p.amount || 0,
+            payment_method: p.payment_method || 'Cash',
+            reference_id: p.reference_id || '',
+          })));
+        }
+      } catch (err: any) {
+        setError(extractError(err));
+      } finally {
+        setLoadingEdit(false);
+      }
+    })();
+  }, [invoiceNumber]);
 
   // Autocomplete per item index
   const [acIdx, setAcIdx] = useState<number | null>(null);
@@ -197,7 +250,6 @@ export default function InvoiceForm() {
     setError(null);
     try {
       const payload = {
-        customer_id: customerId,
         items: validItems,
         terms,
         message_on_invoice: messageOnInvoice || undefined,
@@ -211,11 +263,17 @@ export default function InvoiceForm() {
         internal_notes: internalNotes || undefined,
         payments: validPayments,
       };
-      const created = await createInvoice(payload);
-      if (invoiceStatus === 'Draft') {
-        navigate(`/admin/invoices/${created.invoice_number}`, { replace: true });
+
+      if (isEdit && invoiceNumber) {
+        const updated = await updateInvoice(invoiceNumber, payload);
+        navigate(`/admin/invoices/${updated.invoice_number}`, { replace: true });
       } else {
-        navigate('/admin/invoices', { replace: true });
+        const created = await createInvoice({ ...payload, customer_id: customerId });
+        if (invoiceStatus === 'Draft') {
+          navigate(`/admin/invoices/${created.invoice_number}`, { replace: true });
+        } else {
+          navigate('/admin/invoices', { replace: true });
+        }
       }
     } catch (err: any) {
       setError(extractError(err));
@@ -239,6 +297,14 @@ export default function InvoiceForm() {
     window.open('/api/pos/invoices/latest/pdf', '_blank');
   };
 
+  if (loadingEdit) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 size={28} className="animate-spin text-[var(--text-tertiary)]" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 max-w-full">
       {/* Header */}
@@ -249,14 +315,19 @@ export default function InvoiceForm() {
           </button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-[var(--text-primary)]">NEW INVOICE</h1>
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">
+                {isEdit ? 'EDIT INVOICE' : 'NEW INVOICE'}
+              </h1>
+              {isEdit && <span className="font-mono text-sm text-accent">{invoiceNumber}</span>}
               {invoiceStatus === 'Draft' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                   <FileEdit size={11} /> DRAFT
                 </span>
               )}
             </div>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Create and send a professional invoice to your customer</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+              {isEdit ? 'Edit invoice details and line items' : 'Create and send a professional invoice to your customer'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -279,24 +350,42 @@ export default function InvoiceForm() {
           <div className="card p-5 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Customer Information</p>
-              <button className="text-xs text-accent hover:text-accent/80 font-medium">+ Add New</button>
+              {!isEdit && <button className="text-xs text-accent hover:text-accent/80 font-medium">+ Add New</button>}
+              {isEdit && <span className="text-[10px] text-[var(--text-tertiary)] italic">Locked — customer cannot be changed</span>}
             </div>
 
-            {selectedCustomer ? (
+            {isEdit && lockedCustomer ? (
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5">
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    {lockedCustomer.company_name || `${lockedCustomer.first_name || ''} ${lockedCustomer.last_name || ''}`.trim() || 'Customer'}
+                  </p>
+                  {lockedCustomer.email && <p className="text-xs text-[var(--text-secondary)]">{lockedCustomer.email}</p>}
+                  {lockedCustomer.phone && <p className="text-xs text-[var(--text-secondary)]">{lockedCustomer.phone}</p>}
+                  {lockedCustomer.shipping_address && <p className="text-xs text-[var(--text-tertiary)] max-w-xs">{lockedCustomer.shipping_address}</p>}
+                  <div className="flex items-center gap-4 mt-2">
+                    <div>
+                      <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Balance</p>
+                      <p className={`text-xs font-bold font-mono ${lockedCustomer.current_balance > 0 ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
+                        ${lockedCustomer.current_balance.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Credit Limit</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)] font-mono">${lockedCustomer.credit_limit.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : !isEdit && selectedCustomer ? (
               <div className="flex items-start justify-between">
                 <div className="space-y-1.5">
                   <p className="text-sm font-bold text-[var(--text-primary)]">
                     {selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim() || 'Customer'}
                   </p>
-                  {selectedCustomer.email && (
-                    <p className="text-xs text-[var(--text-secondary)]">{selectedCustomer.email}</p>
-                  )}
-                  {selectedCustomer.phone && (
-                    <p className="text-xs text-[var(--text-secondary)]">{selectedCustomer.phone}</p>
-                  )}
-                  {selectedCustomer.shipping_address && (
-                    <p className="text-xs text-[var(--text-tertiary)] max-w-xs">{selectedCustomer.shipping_address}</p>
-                  )}
+                  {selectedCustomer.email && <p className="text-xs text-[var(--text-secondary)]">{selectedCustomer.email}</p>}
+                  {selectedCustomer.phone && <p className="text-xs text-[var(--text-secondary)]">{selectedCustomer.phone}</p>}
+                  {selectedCustomer.shipping_address && <p className="text-xs text-[var(--text-tertiary)] max-w-xs">{selectedCustomer.shipping_address}</p>}
                   <div className="flex items-center gap-4 mt-2">
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Balance</p>
@@ -306,9 +395,7 @@ export default function InvoiceForm() {
                     </div>
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Credit Limit</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)] font-mono">
-                        ${selectedCustomer.credit_limit.toFixed(2)}
-                      </p>
+                      <p className="text-xs font-bold text-[var(--text-primary)] font-mono">${selectedCustomer.credit_limit.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -750,21 +837,23 @@ export default function InvoiceForm() {
 
             {/* Action Buttons */}
             <div className="px-5 pb-5 space-y-2">
-              <button
-                onClick={() => { setInvoiceStatus('Draft'); handleSave(); }}
-                disabled={saving}
-                className="w-full btn-secondary flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
-              >
-                {saving && invoiceStatus === 'Draft' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                Save as Draft
-              </button>
+              {!isEdit && (
+                <button
+                  onClick={() => { setInvoiceStatus('Draft'); handleSave(); }}
+                  disabled={saving}
+                  className="w-full btn-secondary flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {saving && invoiceStatus === 'Draft' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Save as Draft
+                </button>
+              )}
               <button
                 onClick={() => { setInvoiceStatus('Active'); handleSave(); }}
                 disabled={saving || !customerId || items.filter(i => i.description || i.imei).length === 0}
                 className="w-full btn-primary flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
               >
-                {saving && invoiceStatus === 'Active' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                Create Invoice
+                {saving ? <Loader2 size={16} className="animate-spin" /> : isEdit ? <Pencil size={16} /> : <Plus size={16} />}
+                {isEdit ? 'Update Invoice' : 'Create Invoice'}
               </button>
             </div>
           </div>

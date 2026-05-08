@@ -139,6 +139,29 @@ export async function createInvoice(payload: InvoiceCreate): Promise<Invoice> {
   return data;
 }
 
+export interface InvoiceUpdate {
+  invoice_date?: string;
+  due_date?: string;
+  terms?: string;
+  message_on_invoice?: string;
+  statement_memo?: string;
+  discount_percent?: number;
+  discount_total?: number;
+  currency?: string;
+  tax_percent?: number;
+  fulfillment_method?: string;
+  shipping_address?: string;
+  status?: string;
+  internal_notes?: string;
+  items?: InvoiceFormItem[];
+  payments?: { amount: number; payment_method: string; reference_id?: string }[];
+}
+
+export async function updateInvoice(invoiceNumber: string, payload: InvoiceUpdate): Promise<Invoice> {
+  const { data } = await api.patch(`/api/pos/invoices/${invoiceNumber}`, payload);
+  return data;
+}
+
 export async function generateShareLink(invoiceNumber: string): Promise<{ share_token: string; url: string }> {
   const { data } = await api.post(`/api/pos/invoices/${invoiceNumber}/share`);
   return data;
