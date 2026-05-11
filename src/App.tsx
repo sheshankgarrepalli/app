@@ -7,6 +7,7 @@ import { LocationProvider } from './context/LocationContext';
 import { AxiosInterceptor } from './api/AxiosInterceptor';
 import Login from './pages/Login';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 import ManualIntake from './pages/ManualIntake';
 import PhoneRouting from './pages/PhoneRouting';
 import RapidAudit from './pages/RapidAudit';
@@ -24,6 +25,7 @@ import InvoiceForm from './pages/InvoiceForm';
 import InvoicesList from './pages/InvoicesList';
 import InvoiceDetail from './pages/InvoiceDetail';
 import Settings from './pages/Settings';
+import ExcelImport from './pages/ExcelImport';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -59,7 +61,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   if (!user) return <Navigate to="/login" replace />;
   if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   
-  return <Layout>{children}</Layout>;
+  return <Layout><ErrorBoundary>{children}</ErrorBoundary></Layout>;
 };
 
 function App() {
@@ -114,6 +116,7 @@ function AuthRoutes() {
 
       {/* Inventory Routes */}
       <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><Inventory /></ProtectedRoute>} />
+      <Route path="/admin/import-inventory" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><ExcelImport /></ProtectedRoute>} />
       <Route path="/admin/incoming-transfers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><IncomingTransfers /></ProtectedRoute>} />
 
       {/* CRM Routes */}
@@ -132,7 +135,7 @@ function AuthRoutes() {
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
 
       {/* Public Invoice Route — no auth */}
-      <Route path="/invoice/:shareToken" element={<PublicInvoice />} />
+      <Route path="/invoice/:shareToken" element={<ErrorBoundary><PublicInvoice /></ErrorBoundary>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

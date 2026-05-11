@@ -905,3 +905,43 @@ class ConsignmentSettleRequest(BaseModel):
     payment_reference: Optional[str] = None
     skip_qc: bool = False  # employee can override QC for returned devices
     notes: Optional[str] = None
+
+# ── Excel Import Schemas ────────────────────────────────────────────────────
+
+class ExcelImportRow(BaseModel):
+    model_name: str
+    storage: str
+    imei: str
+
+class ExcelPreviewRequest(BaseModel):
+    rows: List[ExcelImportRow]
+
+class PreviewRowResult(BaseModel):
+    row_number: int
+    model_name: str
+    storage_gb: int
+    imei: str
+    is_valid: bool
+    error: Optional[str] = None
+    model_exists: bool = False
+    generated_model_number: str = ""
+
+class PreviewSummary(BaseModel):
+    total: int
+    valid: int
+    duplicate_imeis: int
+    new_models: int
+
+class ExcelPreviewResponse(BaseModel):
+    rows: List[PreviewRowResult]
+    summary: PreviewSummary
+
+class ExcelImportRequest(BaseModel):
+    rows: List[ExcelImportRow]
+    location_id: str
+    device_status: str
+
+class ExcelImportResponse(BaseModel):
+    devices_imported: int
+    new_models_created: int
+    errors: List[str] = []

@@ -6,7 +6,7 @@ import { useLocationFilter } from '../context/LocationContext';
 import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -32,6 +32,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       label: 'Inventory',
       items: [
         { id: 'inventory', label: 'All Inventory', path: '/admin/inventory', icon: PackageSearch, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'import', label: 'Import Inventory', path: '/admin/import-inventory', icon: Upload, roles: ['admin', 'warehouse', 'store'] },
         { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store'] },
       ]
     },
@@ -87,21 +88,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-[var(--bg-primary)] overflow-hidden">
+    <div className="flex h-screen bg-[var(--bg)] overflow-hidden">
       {/* SIDEBAR */}
-      <aside className="w-60 bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] text-[var(--text-primary)] flex flex-col flex-shrink-0">
+      <aside className="w-60 bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col flex-shrink-0">
         {/* Logo */}
-        <div className="px-5 py-4 border-b border-[var(--border-primary)]">
-          <div className="text-lg font-bold tracking-wide">
-            AMAFAH<span className="text-accent">ERP</span>
+        <Link to="/admin/inventory" className="px-5 py-5 border-b border-[var(--border)] cursor-pointer block">
+          <div className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
+            AMAFAH<span style={{ color: 'var(--accent)' }}>ERP</span>
           </div>
-        </div>
+        </Link>
 
         {/* Nav */}
-        <nav className="flex-1 py-3 overflow-y-auto sidebar-scroll space-y-4">
+        <nav className="flex-1 py-3 overflow-y-auto sidebar-scroll flex flex-col gap-[18px]">
           {menuSections.map(section => (
             <div key={section.label}>
-              <div className="px-5 py-1 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.15em]">
+              <div className="px-[10px] pb-1 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.12em]">
                 {section.label}
               </div>
               {section.items
@@ -121,10 +122,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-[var(--border-primary)] p-4 space-y-3">
+        <div className="border-t border-[var(--border)] p-[14px] flex flex-col gap-[10px]">
           <button
             onClick={toggle}
-            className="w-full flex items-center gap-3 py-2 px-3 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-xs"
+            className="w-full flex items-center gap-2 py-2 px-3 border border-[var(--border)] rounded-md bg-[var(--bg)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors text-xs font-semibold"
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -136,20 +137,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             appearance={{
               elements: {
                 organizationSwitcherTrigger:
-                  "w-full flex justify-between items-center py-2 px-3 border border-[var(--border-secondary)] rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-primary)] text-xs",
-                organizationPreviewTextContainer: "truncate text-[var(--text-primary)]",
+                  "w-full flex justify-between items-center py-2 px-3 border border-[var(--border)] rounded-md bg-[var(--bg)] hover:bg-[var(--bg-muted)] transition-colors text-[var(--text)] text-xs",
+                organizationPreviewTextContainer: "truncate text-[var(--text)]",
                 organizationSwitcherTriggerIcon: "text-[var(--text-secondary)]",
               },
             }}
           />
-          <div className="flex items-center gap-3">
-            <UserButton />
+          <div className="flex items-center gap-[10px] p-2 rounded-md bg-[var(--bg-muted)]">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+              {(user?.email || 'U')[0].toUpperCase()}
+            </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-[var(--text-primary)] truncate">
+              <div className="text-xs font-bold text-[var(--text)] truncate">
                 {user?.email?.split('@')[0]}
               </div>
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">{roleLabel(user?.role || '')}</div>
+              <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-wider">{roleLabel(user?.role || '')}</div>
             </div>
+            <UserButton />
           </div>
         </div>
       </aside>
@@ -157,18 +161,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* TOP BAR */}
-        <header className="h-14 bg-[var(--bg-secondary)] border-b border-[var(--border-primary)] flex items-center px-6 gap-4 flex-shrink-0">
+        <header className="h-[52px] bg-[var(--bg-card)] border-b border-[var(--border)] flex items-center px-5 gap-4 flex-shrink-0">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
-            <Home size={14} />
-            {breadcrumbs.length > 0 && <ChevronRight size={12} />}
+            <Link to="/admin/inventory" className="hover:text-[var(--text)]"><Home size={14} /></Link>
+            {breadcrumbs.length > 0 && <ChevronRight size={12} className="text-[var(--text-muted)]" />}
             {breadcrumbs.map((crumb, i) => (
               <React.Fragment key={crumb.path}>
-                {i > 0 && <ChevronRight size={12} />}
+                {i > 0 && <ChevronRight size={12} className="text-[var(--text-muted)]" />}
                 {crumb.last ? (
-                  <span className="text-[var(--text-primary)] font-medium">{crumb.label}</span>
+                  <span className="text-[var(--text)] font-semibold">{crumb.label}</span>
                 ) : (
-                  <Link to={crumb.path} className="hover:text-[var(--text-primary)] capitalize">
+                  <Link to={crumb.path} className="hover:text-[var(--text)] capitalize">
                     {crumb.label}
                   </Link>
                 )}
@@ -180,7 +184,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Store Selector */}
           <select
-            className="bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-[var(--text-primary)] text-[13px] px-3 py-1.5 rounded-md outline-none focus:border-accent transition-colors cursor-pointer"
+            className="bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] text-xs px-[10px] py-1.5 rounded-md outline-none focus:border-[var(--accent)] transition-colors cursor-pointer"
+            style={{ fontFamily: 'var(--font-body)' }}
             value={selectedLocationId ?? 'all'}
             onChange={e => setSelectedLocationId(e.target.value === 'all' ? null : e.target.value)}
           >
@@ -193,20 +198,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </select>
 
           {/* Notification Bell */}
-          <button className="topbar-btn relative">
+          <button className="topbar-btn" title="Notifications">
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full border-2 border-[var(--bg-secondary)]" />
           </button>
-
-          {/* User Avatar */}
-          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[var(--text-inverse)] text-[13px] font-semibold cursor-pointer">
-            {(user?.email || 'U')[0].toUpperCase()}
-          </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto mesh-bg">
-          <div className="p-6">
+        <main className="flex-1 overflow-auto bg-[var(--bg)]">
+          <div className="max-w-[1400px] p-6">
             {children}
           </div>
         </main>

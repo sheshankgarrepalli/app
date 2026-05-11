@@ -69,6 +69,7 @@ app.include_router(repair_router.router)
 app.include_router(admin_router.router)
 app.include_router(qc_router.router)
 app.include_router(consignment_router.router)
+app.include_router(import_router.router)
 
 
 @app.get("/api/health")
