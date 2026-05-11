@@ -70,7 +70,7 @@ export default function ExcelImport() {
       // Auto-detect columns (case-insensitive)
       const firstRow = jsonData[0];
       const keys = Object.keys(firstRow);
-      const findKey = (patterns: string[]) => patterns.find(p => keys.some(k => k.toLowerCase().includes(p.toLowerCase())));
+      const findKey = (patterns: string[]) => keys.find(k => patterns.some(p => k.toLowerCase().includes(p.toLowerCase())));
       const imeiKey = findKey(['imei']);
       const modelKey = findKey(['model']);
       const storageKey = findKey(['storage']);
