@@ -222,7 +222,7 @@ class PhoneModelBase(BaseModel):
     model_number: str
     brand: str
     name: str
-    color: str
+    color: Optional[str] = None
     storage_gb: int
 
 class PhoneModelCreate(PhoneModelBase): pass
