@@ -171,7 +171,11 @@ def excel_import(
     """Import validated rows: create PhoneModels + DeviceInventory + history logs in one transaction."""
     org_id = getattr(current_user, 'current_org_id', None) or getattr(current_user, 'org_id', None)
     employee_id = current_user.email
-    effective_location_id = current_user.store_id or req.location_id
+    # Admin can import anywhere; non-admin are locked to their assigned store
+    if current_user.role.value == "admin":
+        effective_location_id = req.location_id or current_user.store_id or "Warehouse A"
+    else:
+        effective_location_id = current_user.store_id or req.location_id
 
     # Double-check for duplicate IMEIs (race condition guard)
     all_imeis = [r.imei.strip() for r in req.rows]

@@ -31,6 +31,7 @@ type Phase = 'upload' | 'preview' | 'importing' | 'results';
 export default function ExcelImport() {
   const { availableLocations } = useLocationFilter();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [phase, setPhase] = useState<Phase>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -38,12 +39,26 @@ export default function ExcelImport() {
   const [deviceStatus, setDeviceStatus] = useState('In_QC');
   const [error, setError] = useState<string | null>(null);
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
+  const [adminLocationId, setAdminLocationId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const locationId = useMemo(() => {
+  const defaultLocationId = useMemo(() => {
     if (user?.store_id) return user.store_id;
     return availableLocations[0]?.id || 'Warehouse A';
   }, [user?.store_id, availableLocations]);
+
+  // Admin can pick any location; non-admin are locked to their store
+  const locationId = isAdmin ? (adminLocationId || defaultLocationId) : defaultLocationId;
+
+  // Sync admin dropdown default on first load
+  const adminDropdownReady = useRef(false);
+  if (isAdmin && !adminDropdownReady.current && availableLocations.length > 0) {
+    adminDropdownReady.current = true;
+    if (!adminLocationId) {
+      // defer state update to avoid render-phase side effect
+      setTimeout(() => setAdminLocationId(defaultLocationId), 0);
+    }
+  }
 
   const locationName = useMemo(() => {
     const loc = availableLocations.find(l => l.id === locationId);
@@ -274,10 +289,18 @@ export default function ExcelImport() {
           <div className="card-body flex items-end gap-4 flex-wrap">
             <div className="form-group flex-1 min-w-[180px]">
               <label className="form-label">Destination Location</label>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-muted)] text-sm text-[var(--text)] h-[42px]">
-                <Lock size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
-                <span className="truncate">{locationName}</span>
-              </div>
+              {isAdmin ? (
+                <select className="form-select" value={locationId} onChange={e => setAdminLocationId(e.target.value)}>
+                  {availableLocations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name} ({l.location_type})</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-muted)] text-sm text-[var(--text)] h-[42px]">
+                  <Lock size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                  <span className="truncate">{locationName}</span>
+                </div>
+              )}
             </div>
             <div className="form-group flex-1 min-w-[180px]">
               <label className="form-label">Default Status</label>
