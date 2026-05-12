@@ -5,7 +5,6 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from typing import Optional, List, Dict, Any
 from io import BytesIO
-import requests
 
 PAGE_W, PAGE_H = letter
 DEFAULT_MARGIN = 50
@@ -21,6 +20,7 @@ def draw_header(c: canvas.Canvas, company_name: str, logo_url: Optional[str] = N
 
     if logo_url:
         try:
+            import requests
             resp = requests.get(logo_url, timeout=5)
             if resp.status_code == 200:
                 from reportlab.lib.utils import ImageReader
