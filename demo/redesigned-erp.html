@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAFAH ERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #334155;
+  --on-primary: #FFFFFF;
+  --secondary: #475569;
+  --accent: #059669;
+  --accent-hover: #047857;
+  --bg: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-muted: #F2F3F4;
+  --border: #E6E8EA;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #94A3B8;
+  --text-muted: #CBD5E1;
+  --destructive: #DC2626;
+  --success: #16A34A;
+  --warning: #D97706;
+  --info: #2563EB;
+  --purple: #7C3AED;
+  --orange: #EA580C;
+  --font-heading: 'Rubik', -apple-system, sans-serif;
+  --font-body: 'Nunito Sans', -apple-system, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  --transition: 180ms ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell { display: flex; height: 100vh; }
+
+/* ═══ SIDEBAR ═══ */
+.sidebar {
+  width: 240px; background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+
+.sidebar-logo {
+  padding: 20px; border-bottom: 1px solid var(--border);
+  font-family: var(--font-heading); font-size: 18px; font-weight: 700;
+  letter-spacing: -0.3px; cursor: pointer;
+}
+.sidebar-logo span { color: var(--accent); }
+
+.sidebar-nav {
+  flex: 1; overflow-y: auto; padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+
+.nav-section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--text-tertiary);
+  padding: 0 10px 4px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); text-decoration: none;
+  transition: all var(--transition); cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg-muted); color: var(--text); }
+.nav-item.active {
+  color: var(--primary);
+  background: var(--bg-muted);
+  border-left-color: var(--accent);
+}
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.nav-item .nav-badge {
+  margin-left: auto; font-size: 11px; font-weight: 700;
+  background: var(--bg-muted); color: var(--text-tertiary);
+  padding: 1px 8px; border-radius: var(--radius-full);
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.theme-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--bg);
+  color: var(--text-secondary); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+}
+.theme-btn:hover { background: var(--bg-muted); }
+
+.user-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px; border-radius: var(--radius-md);
+  background: var(--bg-muted);
+}
+.user-avatar {
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  background: var(--accent); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.user-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.user-role { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; font-weight: 600; }
+
+.location-select {
+  padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg);
+  color: var(--text); font-size: 12px; font-family: var(--font-body);
+  cursor: pointer; width: 100%;
+}
+
+/* ═══ MAIN AREA ═══ */
+.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+  height: 52px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0;
+}
+
+.breadcrumbs {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-secondary);
+}
+.breadcrumbs a { color: var(--text-secondary); cursor: pointer; text-decoration: none; }
+.breadcrumbs a:hover { color: var(--text); }
+.breadcrumbs .sep { color: var(--text-muted); }
+.breadcrumbs .current { color: var(--text); font-weight: 600; }
+.breadcrumbs svg { width: 14px; height: 14px; }
+
+.spacer { flex: 1; }
+
+.icon-btn {
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px; color: var(--text-secondary);
+  cursor: pointer; position: relative; display: flex; align-items: center;
+  transition: all var(--transition);
+}
+.icon-btn:hover { background: var(--bg-muted); color: var(--text); }
+.icon-btn .dot {
+  position: absolute; top: 4px; right: 4px; width: 7px; height: 7px;
+  border-radius: var(--radius-full); background: var(--accent);
+}
+
+.content { flex: 1; overflow-y: auto; }
+.content-inner { max-width: 1400px; padding: 24px 28px; }
+
+/* ═══ SCREENS ═══ */
+.screen { display: none; }
+.screen.active { display: block; }
+
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.page-title-row { display: flex; align-items: center; gap: 10px; }
+.page-title {
+  font-family: var(--font-heading); font-size: 24px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.3px;
+}
+.page-badge {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  background: var(--bg-muted); color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+.page-subtitle { font-size: 13px; color: var(--text-tertiary); margin-top: 4px; }
+
+/* ═══ COMPONENTS ═══ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-md);
+  font-weight: 700; font-size: 13px; cursor: pointer;
+  transition: all var(--transition); border: none;
+  font-family: var(--font-body);
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--primary); color: var(--on-primary); }
+.btn-secondary:hover { background: #1E293B; }
+.btn-ghost {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.btn-ghost:hover { background: var(--bg-muted); color: var(--text); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-danger { background: var(--destructive); color: white; }
+.btn-danger:hover { background: #B91C1C; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 700;
+}
+.badge-success { background: #DCFCE7; color: var(--success); }
+.badge-warning { background: #FEF3C7; color: var(--warning); }
+.badge-danger { background: #FEE2E2; color: var(--destructive); }
+.badge-info { background: #DBEAFE; color: var(--info); }
+.badge-purple { background: #EDE9FE; color: var(--purple); }
+.badge-orange { background: #FFF7ED; color: var(--orange); }
+.badge-neutral { background: var(--bg-muted); color: var(--text-secondary); }
+
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.card-body { padding: 18px; }
+.card-body.no-pad { padding: 0; }
+
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px; margin-bottom: 20px;
+}
+.kpi-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px;
+}
+.kpi-card .kpi-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  color: var(--text-tertiary); letter-spacing: 0.05em; margin-bottom: 8px;
+}
+.kpi-card .kpi-value {
+  font-family: var(--font-heading); font-size: 28px; font-weight: 700;
+  color: var(--text);
+}
+.kpi-card .kpi-change { font-size: 12px; color: var(--success); margin-top: 6px; }
+.kpi-card .kpi-change.warn { color: var(--warning); }
+.kpi-card .kpi-change.down { color: var(--destructive); }
+
+.filters-row {
+  display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.search-box {
+  position: relative; display: flex; align-items: center;
+}
+.search-box svg {
+  position: absolute; left: 12px; color: var(--text-muted); z-index: 1;
+}
+.search-box .input { padding-left: 38px !important; }
+
+.input, .select, textarea {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); font-size: 13px;
+  font-family: var(--font-body); color: var(--text);
+  background: var(--bg); outline: none; transition: border-color var(--transition);
+}
+.input:focus, .select:focus, textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 2px rgba(5,150,105,0.1);
+}
+.input-mono { font-family: 'Fira Code', monospace; font-size: 12px; }
+.select { cursor: pointer; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 10px 14px; text-align: left; font-size: 11px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-tertiary); background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+}
+tbody td {
+  padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+tbody tr:hover { background: var(--bg-muted); }
+.table-wrap { overflow-x: auto; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 60px;
+  color: var(--text-tertiary);
+}
+.empty-state svg { opacity: 0.4; margin-bottom: 12px; }
+.empty-state h3 { font-family: var(--font-heading); color: var(--text); font-size: 16px; margin-bottom: 6px; }
+.empty-state p { font-size: 13px; }
+
+.dual-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.triple-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.grid-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-cols-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+.scan-area {
+  border: 2px dashed var(--border); border-radius: var(--radius-lg);
+  padding: 24px; text-align: center; background: var(--bg);
+  transition: border-color var(--transition);
+}
+.scan-area:focus-within { border-color: var(--accent); }
+.scan-input {
+  width: 100%; padding: 12px; border: none; background: transparent;
+  font-family: 'Fira Code', monospace; font-size: 15px;
+  text-align: center; outline: none; color: var(--text);
+}
+.scan-input::placeholder { color: var(--text-muted); }
+
+.scanned-list { max-height: 400px; overflow-y: auto; margin-top: 16px; }
+.scanned-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-family: 'Fira Code', monospace;
+  transition: background var(--transition);
+}
+.scanned-row:hover { background: var(--bg-muted); }
+.scanned-row .del-btn {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 4px; opacity: 0; transition: opacity var(--transition);
+}
+.scanned-row:hover .del-btn { opacity: 1; }
+.scanned-row .del-btn:hover { color: var(--destructive); }
+
+.timeline { padding: 8px 0; }
+.timeline-item { display: flex; gap: 12px; padding: 8px 0; }
+.timeline-dot {
+  width: 8px; height: 8px; border-radius: var(--radius-full);
+  background: var(--accent); flex-shrink: 0; margin-top: 6px;
+}
+.timeline-content { flex: 1; }
+.timeline-time { font-size: 11px; color: var(--text-tertiary); }
+.timeline-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.timeline-desc { font-size: 12px; color: var(--text-secondary); }
+
+/* Invoice preview sidebar */
+.invoice-preview { position: sticky; top: 20px; }
+.preview-row {
+  display: flex; justify-content: space-between; padding: 6px 0;
+  font-size: 13px; color: var(--text-secondary);
+}
+.preview-row.total {
+  border-top: 2px solid var(--border); padding-top: 10px;
+  font-weight: 700; font-size: 15px; color: var(--text); margin-top: 8px;
+}
+.preview-row.paid { color: var(--success); }
+.preview-row.balance { color: var(--destructive); font-weight: 700; }
+
+.route-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.route-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-card); cursor: pointer; transition: all var(--transition);
+  font-family: var(--font-body); font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); text-align: center;
+}
+.route-btn:hover { background: var(--bg-muted); color: var(--text); transform: scale(1.03); }
+.route-btn:active { transform: scale(0.97); }
+.route-btn svg { width: 20px; height: 20px; }
+
+.tab-bar {
+  display: flex; border-bottom: 2px solid var(--border); margin-bottom: 20px;
+}
+.tab-btn {
+  padding: 10px 18px; font-size: 13px; font-weight: 600;
+  color: var(--text-tertiary); border: none; background: none;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all var(--transition);
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.form-label {
+  display: block; font-size: 12px; font-weight: 700;
+  color: var(--text-secondary); margin-bottom: 4px;
+}
+
+.color-swatch {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: 2px solid transparent; cursor: pointer; transition: all var(--transition);
+}
+.color-swatch:hover { transform: scale(1.1); }
+.color-swatch.selected { border-color: var(--accent); transform: scale(1.1); }
+
+.progress-bar {
+  height: 6px; background: var(--bg-muted); border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%; background: var(--accent); border-radius: var(--radius-full);
+  transition: width var(--transition);
+}
+
+.status-dot { width: 8px; height: 8px; border-radius: var(--radius-full); display: inline-block; }
+.status-dot.green { background: var(--success); }
+.status-dot.yellow { background: var(--warning); }
+.status-dot.red { background: var(--destructive); }
+.status-dot.blue { background: var(--info); }
+.status-dot.gray { background: var(--text-muted); }
+
+.grade-cards { display: flex; gap: 8px; }
+.grade-card {
+  flex: 1; padding: 12px 8px; border: 2px solid var(--border);
+  border-radius: var(--radius-lg); text-align: center; cursor: pointer;
+  transition: all var(--transition); font-weight: 700; font-size: 14px;
+  color: var(--text-secondary);
+}
+.grade-card:hover { border-color: var(--accent); color: var(--accent); }
+.grade-card.selected { border-color: var(--accent); background: #ECFDF5; color: var(--accent); }
+
+.toggle-group { display: flex; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.toggle-btn {
+  flex: 1; padding: 8px; border: none; background: var(--bg-card);
+  font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.toggle-btn:hover { background: var(--bg-muted); }
+.toggle-btn.active { background: var(--accent); color: white; }
+
+.info-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.info-item { padding: 8px 12px; background: var(--bg-muted); border-radius: var(--radius-sm); }
+.info-item .info-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em; }
+.info-item .info-value { font-size: 13px; color: var(--text); font-weight: 600; margin-top: 2px; }
+
+.checkbox-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; color: var(--text); }
+.checkbox-row input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.gap-8 { display: flex; flex-direction: column; gap: 8px; }
+.gap-20 { display: flex; flex-direction: column; gap: 20px; }
+
+/* Dark mode */
+body.dark {
+  --bg: #0B1120; --bg-card: #111827; --bg-muted: #1F2937;
+  --border: #374151; --text: #F1F5F9; --text-secondary: #9CA3AF;
+  --text-tertiary: #6B7280; --text-muted: #4B5563;
+  --primary: #64748B; --on-primary: #F1F5F9;
+  --secondary: #9CA3AF; --accent: #10B981; --accent-hover: #059669;
+  accent-color: var(--accent);
+}
+body.dark .sidebar { background: #0F172A; }
+body.dark .topbar { background: #0F172A; }
+body.dark .badge-success { background: #064E3B; color: #6EE7B7; }
+body.dark .badge-warning { background: #78350F; color: #FCD34D; }
+body.dark .badge-danger { background: #7F1D1D; color: #FCA5A5; }
+body.dark .badge-info { background: #1E3A5F; color: #93C5FD; }
+body.dark .badge-purple { background: #4C1D95; color: #C4B5FD; }
+body.dark .badge-orange { background: #7C2D12; color: #FDBA74; }
+body.dark .badge-neutral { background: var(--bg-muted); color: var(--text-secondary); }
+body.dark .grade-card.selected { background: #064E3B; color: var(--accent); }
+body.dark .nav-badge { background: var(--bg-muted); }
+body.dark .kpi-card .kpi-change { color: #6EE7B7; }
+body.dark .kpi-card .kpi-change.down { color: #FCA5A5; }
+body.dark .kpi-card .kpi-change.warn { color: #FCD34D; }
+body.dark .input, body.dark .select, body.dark textarea { background: var(--bg); border-color: var(--border); color: var(--text); }
+body.dark .input:focus, body.dark .select:focus, body.dark textarea:focus { box-shadow: 0 0 0 2px rgba(16,185,129,0.15); }
+body.dark .input::placeholder, body.dark textarea::placeholder, body.dark .scan-input::placeholder { color: var(--text-muted); }
+body.dark thead th { background: var(--bg-muted); color: var(--text-tertiary); }
+body.dark tbody td { color: var(--text); border-color: var(--border); }
+body.dark tbody tr:hover { background: var(--bg-muted); }
+body.dark .route-btn { background: var(--bg-card); color: var(--text-secondary); }
+body.dark .route-btn:hover { background: var(--bg-muted); color: var(--text); }
+body.dark .scan-area { background: var(--bg-card); border-color: var(--border); }
+body.dark .scan-area:focus-within { border-color: var(--accent); }
+body.dark .scanned-row { border-color: var(--border); color: var(--text); }
+body.dark .scanned-row:hover { background: var(--bg-muted); }
+body.dark .info-item { background: var(--bg-muted); }
+body.dark .tab-btn { color: var(--text-tertiary); }
+body.dark .tab-btn:hover { color: var(--text); }
+body.dark .tab-btn.active { color: var(--accent); }
+body.dark .toggle-group { border-color: var(--border); }
+body.dark .toggle-btn { background: var(--bg-card); color: var(--text-secondary); }
+body.dark .toggle-btn:hover { background: var(--bg-muted); }
+body.dark .checkbox-row { color: var(--text); }
+body.dark .theme-btn { background: var(--bg-card); border-color: var(--border); color: var(--text-secondary); }
+body.dark .theme-btn:hover { background: var(--bg-muted); color: var(--text); }
+body.dark .preview-row.total { border-color: var(--border); }
+body.dark .preview-row.balance { color: #FCA5A5; }
+body.dark .preview-row.paid { color: #6EE7B7; }
+body.dark .timeline-title { color: var(--text); }
+body.dark .timeline-desc { color: var(--text-secondary); }
+body.dark .timeline-time { color: var(--text-tertiary); }
+body.dark .btn-ghost { border-color: var(--border); color: var(--text-secondary); background: transparent; }
+body.dark .btn-ghost:hover { background: var(--bg-muted); color: var(--text); }
+body.dark .btn-secondary { background: #475569; }
+body.dark .btn-secondary:hover { background: #64748B; }
+body.dark .location-select { background: var(--bg-card); }
+body.dark .progress-bar { background: var(--bg-muted); }
+body.dark .icon-btn { border-color: var(--border); color: var(--text-secondary); }
+body.dark .icon-btn:hover { background: var(--bg-muted); color: var(--text); }
+body.dark .user-row { background: var(--bg-muted); }
+body.dark .sidebar-logo { color: var(--text); }
+body.dark .page-title { color: var(--text); }
+body.dark .page-badge { background: var(--bg-muted); color: var(--text-secondary); }
+body.dark .kpi-label { color: var(--text-tertiary); }
+body.dark .kpi-value { color: var(--text); }
+body.dark .card-header { color: var(--text); }
+body.dark select option { background: var(--bg-card); color: var(--text); }
+body.dark .scanned-row .del-btn { color: var(--text-muted); }
+body.dark .scanned-row .del-btn:hover { color: #FCA5A5; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo" onclick="navigate('inventory')">
+    AMAFAH<span>ERP</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div>
+      <div class="nav-section-label">Operations</div>
+      <a class="nav-item" data-screen="manual-intake" onclick="navigate('manual-intake')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Quick Intake
+      </a>
+      <a class="nav-item" data-screen="phone-routing" onclick="navigate('phone-routing')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg>
+        Phone Routing
+      </a>
+      <a class="nav-item" data-screen="rapid-audit" onclick="navigate('rapid-audit')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M9 14l2 2 4-4"/></svg>
+        Rapid Audit
+      </a>
+      <a class="nav-item" data-screen="qc" onclick="navigate('qc')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        QC
+      </a>
+      <a class="nav-item" data-screen="repairs" onclick="navigate('repairs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.77 3.77z"/></svg>
+        Repairs
+      </a>
+      <a class="nav-item" data-screen="track" onclick="navigate('track')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        Track Device
+      </a>
+    </div>
+    <div>
+      <div class="nav-section-label">Inventory</div>
+      <a class="nav-item active" data-screen="inventory" onclick="navigate('inventory')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        All Inventory
+        <span class="nav-badge">10,234</span>
+      </a>
+      <a class="nav-item" data-screen="incoming" onclick="navigate('incoming')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><polygon points="23 7 16 12 23 17"/><circle cx="8" cy="21" r="1"/><circle cx="14" cy="21" r="1"/></svg>
+        Incoming Transfers
+      </a>
+    </div>
+    <div>
+      <div class="nav-section-label">CRM</div>
+      <a class="nav-item" data-screen="customers" onclick="navigate('customers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Customers
+        <span class="nav-badge">1,892</span>
+      </a>
+      <a class="nav-item" data-screen="consignments" onclick="navigate('consignments')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Consignments
+      </a>
+    </div>
+    <div>
+      <div class="nav-section-label">Sales</div>
+      <a class="nav-item" data-screen="invoices-list" onclick="navigate('invoices-list')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Invoices
+        <span class="nav-badge">328</span>
+      </a>
+      <a class="nav-item" data-screen="settings" onclick="navigate('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Settings
+      </a>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-avatar">S</div>
+      <div><div class="user-name">sheshank</div><div class="user-role">Administrator</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════ MAIN AREA ═══════════ -->
+<div class="main-area">
+  <header class="topbar">
+    <div class="breadcrumbs" id="breadcrumbs">
+      <a onclick="navigate('inventory')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></a>
+      <span class="sep">&rsaquo;</span>
+      <span class="current">Inventory</span>
+    </div>
+    <div class="spacer"></div>
+    <select class="location-select"><option>All Locations</option><option>Warehouse A</option><option>Store Downtown</option><option>QC Station</option></select>
+    <button class="icon-btn" onclick="toggleTheme()">
+      <svg id="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span class="dot"></span>
+    </button>
+    <div class="user-avatar" style="width:32px;height:32px;cursor:pointer">S</div>
+  </header>
+
+  <div class="content"><div class="content-inner">
+
+<!-- ═══════════ SCREEN: INVENTORY ═══════════ -->
+<div class="screen active" id="screen-inventory">
+  <div class="page-header">
+    <div>
+      <div class="page-title-row"><h2 class="page-title">Inventory Dashboard</h2><span class="page-badge">All Devices</span></div>
+      <p class="page-subtitle">Browse, search, and filter your entire device inventory</p>
+    </div>
+    <button class="btn btn-primary" onclick="navigate('manual-intake')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Device
+    </button>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Total Inventory</div><div class="kpi-value">10,234</div><div class="kpi-change">+124 this week</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sellable</div><div class="kpi-value">8,451</div><div class="kpi-change">82.6% of total</div></div>
+    <div class="kpi-card"><div class="kpi-label">In Repair</div><div class="kpi-value">342</div><div class="kpi-change down">+18 since yesterday</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Cost Basis</div><div class="kpi-value">$312</div><div class="kpi-change">$298 last month</div></div>
+  </div>
+
+  <div class="filters-row">
+    <div class="search-box" style="flex:1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="input" placeholder="Search by IMEI or model..." style="padding-left:40px"></div>
+    <select class="select"><option>All Statuses</option><option>Sellable</option><option>In QC</option><option>In Repair</option><option>In Transit</option></select>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span style="display:flex;align-items:center;gap:8px">Device Inventory</span><span style="font-size:12px;color:var(--text-tertiary)">10,234 devices</span></div>
+    <div class="card-body no-pad"><div class="table-wrap"><table>
+      <thead><tr><th style="width:40px"><input type="checkbox"></th><th>IMEI</th><th>Model</th><th>Storage</th><th>Color</th><th>Status</th><th>Location</th><th style="text-align:right">Cost Basis</th><th>Days</th></tr></thead>
+      <tbody>
+        <tr><td><input type="checkbox"></td><td style="font-family:monospace;font-size:12px;font-weight:600">890123456789012</td><td style="font-weight:600">iPhone 15 Pro Max</td><td style="color:var(--text-secondary)">256 GB</td><td style="color:var(--text-secondary)">Natural Titanium</td><td><span class="badge badge-success">Sellable</span></td><td style="color:var(--text-secondary)">Warehouse A</td><td style="text-align:right;font-family:monospace;font-size:12px">$1,099.00</td><td style="color:var(--text-secondary)">12</td></tr>
+        <tr><td><input type="checkbox"></td><td style="font-family:monospace;font-size:12px;font-weight:600">890123456789014</td><td style="font-weight:600">Samsung S24 Ultra</td><td style="color:var(--text-secondary)">512 GB</td><td style="color:var(--text-secondary)">Titanium Gray</td><td><span class="badge badge-info">In_QC</span></td><td style="color:var(--text-secondary)">QC Station 2</td><td style="text-align:right;font-family:monospace;font-size:12px">$1,249.00</td><td style="color:var(--text-secondary)">3</td></tr>
+        <tr><td><input type="checkbox"></td><td style="font-family:monospace;font-size:12px;font-weight:600">890123456789018</td><td style="font-weight:600">Google Pixel 8 Pro</td><td style="color:var(--text-secondary)">128 GB</td><td style="color:var(--text-secondary)">Obsidian</td><td><span class="badge badge-warning">In_Repair</span></td><td style="color:var(--text-secondary)">Repair Station</td><td style="text-align:right;font-family:monospace;font-size:12px">$899.00</td><td style="color:var(--text-secondary)">7</td></tr>
+        <tr><td><input type="checkbox"></td><td style="font-family:monospace;font-size:12px;font-weight:600">890123456789022</td><td style="font-weight:600">iPhone 14</td><td style="color:var(--text-secondary)">128 GB</td><td style="color:var(--text-secondary)">Midnight</td><td><span class="badge badge-success">Sellable</span></td><td style="color:var(--text-secondary)">Store Downtown</td><td style="text-align:right;font-family:monospace;font-size:12px">$699.00</td><td style="color:var(--text-secondary)">21</td></tr>
+        <tr><td><input type="checkbox"></td><td style="font-family:monospace;font-size:12px;font-weight:600">890123456789031</td><td style="font-weight:600">OnePlus 12</td><td style="color:var(--text-secondary)">256 GB</td><td style="color:var(--text-secondary)">Flowy Emerald</td><td><span class="badge badge-purple">In_Transit</span></td><td style="color:var(--text-secondary)">En Route</td><td style="text-align:right;font-family:monospace;font-size:12px">$749.00</td><td style="color:var(--text-secondary)">2</td></tr>
+      </tbody>
+    </table></div></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: QUICK INTAKE ═══════════ -->
+<div class="screen" id="screen-manual-intake">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Quick Intake</h2><span class="page-badge" id="intake-count">0 Scanned</span></div><p class="page-subtitle">Scan or type IMEI — press Enter to register</p></div>
+  </div>
+  <div class="grid-cols-2">
+    <div class="card">
+      <div class="scan-area" style="border:none">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <input type="text" id="scan-imei-input" class="scan-input" placeholder="Scan or type IMEI / Serial..." onkeydown="handleScanInput(event)">
+        <p style="font-size:11px;color:var(--text-tertiary);margin-top:8px">Press <kbd style="background:var(--bg-muted);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-family:monospace;font-size:10px">Enter</kbd> to add · Duplicates skipped</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <label class="form-label">Destination Location</label>
+        <select class="select" style="margin-bottom:12px"><option>Warehouse A</option><option>Store Downtown</option><option>QC Station 2</option></select>
+        <label class="form-label">Default Status</label>
+        <select class="select" style="margin-bottom:16px"><option>Sellable</option><option selected>In QC</option><option>In Repair</option></select>
+        <button class="btn btn-primary" style="width:100%;padding:12px" id="register-btn" onclick="registerDevices()" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Register Devices
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-header">Scanned Devices <span id="register-count" style="font-size:11px;color:var(--text-tertiary)">0 devices</span></div>
+    <div id="scan-register-body">
+      <div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><h3>No devices scanned</h3><p>Scan or enter IMEIs to populate the register</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: PHONE ROUTING ═══════════ -->
+<div class="screen" id="screen-phone-routing">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Routing Hub</h2><span class="page-badge">Command & Control</span></div><p class="page-subtitle">Scan an IMEI to inspect device state and route to the next station</p></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-single" onclick="switchRoutingTab('single')">Single Device</button>
+    <button class="tab-btn" id="tab-batch" onclick="switchRoutingTab('batch')">Batch Routing</button>
+  </div>
+  <div id="routing-single">
+    <div class="grid-cols-2">
+      <div class="card">
+        <div class="scan-area" style="border:none">
+          <input type="text" class="scan-input" placeholder="Enter IMEI to look up...">
+          <button class="btn btn-secondary" style="margin-top:12px">Look Up</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">IMEI</div><div class="info-value">890123456789012</div></div>
+            <div class="info-item"><div class="info-label">Model</div><div class="info-value">iPhone 15 Pro Max</div></div>
+            <div class="info-item"><div class="info-label">Status</div><div class="info-value"><span class="badge badge-success">Sellable</span></div></div>
+            <div class="info-item"><div class="info-label">Location</div><div class="info-value">Warehouse A</div></div>
+            <div class="info-item"><div class="info-label">Cost Basis</div><div class="info-value">$1,099.00</div></div>
+            <div class="info-item"><div class="info-label">Days in Inventory</div><div class="info-value">12</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-header">Route Device</div>
+      <div class="card-body">
+        <div class="route-grid">
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Send to QC</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.77 3.77z"/></svg>Send to Repair</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="m9 12 2 2 4-4"/></svg>Mark Sellable</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>Await Parts</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><rect x="1" y="3" width="15" height="13"/></svg>Transfer</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg>Mark Sold</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><path d="M12 2v4"/></svg>Reserve Layaway</button>
+          <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--destructive)" stroke-width="2"><circle cx="12" cy="12" r="1"/></svg>Scrap Device</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="routing-batch" style="display:none">
+    <div class="card"><div class="card-body">
+      <textarea class="select" rows="6" style="font-family:monospace;font-size:13px" placeholder="Enter IMEIs (one per line or comma-separated)..."></textarea>
+      <button class="btn btn-secondary" style="margin-top:12px">Look Up All</button>
+    </div></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: RAPID AUDIT ═══════════ -->
+<div class="screen" id="screen-rapid-audit">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Rapid Inventory Audit</h2><span class="page-badge">Physical Count</span></div><p class="page-subtitle">Continuous scanner mode — scan all IMEIs at this location</p></div>
+  </div>
+  <div class="grid-cols-2">
+    <div class="card">
+      <div class="scan-area" style="border:none">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom:12px"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M9 14l2 2 4-4"/></svg>
+        <input type="text" class="scan-input" placeholder="Awaiting scan...">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px;justify-content:center">
+        <button class="btn btn-primary" style="padding:14px">Run Audit Variance Report</button>
+        <button class="btn btn-ghost">Clear All</button>
+      </div>
+    </div>
+  </div>
+  <h3 style="font-family:var(--font-heading);font-size:14px;margin:16px 0 8px;color:var(--text-secondary)">Scanned IMEIs (42)</h3>
+  <div class="scanned-list" style="border:1px solid var(--border);border-radius:var(--radius-lg)">
+    <div class="scanned-row"><span>890123456789012</span><button class="del-btn">&times;</button></div>
+    <div class="scanned-row"><span>890123456789014</span><button class="del-btn">&times;</button></div>
+    <div class="scanned-row"><span>890123456789018</span><button class="del-btn">&times;</button></div>
+    <div class="scanned-row"><span>890123456789022</span><button class="del-btn">&times;</button></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: QC ═══════════ -->
+<div class="screen" id="screen-qc">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Quality Control</h2></div><p class="page-subtitle">IMEI-based inspection workflow: scan, inspect, save</p></div>
+  </div>
+  <div class="grid-cols-2">
+    <div class="gap-20">
+      <div class="card">
+        <div class="card-body" style="padding:12px">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="input" placeholder="Scan IMEI..." style="padding-left:38px">
+          </div>
+          <button class="btn btn-secondary" style="margin-top:8px;width:100%">Look Up</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Device Details</div>
+        <div class="card-body">
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">IMEI</div><div class="info-value">890123456789012</div></div>
+            <div class="info-item"><div class="info-label">Serial</div><div class="info-value">DMPVKJ8N73</div></div>
+            <div class="info-item"><div class="info-label">Status</div><div class="info-value"><span class="badge badge-success">In QC</span></div></div>
+            <div class="info-item"><div class="info-label">Location</div><div class="info-value">QC Station 2</div></div>
+            <div class="info-item"><div class="info-label">Brand</div><div class="info-value">Apple</div></div>
+            <div class="info-item"><div class="info-label">Model</div><div class="info-value">iPhone 15 Pro Max</div></div>
+            <div class="info-item"><div class="info-label">Model #</div><div class="info-value">A2849</div></div>
+            <div class="info-item"><div class="info-label">Color</div><div class="info-value">Natural Titanium</div></div>
+            <div class="info-item"><div class="info-label">Storage</div><div class="info-value">256 GB</div></div>
+            <div class="info-item"><div class="info-label">Cost Basis</div><div class="info-value">$1,099.00</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">QC History <span style="font-size:11px;color:var(--text-tertiary)">3 inspections</span></div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">May 3, 2026 14:30</div><div class="timeline-title">Grade A+ — Clean</div><div class="timeline-desc">Inspector: marcus.w</div></div></div>
+            <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">May 3, 2026 12:15</div><div class="timeline-title">Grade B+ — Minor scratches</div><div class="timeline-desc">Inspector: diana.k — Frame: Fair</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">QC Inspection</div>
+      <div class="card-body">
+        <div class="gap-20">
+          <div>
+            <label class="form-label">Screen Condition</label>
+            <select class="select"><option>Good</option><option>Fair</option><option>Poor</option><option>Damaged</option></select>
+          </div>
+          <div>
+            <label class="form-label">Frame Condition</label>
+            <select class="select"><option>Good</option><option>Fair</option><option>Poor</option><option>Damaged</option></select>
+          </div>
+          <div>
+            <label class="form-label" style="margin-bottom:8px">Issues Found</label>
+            <div class="checkbox-row"><input type="checkbox" id="qc-camera"> <span>Camera Lens Damage</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="qc-faceid"> <span>Face ID Issue</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="qc-battery"> <span>Battery Service</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="qc-speaker"> <span>Speaker Issue</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="qc-charging"> <span>Charging Port Issue</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="qc-network"> <span>Network Locked</span></div>
+          </div>
+          <div>
+            <label class="form-label" style="margin-bottom:8px">Grade</label>
+            <div class="grade-cards">
+              <div class="grade-card selected">A+</div>
+              <div class="grade-card">AB</div>
+              <div class="grade-card">B+</div>
+              <div class="grade-card">B</div>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Needs Repair?</label>
+            <div class="toggle-group" style="margin-top:4px">
+              <button class="toggle-btn active">No</button>
+              <button class="toggle-btn">Yes</button>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Notes</label>
+            <textarea class="select" rows="3" placeholder="Inspection notes..."></textarea>
+          </div>
+          <button class="btn btn-primary" style="width:100%;padding:12px">Save QC Inspection</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: REPAIRS ═══════════ -->
+<div class="screen" id="screen-repairs">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Repairs</h2></div><p class="page-subtitle">Record repair work and route device post-repair</p></div>
+  </div>
+  <div class="grid-cols-2">
+    <div class="gap-20">
+      <div class="card">
+        <div class="card-body" style="padding:12px">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="input" placeholder="Scan IMEI..." style="padding-left:38px">
+          </div>
+          <button class="btn btn-secondary" style="margin-top:8px;width:100%">Look Up</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">QC Findings</div>
+        <div class="card-body">
+          <div class="gap-8">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--text-secondary)">Screen</span><span class="badge badge-success" style="font-size:12px">Good</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--text-secondary)">Frame</span><span class="badge badge-danger" style="font-size:12px">Poor</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--text-secondary)">Battery</span><span class="badge badge-warning" style="font-size:12px">Service Needed</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--text-secondary)">Grade</span><span style="font-family:var(--font-heading);font-weight:700;color:var(--accent)">B+</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Parts Used</div>
+        <div class="card-body">
+          <select class="select" style="margin-bottom:8px"><option>Select part...</option><option>OLED Screen Panel — 3 in stock</option><option>Battery Pack 4500mAh — 12 in stock</option><option>Frame Housing Black — 5 in stock</option></select>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="input" type="number" value="1" min="1" style="width:60px">
+            <button class="btn btn-ghost btn-sm">Add</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>OLED Screen Panel</span><span style="color:var(--text-secondary)">1 x $189</span><button style="background:none;border:none;color:var(--text-muted);cursor:pointer">&times;</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Repair Record</div>
+      <div class="card-body">
+        <div class="gap-20">
+          <div>
+            <label class="form-label" style="margin-bottom:8px">Work Completed</label>
+            <div class="grid-cols-2">
+              <div class="checkbox-row"><input type="checkbox" checked> <span>Screen Replacement</span></div>
+              <div class="checkbox-row"><input type="checkbox"> <span>Frame/Housing</span></div>
+              <div class="checkbox-row"><input type="checkbox"> <span>Camera Lens</span></div>
+              <div class="checkbox-row"><input type="checkbox"> <span>Face ID / TrueDepth</span></div>
+              <div class="checkbox-row"><input type="checkbox" checked> <span>Battery Replacement</span></div>
+              <div class="checkbox-row"><input type="checkbox"> <span>Ear Speaker</span></div>
+              <div class="checkbox-row"><input type="checkbox"> <span>Loud Speaker</span></div>
+              <div class="checkbox-row"><input type="checkbox"> <span>Charging Port</span></div>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Notes</label>
+            <textarea class="select" rows="3" placeholder="Repair notes..."></textarea>
+          </div>
+          <button class="btn btn-primary" style="width:100%;padding:12px">Save Repair</button>
+          <div style="border-top:1px solid var(--border);padding-top:16px">
+            <label class="form-label" style="margin-bottom:8px">Post-Repair Routing</label>
+            <div class="route-grid" style="grid-template-columns:1fr 1fr">
+              <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Send to QC</button>
+              <button class="route-btn"><svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="m9 12 2 2 4-4"/></svg>Mark Sellable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: TRACK ═══════════ -->
+<div class="screen" id="screen-track">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Track Device</h2></div><p class="page-subtitle">Search by IMEI, Serial, or Phone Number for full device history</p></div>
+  </div>
+  <div class="grid-cols-2">
+    <div class="card">
+      <div class="card-body">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="input" placeholder="IMEI, Serial, or Phone Number..." style="padding-left:38px">
+        </div>
+        <button class="btn btn-secondary" style="margin-top:8px;width:100%">Track</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">IMEI</div><div class="info-value">890123456789012</div></div>
+          <div class="info-item"><div class="info-label">Serial</div><div class="info-value">DMPVKJ8N73</div></div>
+          <div class="info-item"><div class="info-label">Location</div><div class="info-value">Store Downtown</div></div>
+          <div class="info-item"><div class="info-label">Model</div><div class="info-value">iPhone 15 Pro Max</div></div>
+          <div class="info-item"><div class="info-label">Brand</div><div class="info-value">Apple</div></div>
+          <div class="info-item"><div class="info-label">Received</div><div class="info-value">Apr 15, 2026</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-header">Activity Timeline</div>
+    <div class="card-body">
+      <div class="timeline">
+        <div class="timeline-item"><div class="timeline-dot" style="background:var(--info)"></div><div class="timeline-content"><div class="timeline-time">May 5, 2026 10:23 AM</div><div class="timeline-title">Transferred to Store Downtown</div><div class="timeline-desc">From QC Station 2 · Employee: marcus.w</div></div></div>
+        <div class="timeline-item"><div class="timeline-dot" style="background:var(--success)"></div><div class="timeline-content"><div class="timeline-time">May 3, 2026 14:30 PM</div><div class="timeline-title">QC Passed — Grade A+</div><div class="timeline-desc">Inspector: diana.k · All checks passed</div></div></div>
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">Apr 28, 2026 09:15 AM</div><div class="timeline-title">Bulk Intake Registered</div><div class="timeline-desc">Received from Samsung shipment · Sent to QC</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: INCOMING TRANSFERS ═══════════ -->
+<div class="screen" id="screen-incoming">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Incoming Transfers</h2><span class="page-badge">Receive</span></div><p class="page-subtitle">Scan and receive devices transferred to your location</p></div>
+  </div>
+  <div class="gap-20">
+    <div class="card">
+      <div class="card-header">
+        <span>Transfer #T-2026-0507 · Warehouse A → Store Downtown</span>
+        <span class="badge badge-info">In Transit</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-bar" style="margin-bottom:12px"><div class="fill" style="width:40%"></div></div>
+        <span style="font-size:12px;color:var(--text-secondary)">20 / 50 devices received</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Receive Devices</div>
+      <div class="card-body">
+        <div class="search-box" style="margin-bottom:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="input" placeholder="Scan IMEI to receive..." style="padding-left:38px">
+        </div>
+        <button class="btn btn-primary btn-sm">Receive All 30 Remaining</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Devices in This Transfer</div>
+      <div class="card-body no-pad"><div class="table-wrap"><table>
+        <thead><tr><th>IMEI</th><th>Model</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:monospace;font-size:12px">890123456789100</td><td>iPhone 15 Pro Max</td><td><span class="badge badge-success">Received</span></td></tr>
+          <tr><td style="font-family:monospace;font-size:12px">890123456789101</td><td>Samsung S24 Ultra</td><td><span class="badge badge-success">Received</span></td></tr>
+          <tr><td style="font-family:monospace;font-size:12px">890123456789102</td><td>Google Pixel 8 Pro</td><td><span class="badge badge-neutral">Pending</span></td></tr>
+          <tr><td style="font-family:monospace;font-size:12px">890123456789103</td><td>OnePlus 12</td><td><span class="badge badge-neutral">Pending</span></td></tr>
+        </tbody>
+      </table></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: CUSTOMERS ═══════════ -->
+<div class="screen" id="screen-customers">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Customers</h2><span class="page-badge">1,892 Total</span></div><p class="page-subtitle">Manage retail & wholesale accounts</p></div>
+    <button class="btn btn-primary" onclick="navigate('customer-detail')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Customer
+    </button>
+  </div>
+  <div class="filters-row">
+    <div class="search-box" style="flex:1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="input" placeholder="Search by name, company, or phone..." style="padding-left:40px"></div>
+  </div>
+  <div class="card">
+    <div class="card-body no-pad"><div class="table-wrap"><table>
+      <thead><tr><th>Customer</th><th>Type</th><th>Contact</th><th>Balance</th><th></th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600">John Doe</td><td><span class="badge badge-info">Retail</span></td><td style="color:var(--text-secondary);font-size:12px">+1 (555) 123-4567 · john@email.com</td><td style="font-family:monospace;color:var(--success);font-size:12px">$0.00</td><td style="text-align:right;color:var(--text-muted);cursor:pointer" onclick="navigate('customer-detail')">&rsaquo;</td></tr>
+        <tr><td style="font-weight:600">TechNova Corp</td><td><span class="badge badge-purple">Wholesale</span></td><td style="color:var(--text-secondary);font-size:12px">+1 (555) 987-6543 · orders@technova.com</td><td style="font-family:monospace;color:var(--warning);font-size:12px">$2,450.00 / $10,000</td><td style="text-align:right;color:var(--text-muted);cursor:pointer" onclick="navigate('customer-detail')">&rsaquo;</td></tr>
+        <tr><td style="font-weight:600">Sarah Johnson</td><td><span class="badge badge-info">Retail</span></td><td style="color:var(--text-secondary);font-size:12px">+1 (555) 246-8101 · sarah@email.com</td><td style="font-family:monospace;color:var(--success);font-size:12px">$0.00</td><td style="text-align:right;color:var(--text-muted);cursor:pointer" onclick="navigate('customer-detail')">&rsaquo;</td></tr>
+        <tr><td style="font-weight:600">MobileResell Inc</td><td><span class="badge badge-purple">Wholesale</span><span class="badge badge-orange" style="margin-left:4px">Consignee</span></td><td style="color:var(--text-secondary);font-size:12px">+1 (555) 369-2580 · hello@mobileresell.com</td><td style="font-family:monospace;color:var(--destructive);font-size:12px">$5,800.00 / $15,000</td><td style="text-align:right;color:var(--text-muted);cursor:pointer" onclick="navigate('customer-detail')">&rsaquo;</td></tr>
+      </tbody>
+    </table></div></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: CUSTOMER DETAIL ═══════════ -->
+<div class="screen" id="screen-customer-detail">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">New Customer</h2></div></div>
+    <button class="btn btn-ghost" onclick="navigate('customers')">&larr; Back to Customers</button>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="toggle-group">
+        <button class="toggle-btn active">Retail</button>
+        <button class="toggle-btn">Wholesale</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="grid-cols-2">
+        <div class="gap-8">
+          <label class="form-label">First Name</label>
+          <input class="input" placeholder="John">
+        </div>
+        <div class="gap-8">
+          <label class="form-label">Last Name</label>
+          <input class="input" placeholder="Doe">
+        </div>
+        <div class="gap-8">
+          <label class="form-label">Phone *</label>
+          <input class="input" placeholder="+1 (555) 000-0000">
+        </div>
+        <div class="gap-8">
+          <label class="form-label">Email</label>
+          <input class="input" type="email" placeholder="customer@email.com">
+        </div>
+        <div class="gap-8">
+          <label class="form-label">Tax Exempt ID</label>
+          <input class="input" placeholder="TX-123456">
+        </div>
+        <div class="gap-8">
+          <label class="form-label">Tax Exempt Expiry</label>
+          <input class="input" type="date">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button class="btn btn-primary" style="padding:10px 30px">Create Customer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: CONSIGNMENTS ═══════════ -->
+<div class="screen" id="screen-consignments">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Consignments</h2></div><p class="page-subtitle">Manage device handoffs to consignees</p></div>
+    <button class="btn btn-primary" onclick="navigate('consignment-detail')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Handoff
+    </button>
+  </div>
+  <div class="grid-cols-2">
+    <div class="card">
+      <div class="card-header"><span style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Batch #C-2026-0001</span><span class="badge badge-warning">Active — Overdue</span></div>
+      <div class="card-body">
+        <div style="font-size:13px;color:var(--text-secondary)">Consignee: MobileResell Inc</div>
+        <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">12 items · Due: Apr 30, 2026</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="navigate('consignment-detail')">View Details</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Batch #C-2026-0002</span><span class="badge badge-success">Settled</span></div>
+      <div class="card-body">
+        <div style="font-size:13px;color:var(--text-secondary)">Consignee: TechNova Corp</div>
+        <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">8 items · Settled May 2, 2026</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="navigate('consignment-detail')">View Details</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: CONSIGNMENT DETAIL ═══════════ -->
+<div class="screen" id="screen-consignment-detail">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">New Consignment Handoff</h2></div></div>
+    <button class="btn btn-ghost" onclick="navigate('consignments')">&larr; Back to Consignments</button>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-card"><div class="kpi-label">Customer</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">MobileResell Inc</div></div>
+    <div class="kpi-card"><div class="kpi-label">Handoff Date</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">Apr 15, 2026</div></div>
+    <div class="kpi-card"><div class="kpi-label">Due Date</div><div style="font-size:14px;font-weight:600;color:var(--destructive);margin-top:4px">Apr 30, 2026</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Value</div><div style="font-family:var(--font-heading);font-size:22px;font-weight:700;color:var(--text);margin-top:4px">$8,450.00</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">Items in This Handoff</div>
+    <div class="card-body no-pad"><div class="table-wrap"><table>
+      <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600">iPhone 15 Pro Max<br><span style="font-size:11px;color:var(--text-tertiary)">IMEI: 890123456789100</span></td><td>1</td><td>$1,099.00</td><td>$1,099.00</td><td><span class="badge badge-success">Sold</span></td></tr>
+        <tr><td style="font-weight:600">Samsung S24 Ultra<br><span style="font-size:11px;color:var(--text-tertiary)">IMEI: 890123456789101</span></td><td>1</td><td>$1,249.00</td><td>$1,249.00</td><td><span class="badge badge-success">Sold</span></td></tr>
+        <tr><td style="font-weight:600">Google Pixel 8 Pro<br><span style="font-size:11px;color:var(--text-tertiary)">IMEI: 890123456789102</span></td><td>1</td><td>$899.00</td><td>$899.00</td><td><span class="badge badge-info">Returned</span></td></tr>
+        <tr><td style="font-weight:600">OnePlus 12<br><span style="font-size:11px;color:var(--text-tertiary)">IMEI: 890123456789103</span></td><td>1</td><td>$749.00</td><td>$749.00</td><td><span class="badge badge-neutral">Pending</span></td></tr>
+      </tbody>
+    </table></div></div>
+  </div>
+  <div style="margin-top:16px">
+    <button class="btn btn-primary" style="padding:12px 30px">Settle Batch & Create Invoice</button>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: INVOICES LIST ═══════════ -->
+<div class="screen" id="screen-invoices-list">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Invoices</h2></div><p class="page-subtitle">Create, track, and share invoices</p></div>
+    <button class="btn btn-primary" onclick="navigate('invoice-form')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Invoice
+    </button>
+  </div>
+  <div class="filters-row">
+    <div class="search-box" style="flex:1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="input" placeholder="Search by invoice #, customer, IMEI..." style="padding-left:40px"></div>
+  </div>
+  <div class="card">
+    <div class="card-body no-pad"><div class="table-wrap"><table>
+      <thead><tr><th>Invoice #</th><th>Customer</th><th style="text-align:right">Total</th><th>Status</th><th>Payment</th><th style="text-align:right">Date</th><th></th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;color:var(--accent);cursor:pointer" onclick="navigate('invoice-detail','INV-2026-0501')">INV-2026-0501</td><td>John Doe</td><td style="text-align:right;font-family:monospace;font-size:12px">$2,098.00</td><td><span class="badge badge-success">Paid</span></td><td><span class="badge badge-success">Paid</span></td><td style="text-align:right;color:var(--text-secondary)">May 1, 2026</td><td style="text-align:right;color:var(--text-muted);cursor:pointer">&rsaquo;</td></tr>
+        <tr><td style="font-weight:600;color:var(--accent);cursor:pointer" onclick="navigate('invoice-detail','INV-2026-0502')">INV-2026-0502</td><td>TechNova Corp</td><td style="text-align:right;font-family:monospace;font-size:12px">$5,400.00</td><td><span class="badge badge-warning">Partially Paid</span></td><td><span class="badge badge-warning">Partially Paid</span></td><td style="text-align:right;color:var(--text-secondary)">May 3, 2026</td><td style="text-align:right;color:var(--text-muted);cursor:pointer">&rsaquo;</td></tr>
+        <tr><td style="font-weight:600;color:var(--accent);cursor:pointer" onclick="navigate('invoice-detail','INV-2026-0503')">INV-2026-0503</td><td>Sarah Johnson</td><td style="text-align:right;font-family:monospace;font-size:12px">$749.00</td><td><span class="badge badge-neutral">Unpaid</span></td><td><span class="badge badge-neutral">Unpaid</span></td><td style="text-align:right;color:var(--text-secondary)">May 5, 2026</td><td style="text-align:right;color:var(--text-muted);cursor:pointer">&rsaquo;</td></tr>
+        <tr><td style="font-weight:600;color:var(--accent);cursor:pointer" onclick="navigate('invoice-detail','INV-2026-0504')">INV-2026-0504</td><td>MobileResell Inc</td><td style="text-align:right;font-family:monospace;font-size:12px">$3,200.00</td><td><span class="badge badge-danger">Overdue</span></td><td><span class="badge badge-neutral">Unpaid</span></td><td style="text-align:right;color:var(--text-secondary)">Apr 15, 2026</td><td style="text-align:right;color:var(--text-muted);cursor:pointer">&rsaquo;</td></tr>
+      </tbody>
+    </table></div></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: INVOICE FORM ═══════════ -->
+<div class="screen" id="screen-invoice-form">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">NEW INVOICE</h2></div><p class="page-subtitle">Create and send a professional invoice to your customer</p></div>
+    <button class="btn btn-ghost" onclick="navigate('invoices-list')">&larr; Back to Invoices</button>
+  </div>
+  <div class="dual-grid">
+    <div class="gap-20">
+      <div class="card">
+        <div class="card-header">Customer</div>
+        <div class="card-body">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/></svg>
+            <input class="input" placeholder="Search by name, phone, or email..." style="padding-left:38px">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-muted);border-radius:var(--radius-md);margin-top:10px">
+            <div class="user-avatar" style="background:var(--primary)">JD</div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:600">John Doe</div><div style="font-size:12px;color:var(--text-tertiary)">+1 (555) 123-4567</div></div>
+            <span class="badge badge-neutral">8 purchases</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Line Items <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="addInvoiceLineItem()">+ Add Item</button></div>
+        <div class="card-body no-pad"><div class="table-wrap"><table>
+          <thead><tr><th style="width:22%">Product / Service</th><th style="width:12%">SKU</th><th style="width:14%">Serial / IMEI</th><th style="width:6%;text-align:center">Qty</th><th style="width:10%;text-align:right">Price</th><th style="width:14%;text-align:right">Discount</th><th style="width:10%;text-align:right">Amount</th><th style="width:4%"></th></tr></thead>
+          <tbody id="inv-items-tbody">
+            <tr><td><input class="input" value="iPhone 15 Pro Max" style="border:none;background:transparent"></td><td><input class="input input-mono" value="IP15PM-256" style="border:none;background:transparent;font-size:11px"></td><td><input class="input input-mono" value="890123456789012" style="border:none;background:transparent;font-size:11px"></td><td><input class="input" type="number" value="1" min="1" style="border:none;background:transparent;text-align:center;width:50px"></td><td><input class="input input-mono" type="number" value="1099" min="0" step="0.01" style="border:none;background:transparent;text-align:right"></td><td><div style="display:flex;align-items:center;gap:4px"><input class="input input-mono" type="number" value="0" style="border:none;background:transparent;text-align:right;width:45px"><span style="font-size:11px;color:var(--text-muted)">%</span></div></td><td style="font-family:monospace;font-size:12px;text-align:right;font-weight:600">$1,099.00</td><td><button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px">&times;</button></td></tr>
+          </tbody>
+        </table></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Payments Received <button class="btn btn-ghost btn-sm" style="color:var(--accent)">Add Payment</button></div>
+        <div class="card-body no-pad"><div class="table-wrap"><table>
+          <thead><tr><th>Method</th><th style="text-align:right">Amount</th><th>Reference</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><select class="select" style="border:none;background:transparent"><option>Cash</option><option>Credit Card</option><option>Wire</option><option>Zelle</option></select></td><td><input class="input input-mono" type="number" value="2000" style="border:none;background:transparent;text-align:right"></td><td><input class="input" placeholder="Ref #" style="border:none;background:transparent"></td><td><button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px">&times;</button></td></tr>
+          </tbody>
+        </table></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Additional Settings</div>
+        <div class="card-body">
+          <div class="grid-cols-2">
+            <div><label class="form-label">Tax %</label><input class="input input-mono" type="number" value="8.25" step="0.01"></div>
+            <div><label class="form-label">Discount %</label><input class="input input-mono" type="number" value="0" step="0.01"></div>
+            <div><label class="form-label">Currency</label><select class="select"><option>USD</option><option>EUR</option><option>GBP</option></select></div>
+            <div><label class="form-label">Fulfillment</label><select class="select"><option>Walk-in</option><option>Pickup</option><option>Delivery</option></select></div>
+          </div>
+          <div style="margin-top:12px"><label class="form-label">Message on Invoice</label><textarea class="select" rows="2" placeholder="Thank you for your business!"></textarea></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:14px">Create Invoice</button>
+    </div>
+    <div class="card invoice-preview">
+      <div class="card-header">Preview</div>
+      <div class="card-body" style="padding:16px">
+        <div class="preview-row"><span>Subtotal</span><span>$1,099.00</span></div>
+        <div class="preview-row"><span>Discount (0%)</span><span>$0.00</span></div>
+        <div class="preview-row"><span>Tax (8.25%)</span><span>$90.67</span></div>
+        <div class="preview-row total"><span>Total</span><span>$1,189.67</span></div>
+        <div class="preview-row paid" style="margin-top:12px"><span>Paid</span><span>$2,000.00</span></div>
+        <div class="preview-row balance"><span>Change Due</span><span>$810.33</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: INVOICE DETAIL ═══════════ -->
+<div class="screen" id="screen-invoice-detail">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title" id="detail-inv-num" style="font-family:monospace">INV-2026-0501</h2><span class="badge badge-success" id="detail-status-badge">Paid</span><span class="badge badge-success" id="detail-payment-badge">Paid</span></div><p class="page-subtitle">Created May 1, 2026 at 3:45 PM</p></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('invoice-form')">Edit</button>
+      <button class="btn btn-ghost btn-sm">Share</button>
+    </div>
+  </div>
+  <div class="dual-grid">
+    <div class="gap-20">
+      <div class="card">
+        <div class="card-header">Customer</div>
+        <div class="card-body">
+          <div style="font-size:14px;font-weight:600">John Doe</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">+1 (555) 123-4567 · john@email.com</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Line Items</div>
+        <div class="card-body no-pad"><div class="table-wrap"><table>
+          <thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600">iPhone 15 Pro Max<br><span style="font-size:11px;color:var(--text-tertiary)">IMEI: 890123456789012</span></td><td style="text-align:center">1</td><td style="text-align:right;font-family:monospace;font-size:12px">$1,099.00</td><td style="text-align:right;font-family:monospace;font-size:12px;font-weight:600">$1,099.00</td></tr>
+          </tbody>
+        </table></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Payments</div>
+        <div class="card-body no-pad"><div class="table-wrap"><table>
+          <thead><tr><th>Method</th><th style="text-align:right">Amount</th><th>Reference</th><th style="text-align:right">Date</th></tr></thead>
+          <tbody>
+            <tr><td>Cash</td><td style="text-align:right;font-family:monospace;font-size:12px">$1,189.67</td><td style="color:var(--text-secondary)">—</td><td style="text-align:right;color:var(--text-secondary);font-size:12px">May 1, 2026</td></tr>
+          </tbody>
+        </table></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Activity</div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-dot" style="background:var(--success)"></div><div class="timeline-content"><div class="timeline-time">May 1, 2026 4:30 PM</div><div class="timeline-title">Payment Received</div><div class="timeline-desc">$1,189.67 via Cash · Marked as Paid</div></div></div>
+            <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">May 1, 2026 3:45 PM</div><div class="timeline-title">Invoice Created</div><div class="timeline-desc">Created by sheshank · Status: Unpaid</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card invoice-preview">
+      <div class="card-header">Summary</div>
+      <div class="card-body" style="padding:16px">
+        <div class="preview-row"><span>Subtotal</span><span>$1,099.00</span></div>
+        <div class="preview-row"><span>Discount (0%)</span><span>$0.00</span></div>
+        <div class="preview-row"><span>Tax (8.25%)</span><span>$90.67</span></div>
+        <div class="preview-row total"><span>Total</span><span>$1,189.67</span></div>
+        <div class="preview-row paid" style="margin-top:12px"><span>Paid</span><span>$1,189.67</span></div>
+        <div class="preview-row balance" style="color:var(--success)"><span>Balance</span><span>$0.00</span></div>
+        <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+          <div class="preview-row"><span>Fulfillment</span><span>Walk-in</span></div>
+          <div class="preview-row"><span>Terms</span><span>Net 30</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: PUBLIC INVOICE ═══════════ -->
+<div class="screen" id="screen-public-invoice">
+  <div style="max-width:700px;margin:0 auto;padding:40px 20px">
+    <div style="text-align:center;margin-bottom:30px">
+      <h1 style="font-family:var(--font-heading);font-size:24px;font-weight:700">AMAFAH <span style="color:var(--accent)">Electronics</span></h1>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:4px">Wholesale Electronics — Inventory & POS</p>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header" style="justify-content:space-between">
+        <span style="font-family:monospace;font-size:15px;font-weight:700">INV-2026-0501</span>
+        <span class="badge badge-success">Paid</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between">
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px">Bill To</div>
+            <div style="font-weight:600">John Doe</div>
+            <div style="font-size:12px;color:var(--text-secondary)">+1 (555) 123-4567</div>
+            <div style="font-size:12px;color:var(--text-secondary)">john@email.com</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px">Date</div>
+            <div style="font-weight:600">May 1, 2026</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-body no-pad"><div class="table-wrap"><table>
+        <thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:600">iPhone 15 Pro Max<br><span style="font-size:11px;color:var(--text-tertiary)">IMEI: 890123456789012</span></td><td style="text-align:center">1</td><td style="text-align:right;font-family:monospace">$1,099.00</td><td style="text-align:right;font-family:monospace;font-weight:600">$1,099.00</td></tr>
+        </tbody>
+      </table></div></div>
+    </div>
+    <div class="card" style="margin-bottom:30px">
+      <div class="card-body">
+        <div class="preview-row"><span>Subtotal</span><span>$1,099.00</span></div>
+        <div class="preview-row"><span>Discount</span><span>$0.00</span></div>
+        <div class="preview-row"><span>Tax (8.25%)</span><span>$90.67</span></div>
+        <div class="preview-row total"><span>Total</span><span>$1,189.67</span></div>
+        <div class="preview-row paid" style="margin-top:10px"><span>Paid</span><span>$1,189.67</span></div>
+        <div class="preview-row" style="color:var(--success);font-size:15px;font-weight:700"><span>Balance Due</span><span>$0.00</span></div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--text-tertiary)">
+      Powered by <span style="font-weight:700;color:var(--accent)">AMAFAH ERP</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: SETTINGS ═══════════ -->
+<div class="screen" id="screen-settings">
+  <div class="page-header">
+    <div><div class="page-title-row"><h2 class="page-title">Organization Settings</h2></div><p class="page-subtitle">Customize your invoice templates, branding, and defaults</p></div>
+    <button class="btn btn-primary">Save All</button>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchSettingsTab('branding')">Branding</button>
+    <button class="tab-btn" onclick="switchSettingsTab('financial')">Financial</button>
+    <button class="tab-btn" onclick="switchSettingsTab('communication')">Communication</button>
+  </div>
+  <div id="settings-branding" class="card">
+    <div class="card-body">
+      <div class="gap-20">
+        <div><label class="form-label">Logo URL</label><input class="input" placeholder="https://example.com/logo.png" value="https://amafahelectronics.com/logo.png"></div>
+        <div><label class="form-label">Invoice Template</label><select class="select"><option>Modern</option><option>Classic</option><option>Minimal</option></select></div>
+        <div>
+          <label class="form-label" style="margin-bottom:8px">Primary Color</label>
+          <div style="display:flex;gap:8px">
+            <div class="color-swatch selected" style="background:#059669"></div>
+            <div class="color-swatch" style="background:#2563EB"></div>
+            <div class="color-swatch" style="background:#7C3AED"></div>
+            <div class="color-swatch" style="background:#DC2626"></div>
+            <div class="color-swatch" style="background:#D97706"></div>
+            <div class="color-swatch" style="background:#0891B2"></div>
+            <div class="color-swatch" style="background:#4F46E5"></div>
+            <div class="color-swatch" style="background:#BE185D"></div>
+            <input class="input input-mono" value="#059669" style="width:100px;margin-left:8px">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="settings-financial" class="card" style="display:none">
+    <div class="card-body">
+      <div class="gap-20">
+        <div><label class="form-label">Default Tax Rate (%)</label><input class="input input-mono" type="number" value="8.25" step="0.01"></div>
+        <div><label class="form-label">Currency</label><select class="select"><option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option></select></div>
+        <div><label class="form-label">Timezone</label><select class="select"><option>America/New_York (EST)</option><option>America/Chicago (CST)</option><option>America/Denver (MST)</option><option>America/Los_Angeles (PST)</option></select></div>
+        <div><label class="form-label">Default Invoice Terms</label><textarea class="select" rows="3">Payment is due within 30 days of invoice date. Late payments are subject to a 1.5% monthly finance charge.</textarea></div>
+      </div>
+    </div>
+  </div>
+  <div id="settings-communication" class="card" style="display:none">
+    <div class="card-body">
+      <div class="gap-20">
+        <div><label class="form-label">Invoice Email Body</label><textarea class="select" rows="4">Dear {customer_name}, your invoice #{invoice_number} for {total} is attached. Payment is due by {due_date}. Thank you for your business!</textarea></div>
+        <div><label class="form-label">Reminder Email Body</label><textarea class="select" rows="4">Reminder: Invoice #{invoice_number} for {total} is now past due. Please remit payment at your earliest convenience.</textarea></div>
+        <div style="font-size:11px;color:var(--text-tertiary);background:var(--bg-muted);padding:10px;border-radius:var(--radius-md)">Available placeholders: {customer_name}, {invoice_number}, {total}, {due_date}</div>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary" style="margin-top:20px;width:100%;padding:14px">Save All Settings</button>
+</div>
+
+  </div></div>
+</div>
+</div>
+
+<script>
+let scannedDevices = [];
+let currentScreen = 'inventory';
+
+function navigate(screen, param) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + screen);
+  if (el) el.classList.add('active');
+  currentScreen = screen;
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navItem = document.querySelector(`[data-screen="${screen}"]`);
+  if (navItem) navItem.classList.add('active');
+
+  if (screen === 'invoice-form' || screen === 'invoice-detail') {
+    const invNav = document.querySelector('[data-screen="invoices-list"]');
+    if (invNav) invNav.classList.add('active');
+  }
+  if (screen === 'customer-detail') {
+    const custNav = document.querySelector('[data-screen="customers"]');
+    if (custNav) custNav.classList.add('active');
+  }
+  if (screen === 'consignment-detail') {
+    const consNav = document.querySelector('[data-screen="consignments"]');
+    if (consNav) consNav.classList.add('active');
+  }
+
+  const titles = screenTitles[screen] || [screen.replace(/-/g,' ')];
+  let html = '<a onclick="navigate(\'inventory\')"><svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\'><path d=\'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\'/></svg></a>';
+  titles.forEach((t, i) => {
+    html += '<span class="sep">&rsaquo;</span>';
+    html += i === titles.length - 1
+      ? `<span class="current">${param ? t + ' ' + param : t}</span>`
+      : `<a>${t}</a>`;
+  });
+  document.getElementById('breadcrumbs').innerHTML = html;
+
+  if (screen === 'invoice-detail' && param) {
+    document.getElementById('detail-inv-num').textContent = param;
+  }
+
+  if (screen === 'manual-intake') {
+    setTimeout(() => {
+      const inp = document.getElementById('scan-imei-input');
+      if (inp) inp.focus();
+    }, 100);
+  }
+}
+
+const screenTitles = {
+  'inventory': ['Inventory'],
+  'manual-intake': ['Operations', 'Quick Intake'],
+  'phone-routing': ['Operations', 'Phone Routing'],
+  'rapid-audit': ['Operations', 'Rapid Audit'],
+  'qc': ['Operations', 'QC'],
+  'repairs': ['Operations', 'Repairs'],
+  'track': ['Operations', 'Track Device'],
+  'incoming': ['Inventory', 'Incoming Transfers'],
+  'customers': ['CRM', 'Customers'],
+  'customer-detail': ['CRM', 'Customers', 'New Customer'],
+  'consignments': ['CRM', 'Consignments'],
+  'consignment-detail': ['CRM', 'Consignments', 'New Handoff'],
+  'invoices-list': ['Sales', 'Invoices'],
+  'invoice-form': ['Sales', 'Invoices', 'New Invoice'],
+  'invoice-detail': ['Sales', 'Invoices', 'Invoice'],
+  'public-invoice': ['Invoice'],
+  'settings': ['Sales', 'Settings'],
+};
+
+function handleScanInput(event) {
+  if (event.key === 'Enter') {
+    const val = event.target.value.trim();
+    if (val && !scannedDevices.includes(val)) {
+      scannedDevices.push(val);
+      updateIntakeList();
+    }
+    event.target.value = '';
+  }
+}
+
+function updateIntakeList() {
+  const body = document.getElementById('scan-register-body');
+  const count = document.getElementById('intake-count');
+  const regCount = document.getElementById('register-count');
+  const regBtn = document.getElementById('register-btn');
+
+  count.textContent = scannedDevices.length + ' Scanned';
+  regCount.textContent = scannedDevices.length + ' devices';
+  regBtn.disabled = scannedDevices.length === 0;
+
+  if (scannedDevices.length === 0) {
+    body.innerHTML = '<div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><h3>No devices scanned</h3><p>Scan or enter IMEIs to populate the register</p></div>';
+    return;
+  }
+
+  let html = '';
+  scannedDevices.forEach((d, i) => {
+    html += `<div class="scanned-row"><span>${scannedDevices.length - i}. ${d}</span><button class="del-btn" onclick="removeIntakeDevice(${i})">&times;</button></div>`;
+  });
+  body.innerHTML = html;
+}
+
+function removeIntakeDevice(index) {
+  scannedDevices.splice(index, 1);
+  updateIntakeList();
+}
+
+function registerDevices() {
+  alert('Registered ' + scannedDevices.length + ' devices!');
+  scannedDevices = [];
+  updateIntakeList();
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+  const isDark = document.body.classList.contains('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  updateThemeIcon(isDark);
+}
+
+function updateThemeIcon(isDark) {
+  document.getElementById('icon-sun').style.display = isDark ? 'block' : 'none';
+  document.getElementById('icon-moon').style.display = isDark ? 'none' : 'block';
+}
+
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefersDark)) {
+    document.body.classList.add('dark');
+  }
+  updateThemeIcon(document.body.classList.contains('dark'));
+})();
+
+function switchRoutingTab(tab) {
+  document.getElementById('tab-single').classList.toggle('active', tab === 'single');
+  document.getElementById('tab-batch').classList.toggle('active', tab === 'batch');
+  document.getElementById('routing-single').style.display = tab === 'single' ? 'block' : 'none';
+  document.getElementById('routing-batch').style.display = tab === 'batch' ? 'block' : 'none';
+}
+
+function switchSettingsTab(tab) {
+  document.querySelectorAll('#settings-branding, #settings-financial, #settings-communication').forEach(el => el.style.display = 'none');
+  document.getElementById('settings-' + tab).style.display = 'block';
+  document.querySelectorAll('#screen-settings .tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(tab)));
+}
+
+function addInvoiceLineItem() {
+  const tbody = document.getElementById('inv-items-tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td><input class="input" placeholder="Product name" style="border:none;background:transparent"></td><td><input class="input input-mono" placeholder="SKU" style="border:none;background:transparent;font-size:11px"></td><td><input class="input input-mono" placeholder="IMEI" style="border:none;background:transparent;font-size:11px"></td><td><input class="input" type="number" value="1" min="1" style="border:none;background:transparent;text-align:center;width:50px"></td><td><input class="input input-mono" type="number" value="0" min="0" step="0.01" style="border:none;background:transparent;text-align:right"></td><td><div style="display:flex;align-items:center;gap:4px"><input class="input input-mono" type="number" value="0" style="border:none;background:transparent;text-align:right;width:45px"><span style="font-size:11px;color:var(--text-muted)">%</span></div></td><td style="font-family:monospace;font-size:12px;text-align:right;font-weight:600">$0.00</td><td><button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
+  tbody.appendChild(tr);
+}
+</script>
+</body>
+</html>

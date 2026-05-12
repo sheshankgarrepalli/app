@@ -1323,6 +1323,26 @@ def update_invoice(
             )
             db.add(db_payment)
 
+    # ── Recalculate payment_status ──
+    if req.payments is not None:
+        total_paid = sum(p.amount for p in req.payments)
+    else:
+        total_paid = sum(p.amount for p in db.query(models.PaymentTransaction).filter(
+            models.PaymentTransaction.invoice_id == invoice.id
+        ).all())
+    if total_paid >= invoice.total - 0.01:
+        invoice.payment_status = models.PaymentStatus.Paid_in_Full
+        if invoice.status in (models.InvoiceStatus.Unpaid, models.InvoiceStatus.Partially_Paid, models.InvoiceStatus.Draft):
+            invoice.status = models.InvoiceStatus.Paid
+    elif total_paid > 0:
+        invoice.payment_status = models.PaymentStatus.Partial_Layaway
+        if invoice.status in (models.InvoiceStatus.Unpaid, models.InvoiceStatus.Draft):
+            invoice.status = models.InvoiceStatus.Partially_Paid
+    else:
+        invoice.payment_status = models.PaymentStatus.Unpaid
+        if invoice.status not in (models.InvoiceStatus.Draft, models.InvoiceStatus.Voided):
+            invoice.status = models.InvoiceStatus.Unpaid
+
     db.add(models.AdminAuditLog(
         org_id=org_id,
         actor_email=current_user.email,

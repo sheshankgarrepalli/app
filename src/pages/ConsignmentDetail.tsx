@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, AlertCircle, Save, ArrowLeft, Plus, Trash2, Search, CheckCircle2,
@@ -69,14 +69,30 @@ export default function ConsignmentDetail() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Search consignees
+  // Recalculate payment amount when settlement changes
+  useEffect(() => {
+    if (!batch || isNew) return;
+    const total = batch.items
+      .filter(item => settleItems[item.id]?.outcome === 'sold')
+      .reduce((sum, item) => {
+        const settledQty = settleItems[item.id]?.settled_qty || item.quantity;
+        return sum + item.unit_price * settledQty;
+      }, 0);
+    setPaymentAmount(total);
+  }, [settleItems, batch, isNew]);
+
+  // Search consignees (debounced)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchConsignees = async (q: string) => {
     setConsigneeSearch(q);
     if (q.length < 1) { setConsignees([]); return; }
-    try {
-      const results = await fetchConsignees(q);
-      setConsignees(results);
-    } catch {}
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await fetchConsignees(q);
+        setConsignees(results);
+      } catch {}
+    }, 300);
   };
 
   // Add item to new batch
@@ -153,6 +169,10 @@ export default function ConsignmentDetail() {
 
       if (sitems.length === 0) { setError('No items to settle'); setSaving(false); return; }
 
+      if (!window.confirm(`Settle this batch? This will finalize all items and create invoices where applicable. This action cannot be undone.`)) {
+        setSaving(false); return;
+      }
+
       const result = await settleBatch(batch.id, {
         items: sitems,
         payment_method: paymentAmount > 0 ? paymentMethod as any : undefined,
@@ -185,14 +205,14 @@ export default function ConsignmentDetail() {
     return (
       <div className="space-y-5 max-w-3xl">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+          <button onClick={() => navigate('/admin/consignments')} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">New Consignment Handoff</h1>
+          <h1 className="text-xl font-bold text-[var(--text)]">New Consignment Handoff</h1>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEE2E2] border border-[var(--destructive)]/20 text-[var(--destructive)] text-sm">
             <AlertCircle size={16} />{error}
           </div>
         )}
@@ -203,14 +223,14 @@ export default function ConsignmentDetail() {
           {selectedConsignee ? (
             <div className="flex items-center justify-between p-3 rounded-lg bg-accent/10 border border-accent/30">
               <div>
-                <div className="font-medium text-[var(--text-primary)] text-sm">
+                <div className="font-medium text-[var(--text)] text-sm">
                   {selectedConsignee.company_name}
                 </div>
                 <div className="text-xs text-[var(--text-tertiary)]">
                   {selectedConsignee.contact_person} · {selectedConsignee.phone}
                 </div>
               </div>
-              <button onClick={() => setSelectedConsignee(null)} className="text-[var(--text-tertiary)] hover:text-red-400">
+              <button onClick={() => setSelectedConsignee(null)} className="text-[var(--text-tertiary)] hover:text-[var(--destructive)]">
                 <X size={16} />
               </button>
             </div>
@@ -230,11 +250,11 @@ export default function ConsignmentDetail() {
                 </div>
               </div>
               {showConsigneeSearch && consignees.length > 0 && (
-                <div className="absolute z-20 mt-1 w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-20 mt-1 w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {consignees.map(c => (
                     <button
                       key={c.crm_id}
-                      className="w-full text-left px-4 py-2.5 hover:bg-[var(--bg-hover)] text-sm text-[var(--text-primary)] border-b border-[var(--border-secondary)] last:border-0"
+                      className="w-full text-left px-4 py-2.5 hover:bg-[var(--bg-hover)] text-sm text-[var(--text)] border-b border-[var(--border-secondary)] last:border-0"
                       onClick={() => {
                         setSelectedConsignee(c);
                         setShowConsigneeSearch(false);
@@ -254,7 +274,7 @@ export default function ConsignmentDetail() {
         {/* Items */}
         <div className="card space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Items in this handoff</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)]">Items in this handoff</h3>
             <button onClick={addItem} className="btn-secondary flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium">
               <Plus size={14} /> Add Item
             </button>
@@ -265,7 +285,7 @@ export default function ConsignmentDetail() {
           ) : (
             <div className="space-y-3">
               {items.map(item => (
-                <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-secondary)]">
+                <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border-secondary)]">
                   <div className="flex-1 grid grid-cols-5 gap-2">
                     <input
                       type="text"
@@ -305,7 +325,7 @@ export default function ConsignmentDetail() {
                       onChange={e => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
                     />
                   </div>
-                  <button onClick={() => removeItem(item.id)} className="text-[var(--text-tertiary)] hover:text-red-400 mt-1 flex-shrink-0">
+                  <button onClick={() => removeItem(item.id)} className="text-[var(--text-tertiary)] hover:text-[var(--destructive)] mt-1 flex-shrink-0">
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -359,49 +379,49 @@ export default function ConsignmentDetail() {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+        <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-xl font-bold text-[var(--text-primary)] font-mono">{batch.id}</h1>
+        <h1 className="text-xl font-bold text-[var(--text)] font-mono">{batch.id}</h1>
         <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-          isSettled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+          isSettled ? 'bg-emerald-500/10 text-[var(--success)]' : 'bg-amber-500/10 text-[var(--warning)]'
         }`}>
           {batch.status}
         </span>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEE2E2] border border-[var(--destructive)]/20 text-[var(--destructive)] text-sm">
           <AlertCircle size={16} />{error}
         </div>
       )}
       {success && (
-        <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">{success}</div>
+        <div className="p-3 rounded-lg bg-[#DCFCE7] border border-[var(--success)]/20 text-[var(--success)] text-sm">{success}</div>
       )}
 
       {/* Batch Info */}
       <div className="grid grid-cols-4 gap-3">
         <div className="card p-3">
           <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Customer</div>
-          <div className="text-sm font-medium text-[var(--text-primary)] mt-0.5">
+          <div className="text-sm font-medium text-[var(--text)] mt-0.5">
             {batch.customer?.company_name || batch.crm_id}
           </div>
         </div>
         <div className="card p-3">
           <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Handoff</div>
-          <div className="text-sm font-medium text-[var(--text-primary)] mt-0.5">
+          <div className="text-sm font-medium text-[var(--text)] mt-0.5">
             {new Date(batch.handoff_date).toLocaleDateString()}
           </div>
         </div>
         <div className="card p-3">
           <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Due Date</div>
-          <div className={`text-sm font-medium mt-0.5 ${!isSettled && new Date(batch.due_date) < new Date() ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
+          <div className={`text-sm font-medium mt-0.5 ${!isSettled && new Date(batch.due_date) < new Date() ? 'text-[var(--destructive)]' : 'text-[var(--text)]'}`}>
             {new Date(batch.due_date).toLocaleDateString()}
           </div>
         </div>
         <div className="card p-3">
           <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Total Value</div>
-          <div className="text-sm font-mono font-bold text-[var(--text-primary)] mt-0.5">
+          <div className="text-sm font-mono font-bold text-[var(--text)] mt-0.5">
             ${totalValue.toLocaleString()}
           </div>
         </div>
@@ -409,13 +429,13 @@ export default function ConsignmentDetail() {
 
       {/* Items */}
       <div className="card overflow-hidden">
-        <div className="card-header px-5 py-3 border-b border-[var(--border-primary)]">
+        <div className="card-header px-5 py-3 border-b border-[var(--border)]">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+            <h3 className="text-sm font-semibold text-[var(--text)]">
               Items ({totalItems} items, {totalQty} total qty)
             </h3>
             {!isSettled && activeItems > 0 && (
-              <span className="text-xs text-amber-400">{activeItems} pending settlement</span>
+              <span className="text-xs text-[var(--warning)]">{activeItems} pending settlement</span>
             )}
           </div>
         </div>
@@ -440,23 +460,23 @@ export default function ConsignmentDetail() {
                       <div className="flex items-center gap-2">
                         {item.imei ? <Smartphone size={14} className="text-[var(--text-tertiary)]" /> : <PackageOpen size={14} className="text-[var(--text-tertiary)]" />}
                         <div>
-                          <div className="text-sm text-[var(--text-primary)]">{item.description}</div>
+                          <div className="text-sm text-[var(--text)]">{item.description}</div>
                           <div className="text-xs text-[var(--text-tertiary)] font-mono">
                             {item.imei || item.sku || ''}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="text-sm text-[var(--text-primary)]">{item.quantity}</td>
-                    <td className="text-sm font-mono text-[var(--text-primary)]">${item.unit_price.toFixed(2)}</td>
-                    <td className="text-sm font-mono font-medium text-[var(--text-primary)]">
+                    <td className="text-sm text-[var(--text)]">{item.quantity}</td>
+                    <td className="text-sm font-mono text-[var(--text)]">${item.unit_price.toFixed(2)}</td>
+                    <td className="text-sm font-mono font-medium text-[var(--text)]">
                       ${(item.unit_price * item.quantity).toFixed(2)}
                     </td>
                     <td>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                        item.outcome === 'sold' ? 'bg-emerald-500/10 text-emerald-400'
-                          : item.outcome === 'returned' ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-amber-500/10 text-amber-400'
+                        item.outcome === 'sold' ? 'bg-emerald-500/10 text-[var(--success)]'
+                          : item.outcome === 'returned' ? 'badge-info'
+                          : 'bg-amber-500/10 text-[var(--warning)]'
                       }`}>
                         {item.outcome}
                         {item.outcome === 'sold' && item.settled_qty !== item.quantity && ` (${item.settled_qty})`}
@@ -504,7 +524,7 @@ export default function ConsignmentDetail() {
       {/* Settlement Controls */}
       {!isSettled && (
         <div className="card space-y-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Settlement</h3>
+          <h3 className="text-sm font-semibold text-[var(--text)]">Settlement</h3>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="form-group">
@@ -535,7 +555,7 @@ export default function ConsignmentDetail() {
                   type="checkbox"
                   checked={skipQc}
                   onChange={e => setSkipQc(e.target.checked)}
-                  className="rounded border-[var(--border-primary)] bg-[var(--bg-tertiary)] text-accent"
+                  className="rounded border-[var(--border)] bg-[var(--bg-muted)] text-accent"
                 />
                 <span className="form-label mb-0">Skip QC for returns</span>
               </label>

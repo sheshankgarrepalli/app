@@ -1,13 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Phone, Mail, Building2, User, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Plus, Phone, Mail, Building2, User, ChevronRight, Loader2, AlertCircle, ChevronUp, ChevronDown, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { fetchCustomers, Customer, extractError } from '../api/crm';
+
+const PER_PAGE = 25;
+
+type SortField = 'name' | 'type' | 'phone' | 'balance';
+type SortDir = 'asc' | 'desc';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [page, setPage] = useState(0);
 
   const load = useCallback(async (searchTerm?: string) => {
     setLoading(true);
@@ -15,6 +23,7 @@ export default function Customers() {
     try {
       const data = await fetchCustomers(searchTerm || undefined);
       setCustomers(data);
+      setPage(0);
     } catch (err: any) {
       setError(extractError(err));
     } finally {
@@ -29,12 +38,61 @@ export default function Customers() {
     load(search || undefined);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
+
+  const sorted = useMemo(() => {
+    const sorted = [...customers];
+    sorted.sort((a, b) => {
+      let va: any, vb: any;
+      switch (sortField) {
+        case 'name':
+          va = a.customer_type === 'Wholesale' ? (a.company_name || '') : (`${a.first_name || ''} ${a.last_name || ''}`.trim());
+          vb = b.customer_type === 'Wholesale' ? (b.company_name || '') : (`${b.first_name || ''} ${b.last_name || ''}`.trim());
+          break;
+        case 'type':
+          va = a.customer_type;
+          vb = b.customer_type;
+          break;
+        case 'phone':
+          va = a.phone || '';
+          vb = b.phone || '';
+          break;
+        case 'balance':
+          va = a.current_balance;
+          vb = b.current_balance;
+          break;
+      }
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [customers, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
+  const paged = sorted.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronDown size={12} className="opacity-30" />;
+    return sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Customers</h1>
+          <h1 className="text-xl font-bold text-[var(--text)]">Customers</h1>
           <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Manage retail & wholesale accounts</p>
         </div>
         <Link to="/admin/customers/new" className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium">
@@ -52,7 +110,7 @@ export default function Customers() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, company, or phone..."
-            className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-accent"
+            className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-accent"
           />
         </div>
         <button type="submit" className="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">Search</button>
@@ -85,15 +143,23 @@ export default function Customers() {
             <table className="table-standard">
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Type</th>
-                  <th>Contact</th>
-                  <th>Balance</th>
+                  <th onClick={() => handleSort('name')} className="cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Customer <SortIcon field="name" /></div>
+                  </th>
+                  <th onClick={() => handleSort('type')} className="cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Type <SortIcon field="type" /></div>
+                  </th>
+                  <th onClick={() => handleSort('phone')} className="cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Contact <SortIcon field="phone" /></div>
+                  </th>
+                  <th onClick={() => handleSort('balance')} className="cursor-pointer select-none text-right">
+                    <div className="flex items-center justify-end gap-1">Balance <SortIcon field="balance" /></div>
+                  </th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {customers.map(c => (
+                {paged.map(c => (
                   <tr key={c.crm_id}>
                     <td>
                       <div className="flex items-center gap-3">
@@ -103,7 +169,7 @@ export default function Customers() {
                             : ((c.first_name || 'R')[0].toUpperCase())}
                         </div>
                         <div>
-                          <div className="font-medium text-[var(--text-primary)] text-sm">
+                          <div className="font-medium text-[var(--text)] text-sm">
                             {c.customer_type === 'Wholesale'
                               ? c.company_name || 'Unknown Company'
                               : `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown Customer'}
@@ -148,7 +214,7 @@ export default function Customers() {
                     <td>
                       <Link
                         to={`/admin/customers/${c.crm_id}`}
-                        className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                        className="text-[var(--text-tertiary)] hover:text-[var(--text)] transition-colors"
                       >
                         <ChevronRight size={18} />
                       </Link>
@@ -158,6 +224,28 @@ export default function Customers() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="px-[18px] py-3 border-t border-[var(--border)] flex items-center justify-between text-[13px]">
+              <span className="text-[var(--text-tertiary)]">
+                {sorted.length} customers &middot; Page {page + 1} of {totalPages}
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(0)} disabled={page === 0} className="p-1.5 rounded hover:bg-[var(--bg-muted)] disabled:opacity-30">
+                  <ChevronsLeft size={14} className="text-[var(--text)]" />
+                </button>
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1.5 rounded hover:bg-[var(--bg-muted)] disabled:opacity-30">
+                  <ChevronLeft size={14} className="text-[var(--text)]" />
+                </button>
+                <span className="px-2 text-[var(--text)] font-bold">{page + 1}</span>
+                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1.5 rounded hover:bg-[var(--bg-muted)] disabled:opacity-30">
+                  <ChevronRight size={14} className="text-[var(--text)]" />
+                </button>
+                <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1} className="p-1.5 rounded hover:bg-[var(--bg-muted)] disabled:opacity-30">
+                  <ChevronsRight size={14} className="text-[var(--text)]" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

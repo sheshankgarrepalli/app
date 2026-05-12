@@ -136,8 +136,9 @@ export default function QC() {
 
   const handleSave = async () => {
     if (!device) return;
+    if (!grade) { setError('Please select a grade before saving'); return; }
 
-    const body: Record<string, any> = { grade: grade || null, needs_repair: needsRepair, notes: notes || null };
+    const body: Record<string, any> = { grade: grade, needs_repair: needsRepair, notes: notes || null };
 
     for (const opt of QC_OPTIONS) {
       if (opt.type === 'group') {
@@ -178,7 +179,7 @@ export default function QC() {
 
   return (
     <div className="space-y-5">
-      <h2 className="text-xl font-bold text-[var(--text-primary)]">Quality Control</h2>
+      <h2 className="text-xl font-bold text-[var(--text)]">Quality Control</h2>
 
       {/* IMEI Scanner */}
       <div className="flex gap-3">
@@ -191,7 +192,7 @@ export default function QC() {
             onChange={(e) => setImeiInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Scan or enter IMEI..."
-            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] outline-none focus:border-accent transition-colors"
+            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-[var(--text)] text-sm placeholder:text-[var(--text-muted)] outline-none focus:border-accent transition-colors"
             autoFocus
           />
         </div>
@@ -206,12 +207,12 @@ export default function QC() {
 
       {/* Messages */}
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEE2E2] border border-[var(--destructive)]/20 text-[var(--destructive)] text-sm">
           <AlertTriangle size={16} /> {error}
         </div>
       )}
       {successMsg && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#DCFCE7] border border-[var(--success)]/20 text-[var(--success)] text-sm">
           <CheckCircle size={16} /> {successMsg}
         </div>
       )}
@@ -220,7 +221,7 @@ export default function QC() {
       {device && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* LEFT: Device Details */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5 space-y-4">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">Device Details</h3>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -243,15 +244,15 @@ export default function QC() {
 
             {/* Previous QC History */}
             {inspections.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
                 <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">
                   QC History ({inspections.length})
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {inspections.map((insp) => (
-                    <div key={insp.id} className="bg-[var(--bg-tertiary)] rounded-lg p-3 text-xs space-y-1">
+                    <div key={insp.id} className="bg-[var(--bg-muted)] rounded-lg p-3 text-xs space-y-1">
                       <div className="flex justify-between text-[var(--text-secondary)]">
-                        <span className="font-medium text-[var(--text-primary)]">{insp.inspector_id}</span>
+                        <span className="font-medium text-[var(--text)]">{insp.inspector_id}</span>
                         <span>{new Date(insp.created_at).toLocaleString()}</span>
                       </div>
                       {insp.grade && (
@@ -260,7 +261,7 @@ export default function QC() {
                         </span>
                       )}
                       {insp.needs_repair && (
-                        <span className="inline-block px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold ml-1">
+                        <span className="inline-block px-2 py-0.5 rounded bg-amber-500/20 text-[var(--warning)] font-semibold ml-1">
                           Needs Repair
                         </span>
                       )}
@@ -273,14 +274,14 @@ export default function QC() {
           </div>
 
           {/* RIGHT: QC Form */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5 space-y-5">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 space-y-5">
             <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">QC Inspection</h3>
 
             {QC_OPTIONS.map((opt) => {
               if (opt.type === 'group') {
                 return (
                   <div key={opt.key} className="space-y-2">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">{opt.label}</span>
+                    <span className="text-sm font-medium text-[var(--text)]">{opt.label}</span>
                     <div className="flex gap-4 ml-2">
                       {opt.children?.map((child) => (
                         <label key={child.key} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
@@ -288,7 +289,7 @@ export default function QC() {
                             type="checkbox"
                             checked={!!form[child.key]}
                             onChange={(e) => setForm((prev) => ({ ...prev, [child.key]: e.target.checked }))}
-                            className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-tertiary)] accent-accent"
+                            className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-muted)] accent-accent"
                           />
                           {child.label}
                         </label>
@@ -301,11 +302,11 @@ export default function QC() {
               if (opt.type === 'condition') {
                 return (
                   <div key={opt.key} className="space-y-1">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">{opt.label}</span>
+                    <span className="text-sm font-medium text-[var(--text)]">{opt.label}</span>
                     <select
                       value={(form[opt.key] as string) || ''}
                       onChange={(e) => setForm((prev) => ({ ...prev, [opt.key]: e.target.value }))}
-                      className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-primary)] outline-none focus:border-accent"
+                      className="w-full px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text)] outline-none focus:border-accent"
                     >
                       <option value="">Select...</option>
                       <option value="Good">Good</option>
@@ -323,7 +324,7 @@ export default function QC() {
                     type="checkbox"
                     checked={!!form[opt.key]}
                     onChange={(e) => setForm((prev) => ({ ...prev, [opt.key]: e.target.checked }))}
-                    className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-tertiary)] accent-accent"
+                    className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-muted)] accent-accent"
                   />
                   {opt.label}
                 </label>
@@ -331,18 +332,18 @@ export default function QC() {
             })}
 
             {/* Grading */}
-            <div className="space-y-2 pt-3 border-t border-[var(--border-primary)]">
-              <span className="text-sm font-bold text-[var(--text-primary)]">Grade</span>
+            <div className="space-y-2 pt-3 border-t border-[var(--border)]">
+              <span className="text-sm font-bold text-[var(--text)]">Grade</span>
               <div className="flex gap-3">
                 {GRADES.map((g) => (
                   <button
                     key={g}
                     type="button"
-                    onClick={() => setGrade(g === grade ? '' : g)}
+                    onClick={() => setGrade(g)}
                     className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                       grade === g
                         ? 'bg-accent text-white border-accent'
-                        : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-secondary)] hover:border-accent'
+                        : 'bg-[var(--bg-muted)] text-[var(--text-secondary)] border-[var(--border-secondary)] hover:border-accent'
                     }`}
                   >
                     {g}
@@ -352,7 +353,7 @@ export default function QC() {
             </div>
 
             {/* Needs Repair */}
-            <div className="space-y-2 pt-3 border-t border-[var(--border-primary)]">
+            <div className="space-y-2 pt-3 border-t border-[var(--border)]">
               <button
                 type="button"
                 onClick={() => {
@@ -362,8 +363,8 @@ export default function QC() {
                 }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-semibold border transition-colors ${
                   needsRepair
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                    : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-secondary)] hover:border-amber-500/40'
+                    ? 'bg-amber-500/20 text-[var(--warning)] border-amber-500/40'
+                    : 'bg-[var(--bg-muted)] text-[var(--text-secondary)] border-[var(--border-secondary)] hover:border-amber-500/40'
                 }`}
               >
                 <span>Needs Repair</span>
@@ -371,7 +372,7 @@ export default function QC() {
               </button>
 
               {showRepairOptions && needsRepair && (
-                <div className="bg-[var(--bg-tertiary)] rounded-lg p-4 space-y-3 border border-[var(--border-secondary)]">
+                <div className="bg-[var(--bg-muted)] rounded-lg p-4 space-y-3 border border-[var(--border-secondary)]">
                   {REPAIR_OPTIONS.map((opt) => {
                     if (opt.type === 'group') {
                       return (
@@ -384,7 +385,7 @@ export default function QC() {
                                   type="checkbox"
                                   checked={repairItems.includes(child.key)}
                                   onChange={() => toggleSpeakerRepair(child.key)}
-                                  className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-tertiary)] accent-amber-500"
+                                  className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-muted)] accent-amber-500"
                                 />
                                 {child.label}
                               </label>
@@ -399,7 +400,7 @@ export default function QC() {
                           type="checkbox"
                           checked={repairItems.includes(opt.key)}
                           onChange={() => toggleRepairItem(opt.key)}
-                          className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-tertiary)] accent-amber-500"
+                          className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-muted)] accent-amber-500"
                         />
                         {opt.label}
                       </label>
@@ -410,14 +411,14 @@ export default function QC() {
             </div>
 
             {/* Notes */}
-            <div className="space-y-1 pt-3 border-t border-[var(--border-primary)]">
-              <span className="text-sm font-medium text-[var(--text-primary)]">Notes</span>
+            <div className="space-y-1 pt-3 border-t border-[var(--border)]">
+              <span className="text-sm font-medium text-[var(--text)]">Notes</span>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Enter any additional notes..."
                 rows={3}
-                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-accent resize-none"
+                className="w-full px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-accent resize-none"
               />
             </div>
 
@@ -448,7 +449,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
-      <p className="text-sm text-[var(--text-primary)] font-medium mt-0.5">{value}</p>
+      <p className="text-sm text-[var(--text)] font-medium mt-0.5">{value}</p>
     </div>
   );
 }

@@ -5,7 +5,8 @@ import { useLocationFilter } from '../context/LocationContext';
 import {
     Search, ArrowRightLeft, Smartphone, Loader2, AlertCircle, CheckCircle2,
     Wrench, ShieldCheck, Trash2, ShoppingCart, Zap, MapPin,
-    DollarSign, Calendar, Hash, PackageCheck, XCircle, Info, Clock, Layers
+    DollarSign, Calendar, Hash, PackageCheck, XCircle, Info, Clock, Layers,
+    FileText, Send
 } from 'lucide-react';
 
 interface DeviceInfo {
@@ -84,6 +85,8 @@ export default function PhoneRouting() {
     const [batchResults, setBatchResults] = useState<Array<{ imei: string; success: boolean; error?: string }> | null>(null);
     const [showBatchLocationPicker, setShowBatchLocationPicker] = useState(false);
     const [batchTargetAction, setBatchTargetAction] = useState<string | null>(null);
+    const [pendingTransfer, setPendingTransfer] = useState<string | null>(null);
+    const [dispatching, setDispatching] = useState(false);
 
     useEffect(() => { imeiRef.current?.focus(); }, []);
     useEffect(() => { if (!device) imeiRef.current?.focus(); }, [device]);
@@ -115,11 +118,12 @@ export default function PhoneRouting() {
 
     const executeRoute = async (targetStatus: string) => {
         if (!device) return;
+        if ((targetStatus === 'Scrapped' || targetStatus === 'Sold') && !window.confirm(`Are you sure you want to mark device ${device.imei} as "${targetStatus}"? This cannot be undone.`)) return;
         setRouting(true); setError(null); setSuccess(null);
         try {
             await axios.post(
                 `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/inventory/routing?imei=${device.imei}`,
-                { new_status: targetStatus, new_bin: targetStatus, notes: notes || undefined },
+                { new_status: targetStatus, notes: notes || undefined },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setSuccess(`Routed ${device.imei} to ${statusLabel(targetStatus)}`);
@@ -134,14 +138,13 @@ export default function PhoneRouting() {
         if (!device) return;
         setRouting(true); setError(null); setSuccess(null); setShowLocationPicker(null);
         try {
-            await axios.post(
+            const res = await axios.post(
                 `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/transfers/`,
                 { imei_list: [device.imei], destination_location_id: targetBin, transfer_type: 'Restock', notes: notes || undefined },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            setSuccess(`Transferred ${device.imei} to ${targetBin.replace(/-/g, ' ').replace(/_/g, ' ')}`);
-            setDevice(null); setTransitions([]); setImei('');
-            setTimeout(() => { setSuccess(null); imeiRef.current?.focus(); }, 2000);
+            setPendingTransfer(res.data.transfer_order_id);
+            setSuccess(`Transfer ${res.data.transfer_order_id} saved as draft for ${device.imei}`);
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Transfer failed');
         } finally { setRouting(false); }
@@ -215,7 +218,7 @@ export default function PhoneRouting() {
         const items = foundDevices.map(d => ({
             imei: d.device!.imei,
             new_status: targetStatus,
-            new_bin: targetBin,
+            new_bin: targetBin || undefined,
             notes: notesStr || undefined,
         }));
 
@@ -244,7 +247,7 @@ export default function PhoneRouting() {
             setBatchTargetAction(targetStatus);
             setShowBatchLocationPicker(true);
         } else {
-            executeBatchRoute(targetStatus, targetStatus, notes);
+            executeBatchRoute(targetStatus, '', notes);
         }
     };
 
@@ -264,13 +267,52 @@ export default function PhoneRouting() {
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            setSuccess(`Transfer ${res.data.transfer_order_id} created with ${foundDevices.length} devices`);
-            setBatchImeisText('');
-            setBatchDevices(new Map());
-            setTimeout(() => setSuccess(null), 3000);
+            setPendingTransfer(res.data.transfer_order_id);
+            setSuccess(`Transfer ${res.data.transfer_order_id} saved as draft with ${foundDevices.length} devices`);
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Batch transfer failed');
         } finally { setBatchRouting(false); }
+    };
+
+    const downloadTransferPdf = async (id: string) => {
+        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+        try {
+            const res = await axios.get(`${apiUrl}/api/transfers/${id}/pdf`, {
+                responseType: 'blob',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const url = URL.createObjectURL(res.data);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch {
+            setError('Failed to download transfer PDF');
+        }
+    };
+
+    const dispatchTransfer = async (id: string) => {
+        setDispatching(true); setError(null);
+        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+        try {
+            await axios.post(
+                `${apiUrl}/api/transfers/${id}/dispatch`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const count = activeTab === 'batch' ? foundDevices.length : 1;
+            setSuccess(`Transfer ${id} dispatched — ${count} device(s) now In Transit`);
+            setPendingTransfer(null);
+            if (activeTab === 'batch') {
+                setBatchImeisText('');
+                setBatchDevices(new Map());
+                setBatchResults(null);
+            } else {
+                setDevice(null); setTransitions([]); setImei(''); setNotes('');
+                setTimeout(() => imeiRef.current?.focus(), 100);
+            }
+            setTimeout(() => setSuccess(null), 5000);
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Dispatch failed');
+        } finally { setDispatching(false); }
     };
 
     const foundDevices = Array.from(batchDevices.entries())
@@ -288,7 +330,7 @@ export default function PhoneRouting() {
         <div className="space-y-6 max-w-6xl mx-auto">
             {/* Page Header */}
             <div>
-                <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
+                <h1 className="text-[22px] font-bold text-[var(--text)] flex items-center gap-3">
                     Routing Hub
                     <span className="bg-accent/10 text-accent text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
                         Command & Control
@@ -298,16 +340,16 @@ export default function PhoneRouting() {
             </div>
 
             {/* Tab Bar */}
-            <div className="flex gap-1 bg-[var(--bg-secondary)] rounded-xl p-1 border border-[var(--border-primary)] w-fit">
+            <div className="flex gap-1 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)] w-fit">
                 <button
                     onClick={() => { setActiveTab('single'); setError(null); setSuccess(null); }}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'single' ? 'bg-accent text-[var(--text-inverse)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'single' ? 'bg-accent text-[var(--text-inverse)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'}`}
                 >
                     Single Device
                 </button>
                 <button
                     onClick={() => { setActiveTab('batch'); setError(null); setSuccess(null); }}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'batch' ? 'bg-accent text-[var(--text-inverse)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'batch' ? 'bg-accent text-[var(--text-inverse)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'}`}
                 >
                     <Layers size={16} />
                     Batch Routing
@@ -331,7 +373,7 @@ export default function PhoneRouting() {
                 <>
                     {/* Scanner + Look Up Button */}
                     <div className="flex gap-3">
-                        <div className="flex-1 relative bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden">
+                        <div className="flex-1 relative bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
                             <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/5 via-transparent to-purple-500/5 pointer-events-none" />
                             <div className="relative">
                                 <div className="absolute left-5 top-1/2 -translate-y-1/2 text-accent">
@@ -343,7 +385,7 @@ export default function PhoneRouting() {
                                     onChange={e => setImei(e.target.value)}
                                     onKeyDown={handleImeiKey}
                                     placeholder="Enter IMEI to look up..."
-                                    className="w-full bg-transparent pl-14 pr-6 py-5 text-lg font-mono font-bold tracking-wider text-[var(--text-primary)] outline-none placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[var(--text-tertiary)]"
+                                    className="w-full bg-transparent pl-14 pr-6 py-5 text-lg font-mono font-bold tracking-wider text-[var(--text)] outline-none placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[var(--text-tertiary)]"
                                     autoFocus
                                     disabled={loading}
                                 />
@@ -379,15 +421,15 @@ export default function PhoneRouting() {
                         <>
                             {/* Device Details Card */}
                             <div className="card overflow-hidden">
-                                <div className="px-5 py-4 bg-navy border-b border-[var(--border-primary)] flex items-center justify-between">
+                                <div className="px-5 py-4 bg-navy border-b border-[var(--border)] flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <Smartphone size={18} className="text-accent" />
-                                        <span className="text-[var(--text-primary)] font-bold text-base">{device.model_number || 'Unknown Model'}</span>
+                                        <span className="text-[var(--text)] font-bold text-base">{device.model_number || 'Unknown Model'}</span>
                                         <span className={`badge ${getStatusBadge(device.device_status)} text-[10px]`}>
                                             {statusLabel(device.device_status)}
                                         </span>
                                     </div>
-                                    <button onClick={clearDevice} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors" title="Clear device">
+                                    <button onClick={clearDevice} className="text-[var(--text-tertiary)] hover:text-[var(--text)] transition-colors" title="Clear device">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
@@ -397,13 +439,13 @@ export default function PhoneRouting() {
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Hash size={11} /> IMEI
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[var(--text-primary)] tracking-wider">{device.imei}</div>
+                                            <div className="font-mono text-sm font-bold text-[var(--text)] tracking-wider">{device.imei}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Smartphone size={11} /> Model
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text-primary)]">{device.model_number || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text)]">{device.model_number || '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
@@ -417,31 +459,31 @@ export default function PhoneRouting() {
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <MapPin size={11} /> Location
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text-primary)]">{device.current_bin?.replace(/_/g, ' ') || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text)]">{device.current_bin?.replace(/_/g, ' ') || '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <DollarSign size={11} /> Cost Basis
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[var(--text-primary)]">${(device.cost_basis || 0).toFixed(2)}</div>
+                                            <div className="font-mono text-sm font-bold text-[var(--text)]">${(device.cost_basis || 0).toFixed(2)}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Calendar size={11} /> Days in Inventory
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[var(--text-primary)]">{device.days_in_inventory ?? '—'}</div>
+                                            <div className="font-mono text-sm font-bold text-[var(--text)]">{device.days_in_inventory ?? '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Info size={11} /> Brand
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text-primary)]">{device.brand || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text)]">{device.brand || '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Clock size={11} /> Last Action
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text-primary)] truncate">{device.last_action || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text)] truncate">{device.last_action || '—'}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -483,7 +525,7 @@ export default function PhoneRouting() {
                                                                             <MapPin size={20} className="text-accent" />
                                                                         </div>
                                                                         <div>
-                                                                            <div className="text-sm font-bold text-[var(--text-primary)]">{store.label}</div>
+                                                                            <div className="text-sm font-bold text-[var(--text)]">{store.label}</div>
                                                                             <div className="text-[10px] text-[var(--text-tertiary)]">Transfer device to this location</div>
                                                                         </div>
                                                                     </button>
@@ -514,7 +556,7 @@ export default function PhoneRouting() {
                                                             <Icon size={22} style={{ color: def.color }} />
                                                         </div>
                                                         <div>
-                                                            <div className="text-sm font-bold text-[var(--text-primary)]">{def.label}</div>
+                                                            <div className="text-sm font-bold text-[var(--text)]">{def.label}</div>
                                                             <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-tight">{def.prompt}</div>
                                                         </div>
                                                     </button>
@@ -523,14 +565,14 @@ export default function PhoneRouting() {
                                         </div>
 
                                         {/* Notes */}
-                                        <div className="pt-4 border-t border-[var(--border-primary)]">
+                                        <div className="pt-4 border-t border-[var(--border)]">
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Routing Notes</div>
                                             <textarea
                                                 value={notes}
                                                 onChange={e => setNotes(e.target.value)}
                                                 placeholder="Add notes about this routing action..."
                                                 rows={3}
-                                                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
+                                                className="w-full bg-[var(--bg-muted)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 text-sm text-[var(--text)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
                                             />
                                         </div>
                                     </div>
@@ -541,6 +583,45 @@ export default function PhoneRouting() {
                                         <AlertCircle size={32} className="text-[var(--text-muted)]" />
                                         <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">No routing actions available</p>
                                         <p className="text-[10px] text-[var(--text-tertiary)]">Terminal state — no valid transitions</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Pending transfer for single device */}
+                            {pendingTransfer && device && (
+                                <div className="card overflow-hidden" style={{ borderColor: 'var(--accent)' }}>
+                                    <div className="card-header">
+                                        <span className="flex items-center gap-2">
+                                            <CheckCircle2 size={16} className="text-emerald-400" /> Transfer Saved
+                                        </span>
+                                        <span className="badge badge-neutral text-[10px]">{pendingTransfer}</span>
+                                    </div>
+                                    <div className="card-body">
+                                        <p className="text-xs text-[var(--text-secondary)] mb-4">
+                                            Device {device.imei} saved to draft transfer. Download the manifest first, then dispatch.
+                                        </p>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => downloadTransferPdf(pendingTransfer)}
+                                                className="btn-secondary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold"
+                                            >
+                                                <FileText size={16} /> Download Manifest
+                                            </button>
+                                            <button
+                                                onClick={() => dispatchTransfer(pendingTransfer)}
+                                                disabled={dispatching}
+                                                className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-5 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                {dispatching ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                                Initiate Transfer
+                                            </button>
+                                            <button
+                                                onClick={() => { setPendingTransfer(null); setError(null); }}
+                                                className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -569,7 +650,7 @@ export default function PhoneRouting() {
                                     onChange={e => setBatchImeisText(e.target.value)}
                                     placeholder={"356644449990012\n356644449990013\n356644449990014"}
                                     rows={6}
-                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 font-mono text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
+                                    className="w-full bg-[var(--bg-muted)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 font-mono text-sm text-[var(--text)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
                                 />
                             </div>
                             <div className="flex items-center gap-3">
@@ -603,7 +684,7 @@ export default function PhoneRouting() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b border-[var(--border-primary)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
+                                            <tr className="border-b border-[var(--border)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
                                                 <th className="text-left px-5 py-3">IMEI</th>
                                                 <th className="text-left px-5 py-3">Model</th>
                                                 <th className="text-left px-5 py-3">Status</th>
@@ -614,17 +695,17 @@ export default function PhoneRouting() {
                                         </thead>
                                         <tbody>
                                             {foundDevices.map(({ imei, device: d }) => (
-                                                <tr key={imei} className="border-b border-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                                                    <td className="px-5 py-3 font-mono font-bold text-[var(--text-primary)] tracking-wider">{d.imei}</td>
-                                                    <td className="px-5 py-3 text-[var(--text-primary)] font-bold">{d.model_number || '—'}</td>
+                                                <tr key={imei} className="border-b border-[var(--bg-secondary)] hover:bg-[var(--bg-muted)]/50 transition-colors">
+                                                    <td className="px-5 py-3 font-mono font-bold text-[var(--text)] tracking-wider">{d.imei}</td>
+                                                    <td className="px-5 py-3 text-[var(--text)] font-bold">{d.model_number || '—'}</td>
                                                     <td className="px-5 py-3">
                                                         <span className={`badge ${getStatusBadge(d.device_status)} text-[10px]`}>
                                                             {statusLabel(d.device_status)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-5 py-3 text-[var(--text-primary)]">{d.current_bin?.replace(/_/g, ' ') || '—'}</td>
-                                                    <td className="px-5 py-3 text-[var(--text-primary)]">{d.brand || '—'}</td>
-                                                    <td className="px-5 py-3 text-right font-mono text-[var(--text-primary)]">${(d.cost_basis || 0).toFixed(2)}</td>
+                                                    <td className="px-5 py-3 text-[var(--text)]">{d.current_bin?.replace(/_/g, ' ') || '—'}</td>
+                                                    <td className="px-5 py-3 text-[var(--text)]">{d.brand || '—'}</td>
+                                                    <td className="px-5 py-3 text-right font-mono text-[var(--text)]">${(d.cost_basis || 0).toFixed(2)}</td>
                                                 </tr>
                                             ))}
                                             {notFoundImeis.map(({ imei, error: errMsg }) => (
@@ -652,7 +733,7 @@ export default function PhoneRouting() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b border-[var(--border-primary)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
+                                            <tr className="border-b border-[var(--border)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
                                                 <th className="text-left px-5 py-3">IMEI</th>
                                                 <th className="text-left px-5 py-3">Result</th>
                                                 <th className="text-left px-5 py-3">Error</th>
@@ -661,7 +742,7 @@ export default function PhoneRouting() {
                                         <tbody>
                                             {batchResults.map(r => (
                                                 <tr key={r.imei} className={`border-b border-[var(--bg-secondary)] ${r.success ? '' : 'bg-red-500/5'}`}>
-                                                    <td className="px-5 py-3 font-mono font-bold text-[var(--text-primary)] tracking-wider">{r.imei}</td>
+                                                    <td className="px-5 py-3 font-mono font-bold text-[var(--text)] tracking-wider">{r.imei}</td>
                                                     <td className="px-5 py-3">
                                                         {r.success
                                                             ? <span className="text-emerald-400 font-bold">Success</span>
@@ -707,7 +788,7 @@ export default function PhoneRouting() {
                                                         <MapPin size={20} className="text-accent" />
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-[var(--text-primary)]">{store.label}</div>
+                                                        <div className="text-sm font-bold text-[var(--text)]">{store.label}</div>
                                                         <div className="text-[10px] text-[var(--text-tertiary)]">Transfer all devices to this location</div>
                                                     </div>
                                                 </button>
@@ -741,7 +822,7 @@ export default function PhoneRouting() {
                                                         <Icon size={22} style={{ color: def.color }} />
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-[var(--text-primary)]">{def.label}</div>
+                                                        <div className="text-sm font-bold text-[var(--text)]">{def.label}</div>
                                                         <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-tight">
                                                             Route {foundDevices.length} device(s)
                                                         </div>
@@ -754,14 +835,14 @@ export default function PhoneRouting() {
 
                                 {/* Notes for batch */}
                                 {!showBatchLocationPicker && (
-                                    <div className="pt-4 border-t border-[var(--border-primary)]">
+                                    <div className="pt-4 border-t border-[var(--border)]">
                                         <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Batch Routing Notes</div>
                                         <textarea
                                             value={notes}
                                             onChange={e => setNotes(e.target.value)}
                                             placeholder="Add notes applied to all devices in this batch..."
                                             rows={3}
-                                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
+                                            className="w-full bg-[var(--bg-muted)] border border-[var(--border-secondary)] focus:border-accent rounded-lg px-4 py-3 text-sm text-[var(--text)] outline-none transition-all placeholder:text-xs placeholder:text-[var(--text-tertiary)] resize-none"
                                         />
                                     </div>
                                 )}
@@ -778,6 +859,45 @@ export default function PhoneRouting() {
                                 <p className="text-[10px] text-[var(--text-tertiary)] text-center max-w-sm">
                                     The selected devices don't share any valid routing targets. Devices may be in incompatible states.
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pending transfer — show download + dispatch actions */}
+                    {pendingTransfer && (
+                        <div className="card overflow-hidden border-accent/30" style={{ borderColor: 'var(--accent)' }}>
+                            <div className="card-header">
+                                <span className="flex items-center gap-2">
+                                    <CheckCircle2 size={16} className="text-emerald-400" /> Transfer Saved
+                                </span>
+                                <span className="badge badge-neutral text-[10px]">{pendingTransfer}</span>
+                            </div>
+                            <div className="card-body">
+                                <p className="text-xs text-[var(--text-secondary)] mb-4">
+                                    {foundDevices.length} device(s) saved to draft transfer. Download the manifest first, then initiate the dispatch.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => downloadTransferPdf(pendingTransfer)}
+                                        className="btn-secondary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold"
+                                    >
+                                        <FileText size={16} /> Download Manifest
+                                    </button>
+                                    <button
+                                        onClick={() => dispatchTransfer(pendingTransfer)}
+                                        disabled={dispatching}
+                                        className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-5 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {dispatching ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                        Initiate Transfer
+                                    </button>
+                                    <button
+                                        onClick={() => { setPendingTransfer(null); setError(null); }}
+                                        className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                                    >
+                                        Cancel Transfer
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}

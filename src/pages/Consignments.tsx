@@ -34,7 +34,7 @@ export default function Consignments() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Consignments</h1>
+          <h1 className="text-xl font-bold text-[var(--text)]">Consignments</h1>
           <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Manage device handoffs to consignees</p>
         </div>
         <Link to="/admin/consignments/new" className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium">
@@ -74,7 +74,7 @@ export default function Consignments() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">{b.id}</span>
+                  <span className="font-mono text-sm font-semibold text-[var(--text)]">{b.id}</span>
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${statusBadge(b.status)}`}>
                     {b.status}
                   </span>

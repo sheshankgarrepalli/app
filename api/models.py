@@ -157,7 +157,7 @@ class TransferOrder(Base):
     notes = Column(String, nullable=True)
     created_by_email = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
-    status = Column(String, default="In_Transit")
+    status = Column(String, default="Draft")
 
 class TransferManifest(Base):
     __tablename__ = "transfer_manifests"

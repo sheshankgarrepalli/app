@@ -18,7 +18,7 @@ const ROUTING_ACTIONS = [
   { target: 'Transit_to_QC', label: 'Send to QC', color: 'bg-purple-500/20 text-purple-400 border-purple-500/40 hover:bg-purple-500/30' },
   { target: 'Transit_to_Main_Bin', label: 'Mark Sellable', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30' },
   { target: 'Transit_to_Repair', label: 'Send to Repair', color: 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30' },
-  { target: 'In_Repair', label: 'Await Parts', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40 hover:bg-blue-500/30' },
+  { target: 'Awaiting_Parts', label: 'Await Parts', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40 hover:bg-blue-500/30' },
   { target: 'In_Transit', label: 'Transfer to Location', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/30' },
   { target: 'Sold', label: 'Mark Sold', color: 'bg-emerald-600/20 text-emerald-300 border-emerald-600/40 hover:bg-emerald-600/30' },
   { target: 'Reserved_Layaway', label: 'Reserve Layaway', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40 hover:bg-indigo-500/30' },
@@ -229,8 +229,8 @@ export default function Repairs() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Wrench size={24} className="text-[var(--text-primary)]" />
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Repairs</h2>
+        <Wrench size={24} className="text-[var(--text)]" />
+        <h2 className="text-xl font-bold text-[var(--text)]">Repairs</h2>
       </div>
 
       {/* IMEI Scanner */}
@@ -244,7 +244,7 @@ export default function Repairs() {
             onChange={(e) => setImeiInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Scan or enter IMEI..."
-            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] outline-none focus:border-accent transition-colors"
+            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-[var(--text)] text-sm placeholder:text-[var(--text-muted)] outline-none focus:border-accent transition-colors"
             autoFocus
           />
         </div>
@@ -274,7 +274,7 @@ export default function Repairs() {
           {/* LEFT: Device Details + QC Findings */}
           <div className="space-y-4">
             {/* Device Details */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5 space-y-4">
+            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 space-y-4">
               <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">Device Details</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <Detail label="IMEI" value={device.imei} />
@@ -296,7 +296,7 @@ export default function Repairs() {
 
             {/* QC Findings */}
             {qcIssues && (
-              <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5 space-y-3">
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 space-y-3">
                 <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                   QC Findings
                 </h3>
@@ -332,7 +332,7 @@ export default function Repairs() {
                     <QCItem label="QC Grade" value={qcIssues.grade} />
                   )}
                   {qcIssues.notes && (
-                    <div className="mt-2 p-2 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-xs">
+                    <div className="mt-2 p-2 rounded bg-[var(--bg-muted)] text-[var(--text-secondary)] text-xs">
                       <span className="font-semibold text-[var(--text-muted)]">QC Notes: </span>
                       {qcIssues.notes}
                     </div>
@@ -349,12 +349,12 @@ export default function Repairs() {
 
           {/* RIGHT: Repair Form + Routing */}
           <div className="space-y-4">
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5 space-y-5">
+            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 space-y-5">
               <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">Repair Actions</h3>
 
               {/* Repair checkboxes */}
               <div className="space-y-2">
-                <span className="text-sm font-medium text-[var(--text-primary)]">Work Completed</span>
+                <span className="text-sm font-medium text-[var(--text)]">Work Completed</span>
                 <div className="grid grid-cols-2 gap-2">
                   {REPAIR_OPTIONS.map((opt) => (
                     <label
@@ -366,7 +366,7 @@ export default function Repairs() {
                         checked={workCompleted.includes(opt)}
                         onChange={() => toggleRepairOption(opt)}
                         disabled={repairRecorded}
-                        className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-tertiary)] accent-accent"
+                        className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-muted)] accent-accent"
                       />
                       {opt}
                     </label>
@@ -375,15 +375,15 @@ export default function Repairs() {
               </div>
 
               {/* Parts selection */}
-              <div className="space-y-2 pt-3 border-t border-[var(--border-primary)]">
-                <span className="text-sm font-medium text-[var(--text-primary)]">Parts Used</span>
+              <div className="space-y-2 pt-3 border-t border-[var(--border)]">
+                <span className="text-sm font-medium text-[var(--text)]">Parts Used</span>
 
                 {!repairRecorded && (
                   <div className="flex gap-2">
                     <select
                       value={selectedPart}
                       onChange={(e) => setSelectedPart(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-primary)] outline-none focus:border-accent"
+                      className="flex-1 px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text)] outline-none focus:border-accent"
                     >
                       <option value="">Select a part...</option>
                       {device.available_parts.map((p) => (
@@ -397,12 +397,12 @@ export default function Repairs() {
                       min="1"
                       value={partQty}
                       onChange={(e) => setPartQty(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-primary)] text-center outline-none focus:border-accent"
+                      className="w-16 px-2 py-2 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text)] text-center outline-none focus:border-accent"
                     />
                     <button
                       onClick={addPart}
                       disabled={!selectedPart}
-                      className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-secondary)] hover:border-accent disabled:opacity-50 transition-colors"
+                      className="px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-secondary)] hover:border-accent disabled:opacity-50 transition-colors"
                     >
                       Add
                     </button>
@@ -415,8 +415,8 @@ export default function Repairs() {
                     {partsConsumed.map((pc) => {
                       const part = device.available_parts.find((p) => p.sku === pc.sku);
                       return (
-                        <div key={pc.sku} className="flex items-center justify-between bg-[var(--bg-tertiary)] rounded-lg px-3 py-2 text-sm">
-                          <span className="text-[var(--text-primary)]">
+                        <div key={pc.sku} className="flex items-center justify-between bg-[var(--bg-muted)] rounded-lg px-3 py-2 text-sm">
+                          <span className="text-[var(--text)]">
                             {part?.part_name || pc.sku} x{pc.qty}
                           </span>
                           {!repairRecorded && (
@@ -435,15 +435,15 @@ export default function Repairs() {
               </div>
 
               {/* Notes */}
-              <div className="space-y-1 pt-3 border-t border-[var(--border-primary)]">
-                <span className="text-sm font-medium text-[var(--text-primary)]">Notes</span>
+              <div className="space-y-1 pt-3 border-t border-[var(--border)]">
+                <span className="text-sm font-medium text-[var(--text)]">Notes</span>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Additional notes about the repair..."
                   rows={3}
                   disabled={repairRecorded}
-                  className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-accent resize-none disabled:opacity-60"
+                  className="w-full px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-accent resize-none disabled:opacity-60"
                 />
               </div>
 
@@ -468,7 +468,7 @@ export default function Repairs() {
 
             {/* Post-repair Routing */}
             {repairRecorded && (
-              <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5 space-y-4">
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 space-y-4">
                 <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">Route Device</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {ROUTING_ACTIONS.map((action) => (
@@ -490,7 +490,7 @@ export default function Repairs() {
 
       {/* Recent History */}
       {device && device.recent_history.length > 0 && (
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5">
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
           <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-4 flex items-center gap-2">
             <ClipboardList size={16} /> Transfer / Transition History
           </h3>
@@ -508,9 +508,9 @@ export default function Repairs() {
               </thead>
               <tbody>
                 {device.recent_history.map((h) => (
-                  <tr key={h.log_id} className="border-t border-[var(--border-primary)] text-[var(--text-secondary)]">
+                  <tr key={h.log_id} className="border-t border-[var(--border)] text-[var(--text-secondary)]">
                     <td className="py-2 pr-4 whitespace-nowrap">{new Date(h.timestamp).toLocaleString()}</td>
-                    <td className="py-2 pr-4 font-medium text-[var(--text-primary)]">{h.action_type}</td>
+                    <td className="py-2 pr-4 font-medium text-[var(--text)]">{h.action_type}</td>
                     <td className="py-2 pr-4">{h.employee_id}</td>
                     <td className="py-2 pr-4 text-[var(--text-muted)]">{h.previous_status || '-'}</td>
                     <td className="py-2 pr-4">{h.new_status}</td>
@@ -537,7 +537,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
-      <p className="text-sm text-[var(--text-primary)] font-medium mt-0.5">{value}</p>
+      <p className="text-sm text-[var(--text)] font-medium mt-0.5">{value}</p>
     </div>
   );
 }

@@ -1,26 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, Copy, ExternalLink, CheckCircle2, FileEdit, Ban, Clock, Pencil } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Copy, ExternalLink, CheckCircle2, Ban, Clock, Pencil } from 'lucide-react';
 import { fetchInvoice, fetchInvoiceTimeline, generateShareLink, voidInvoice, Invoice, InvoiceTimeline, extractError } from '../api/invoices';
 
 function statusBadge(s: string) {
-  if (s === 'Paid') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-  if (s === 'Draft') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  if (s === 'Voided' || s === 'Refunded') return 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (s === 'Overdue') return 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (s === 'Partially_Paid') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  if (s === 'Unpaid') return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
-  if (s === 'Sent') return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
-  if (s === 'Viewed') return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-  return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
+  if (s === 'Paid') return 'badge-success';
+  if (s === 'Draft') return 'badge-warning';
+  if (s === 'Voided' || s === 'Refunded') return 'badge-error';
+  if (s === 'Overdue') return 'badge-error';
+  if (s === 'Partially_Paid') return 'badge-warning';
+  if (s === 'Unpaid') return 'badge-neutral';
+  if (s === 'Sent') return 'badge-info';
+  if (s === 'Viewed') return 'badge-purple';
+  return 'badge-neutral';
 }
 
 function paymentStatusBadge(s: string) {
-  if (s === 'Paid') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-  if (s === 'Voided') return 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (s === 'Partially_Paid') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  if (s === 'Unpaid') return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
-  return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
+  if (s === 'Paid') return 'badge-success';
+  if (s === 'Voided') return 'badge-error';
+  if (s === 'Partially_Paid') return 'badge-warning';
+  if (s === 'Unpaid') return 'badge-neutral';
+  return 'badge-neutral';
 }
 
 const actionLabels: Record<string, string> = {
@@ -119,23 +119,18 @@ export default function InvoiceDetail() {
     <div className="space-y-5 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+        <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-[var(--text-primary)] font-mono">{invoice.invoice_number}</h1>
+            <h1 className="text-xl font-bold text-[var(--text)] font-mono">{invoice.invoice_number}</h1>
             <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadge(invoice.status)}`}>
               {invoice.status.replace(/_/g, ' ')}
             </span>
             <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${paymentStatusBadge(invoice.payment_status)}`}>
               {invoice.payment_status.replace(/_/g, ' ')}
             </span>
-            {isDraft && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                <FileEdit size={11} /> DRAFT
-              </span>
-            )}
           </div>
           <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
             Created {new Date(invoice.created_at).toLocaleDateString()} at {new Date(invoice.created_at).toLocaleTimeString()}
@@ -193,7 +188,7 @@ export default function InvoiceDetail() {
             <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-3">Bill To</p>
             {invoice.customer ? (
               <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                <p className="text-sm font-semibold text-[var(--text)]">
                   {invoice.customer.company_name || `${invoice.customer.first_name || ''} ${invoice.customer.last_name || ''}`.trim() || '—'}
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
@@ -210,12 +205,12 @@ export default function InvoiceDetail() {
 
           {/* Line Items */}
           <div className="card overflow-hidden">
-            <div className="px-4 py-3 bg-[var(--bg-tertiary)]">
+            <div className="px-4 py-3 bg-[var(--bg-muted)]">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Line Items</p>
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
+                <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border)]">
                   <th className="text-left p-3">Description</th>
                   <th className="text-center p-3">Qty</th>
                   <th className="text-right p-3">Rate</th>
@@ -226,7 +221,7 @@ export default function InvoiceDetail() {
                 {invoice.items?.map((item) => (
                   <tr key={item.id}>
                     <td className="p-3">
-                      <p className="text-xs text-[var(--text-primary)]">{item.description || '—'}</p>
+                      <p className="text-xs text-[var(--text)]">{item.description || '—'}</p>
                       {(item.imei || item.model_number) && (
                         <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
                           {item.imei ? `IMEI: ${item.imei}` : ''}{item.imei && item.model_number ? ' · ' : ''}{item.model_number ? `Model: ${item.model_number}` : ''}
@@ -245,12 +240,12 @@ export default function InvoiceDetail() {
           {/* Payments */}
           {invoice.payments && invoice.payments.length > 0 && (
             <div className="card overflow-hidden">
-              <div className="px-4 py-3 bg-[var(--bg-tertiary)]">
+              <div className="px-4 py-3 bg-[var(--bg-muted)]">
                 <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Payments</p>
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
+                  <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border)]">
                     <th className="text-left p-3">Method</th>
                     <th className="text-right p-3">Amount</th>
                     <th className="text-left p-3">Reference</th>
@@ -287,7 +282,7 @@ export default function InvoiceDetail() {
             <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Summary</p>
             <div className="flex justify-between text-xs">
               <span className="text-[var(--text-tertiary)]">Subtotal</span>
-              <span className="text-[var(--text-primary)]">${invoice.subtotal.toFixed(2)}</span>
+              <span className="text-[var(--text)]">${invoice.subtotal.toFixed(2)}</span>
             </div>
             {invoice.discount_total > 0 && (
               <div className="flex justify-between text-xs">
@@ -297,10 +292,10 @@ export default function InvoiceDetail() {
             )}
             <div className="flex justify-between text-xs">
               <span className="text-[var(--text-tertiary)]">Tax ({invoice.tax_percent}%)</span>
-              <span className="text-[var(--text-primary)]">${invoice.tax_amount.toFixed(2)}</span>
+              <span className="text-[var(--text)]">${invoice.tax_amount.toFixed(2)}</span>
             </div>
-            <hr className="border-[var(--border-primary)]" />
-            <div className="flex justify-between font-bold text-sm text-[var(--text-primary)]">
+            <hr className="border-[var(--border)]" />
+            <div className="flex justify-between font-bold text-sm text-[var(--text)]">
               <span>Total</span>
               <span>${invoice.total.toFixed(2)}</span>
             </div>
@@ -318,17 +313,17 @@ export default function InvoiceDetail() {
                 </div>
               </>
             )}
-            <hr className="border-[var(--border-primary)]" />
+            <hr className="border-[var(--border)]" />
             {invoice.fulfillment_method && (
               <div className="flex justify-between text-xs">
                 <span className="text-[var(--text-tertiary)]">Fulfillment</span>
-                <span className="text-[var(--text-primary)]">{invoice.fulfillment_method}</span>
+                <span className="text-[var(--text)]">{invoice.fulfillment_method}</span>
               </div>
             )}
             {invoice.invoice_terms && (
               <div className="flex justify-between text-xs">
                 <span className="text-[var(--text-tertiary)]">Terms</span>
-                <span className="text-[var(--text-primary)]">{invoice.invoice_terms}</span>
+                <span className="text-[var(--text)]">{invoice.invoice_terms}</span>
               </div>
             )}
           </div>
@@ -345,7 +340,7 @@ export default function InvoiceDetail() {
                 {timeline.events.map((event, i) => (
                   <div key={i} className="relative pl-6 pb-3 last:pb-0">
                     <div className="absolute left-[5px] top-1.5 w-2 h-2 rounded-full bg-[var(--border-primary)]" />
-                    <p className="text-xs text-[var(--text-primary)]">
+                    <p className="text-xs text-[var(--text)]">
                       {actionLabels[event.action] || event.action.replace(/_/g, ' ')}
                     </p>
                     {event.details && (

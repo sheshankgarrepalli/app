@@ -40,6 +40,7 @@ const TABS = [
 
 export default function Settings() {
   const [settings, setSettings] = useState<OrgSettings | null>(null);
+  const [initialSettings, setInitialSettings] = useState<OrgSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function Settings() {
     try {
       const { data } = await api.get('/api/admin/org-settings');
       setSettings(data);
+      setInitialSettings({ ...data });
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load settings');
     } finally {
@@ -59,6 +61,17 @@ export default function Settings() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const hasChanges = settings && initialSettings
+    ? JSON.stringify(settings) !== JSON.stringify(initialSettings)
+    : false;
+
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasChanges]);
 
   const update = (key: string, value: any) => {
     if (!settings) return;
@@ -73,6 +86,7 @@ export default function Settings() {
     try {
       const { data } = await api.put('/api/admin/org-settings', settings);
       setSettings(data);
+      setInitialSettings({ ...data });
       setSuccess('Settings saved');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
@@ -96,7 +110,7 @@ export default function Settings() {
     <div className="space-y-5 max-w-2xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Organization Settings</h1>
+          <h1 className="text-xl font-bold text-[var(--text)]">Organization Settings</h1>
           <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Customize your invoice templates, branding, and defaults</p>
         </div>
         <button
@@ -119,7 +133,7 @@ export default function Settings() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-tertiary)] rounded-lg p-1">
+      <div className="flex gap-1 bg-[var(--bg-muted)] rounded-lg p-1">
         {TABS.map(t => {
           const Icon = t.icon;
           const active = tab === t.key;
@@ -128,7 +142,7 @@ export default function Settings() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-medium transition-all ${
-                active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                active ? 'bg-[var(--bg-card)] text-[var(--text)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
               }`}
             >
               <Icon size={14} />
@@ -151,7 +165,7 @@ export default function Settings() {
               placeholder="https://your-cdn.com/logo.png"
             />
             {settings.logo_url && (
-              <div className="mt-2 p-3 bg-[var(--bg-tertiary)] rounded border border-[var(--border-primary)] inline-block">
+              <div className="mt-2 p-3 bg-[var(--bg-muted)] rounded border border-[var(--border)] inline-block">
                 <img src={settings.logo_url} alt="Logo preview" className="h-10 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               </div>
             )}

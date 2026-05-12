@@ -43,17 +43,19 @@ export default function CustomerDetail() {
   const isNew = crmId === 'new';
 
   const [form, setForm] = useState<CustomerCreate>(emptyForm);
+  const [initialForm, setInitialForm] = useState<CustomerCreate | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [customerMeta, setCustomerMeta] = useState<{ is_active?: number; contacts?: any[]; documents?: any[]; current_balance?: number } | null>(null);
 
   const load = useCallback(async () => {
     if (isNew) return;
     setLoading(true);
     try {
       const c = await fetchCustomer(crmId!);
-      setForm({
+      const mapped = {
         customer_type: c.customer_type,
         first_name: c.first_name || '',
         last_name: c.last_name || '',
@@ -70,7 +72,10 @@ export default function CustomerDetail() {
         wholesale_subtype: c.wholesale_subtype || 'standard',
         default_consignment_days: c.default_consignment_days || 15,
         notes: c.notes || '',
-      });
+      };
+      setForm(mapped);
+      setInitialForm(mapped);
+      setCustomerMeta({ is_active: c.is_active, contacts: c.contacts, documents: c.documents, current_balance: c.current_balance });
     } catch (err: any) {
       setError(extractError(err));
     } finally {
@@ -79,6 +84,28 @@ export default function CustomerDetail() {
   }, [crmId, isNew]);
 
   useEffect(() => { load(); }, [load]);
+
+  const hasChanges = isNew
+    ? JSON.stringify(form) !== JSON.stringify(emptyForm)
+    : initialForm && JSON.stringify(form) !== JSON.stringify(initialForm);
+
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasChanges]);
+
+  const handleDeactivate = async () => {
+    if (!window.confirm(customerMeta?.is_active ? 'Deactivate this customer? They will no longer appear in customer lists.' : 'Reactivate this customer?')) return;
+    try {
+      await updateCustomer(crmId!, { ...form, is_active: customerMeta?.is_active ? 0 : 1 } as any);
+      setCustomerMeta(prev => prev ? { ...prev, is_active: prev.is_active ? 0 : 1 } : null);
+      setSuccess(customerMeta?.is_active ? 'Customer deactivated' : 'Customer reactivated');
+    } catch (err: any) {
+      setError(extractError(err));
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -93,6 +120,7 @@ export default function CustomerDetail() {
       } else {
         await updateCustomer(crmId!, clean);
         setSuccess('Customer updated');
+        setInitialForm(form);
       }
     } catch (err: any) {
       setError(extractError(err));
@@ -117,22 +145,22 @@ export default function CustomerDetail() {
     <div className="space-y-5 max-w-2xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+        <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-xl font-bold text-[var(--text-primary)]">
+        <h1 className="text-xl font-bold text-[var(--text)]">
           {isNew ? 'New Customer' : 'Edit Customer'}
         </h1>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEE2E2] border border-[var(--destructive)]/20 text-[var(--destructive)] text-sm">
           <AlertCircle size={16} />{error}
         </div>
       )}
       {success && (
-        <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">{success}</div>
+        <div className="p-3 rounded-lg bg-[#DCFCE7] border border-[var(--success)]/20 text-[var(--success)] text-sm">{success}</div>
       )}
 
       <div className="card space-y-5">
@@ -142,8 +170,8 @@ export default function CustomerDetail() {
             onClick={() => update('customer_type', 'Retail')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-medium transition-colors ${
               form.customer_type === 'Retail'
-                ? 'border-accent bg-accent/10 text-accent'
-                : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--border-secondary)]'
+                ? 'border-accent badge-neutral'
+                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-secondary)]'
             }`}
           >
             <User size={16} /> Retail
@@ -152,8 +180,8 @@ export default function CustomerDetail() {
             onClick={() => update('customer_type', 'Wholesale')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-medium transition-colors ${
               form.customer_type === 'Wholesale'
-                ? 'border-accent bg-accent/10 text-accent'
-                : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--border-secondary)]'
+                ? 'border-accent badge-neutral'
+                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-secondary)]'
             }`}
           >
             <Building2 size={16} /> Wholesale
@@ -267,15 +295,96 @@ export default function CustomerDetail() {
         </div>
       </div>
 
-      {/* Save */}
-      <button
-        onClick={handleSave}
-        disabled={saving || !form.phone}
-        className="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
-      >
-        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        {isNew ? 'Create Customer' : 'Save Changes'}
-      </button>
+      {/* Save + Deactivate */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving || !form.phone}
+          className="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {isNew ? 'Create Customer' : 'Save Changes'}
+        </button>
+        {!isNew && customerMeta && (
+          <button
+            onClick={handleDeactivate}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+              customerMeta.is_active
+                ? 'border-red-400 text-red-400 hover:bg-red-50'
+                : 'border-emerald-400 text-emerald-400 hover:bg-emerald-50'
+            }`}
+          >
+            {customerMeta.is_active ? 'Deactivate' : 'Reactivate'}
+          </button>
+        )}
+      </div>
+
+      {/* Meta sections */}
+      {!isNew && customerMeta && (
+        <div className="space-y-5 mt-6">
+          {customerMeta.current_balance != null && (
+            <div className="card">
+              <div className="card-header">Account Standing</div>
+              <div className="card-body grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-[var(--text-tertiary)]">Current Balance</span>
+                  <p className={`text-lg font-bold ${customerMeta.current_balance > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                    ${customerMeta.current_balance.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--text-tertiary)]">Status</span>
+                  <p className={`text-lg font-bold ${customerMeta.is_active ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {customerMeta.is_active ? 'Active' : 'Inactive'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {customerMeta.contacts && customerMeta.contacts.length > 0 && (
+            <div className="card">
+              <div className="card-header">Contacts ({customerMeta.contacts.length})</div>
+              <div className="card-body p-0">
+                <div className="divide-y divide-[var(--border)]">
+                  {customerMeta.contacts.map((c: any) => (
+                    <div key={c.id} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--text)]">{c.name}</p>
+                        {c.phone && <p className="text-xs text-[var(--text-secondary)]">{c.phone}</p>}
+                      </div>
+                      {c.is_authorized_buyer ? (
+                        <span className="badge badge-sellable text-[10px]">Authorized Buyer</span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {customerMeta.documents && customerMeta.documents.length > 0 && (
+            <div className="card">
+              <div className="card-header">Documents ({customerMeta.documents.length})</div>
+              <div className="card-body p-0">
+                <div className="divide-y divide-[var(--border)]">
+                  {customerMeta.documents.map((d: any) => (
+                    <div key={d.id} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--text)] capitalize">{d.document_type}</p>
+                        {d.expiry_date && <p className="text-xs text-[var(--text-secondary)]">Expires: {new Date(d.expiry_date).toLocaleDateString()}</p>}
+                      </div>
+                      {d.file_url && (
+                        <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">View</a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

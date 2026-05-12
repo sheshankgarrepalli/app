@@ -1,24 +1,42 @@
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import {
     Scan, RefreshCw, AlertCircle, CheckCircle2,
     Trash2, ChevronRight, Info, Download, Printer, Search,
-    Filter, MapPin, Calendar, Hash
+    Filter, MapPin, Calendar, Hash, ExternalLink
 } from 'lucide-react';
 import ErrorBanner from '../components/ErrorBanner';
 
+const STORAGE_KEY = 'rapid_audit_scanned_imeis';
+
 export default function RapidAudit() {
-    const { token, user } = useAuth();
-    const [scannedImeis, setScannedImeis] = useState<string[]>([]);
+    const { user } = useAuth();
+    const [scannedImeis, setScannedImeis] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
     const [currentInput, setCurrentInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [report, setReport] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [searchFilter, setSearchFilter] = useState('');
+    const [resolvedItems, setResolvedItems] = useState<Set<string>>(new Set());
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { inputRef.current?.focus(); }, []);
+    useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(scannedImeis)); }, [scannedImeis]);
+
+    const markResolved = (imei: string) => {
+        setResolvedItems(prev => {
+            const next = new Set(prev);
+            next.add(imei);
+            return next;
+        });
+    };
 
     const handleScan = (e: FormEvent) => {
         e.preventDefault();
@@ -37,7 +55,7 @@ export default function RapidAudit() {
         try {
             const res = await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/inventory/rapid-audit', {
                 imeis: scannedImeis
-            }, { headers: { Authorization: `Bearer ${token}` } });
+            });
             setReport(res.data);
         } catch (err: any) {
             setError(err.response?.data?.detail || "Audit failed");
@@ -48,6 +66,8 @@ export default function RapidAudit() {
 
     const resetAudit = () => {
         setScannedImeis([]); setReport(null); setCurrentInput(''); setSearchFilter('');
+        setResolvedItems(new Set());
+        localStorage.removeItem(STORAGE_KEY);
         setTimeout(() => inputRef.current?.focus(), 100);
     };
 
@@ -78,7 +98,7 @@ export default function RapidAudit() {
                 {/* Report Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
+                        <h1 className="text-[22px] font-bold text-[var(--text)] flex items-center gap-3">
                             Audit Variance Report
                             <span className={`text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border ${
                                 isClean
@@ -95,10 +115,10 @@ export default function RapidAudit() {
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={downloadCSV} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-navy text-white hover:bg-navy-light transition-all text-xs font-bold border border-[var(--border-primary)]">
+                        <button onClick={downloadCSV} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-navy text-white hover:bg-navy-light transition-all text-xs font-bold border border-[var(--border)]">
                             <Download size={16} /> Download CSV
                         </button>
-                        <button onClick={printReport} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-navy text-white hover:bg-navy-light transition-all text-xs font-bold border border-[var(--border-primary)]">
+                        <button onClick={printReport} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-navy text-white hover:bg-navy-light transition-all text-xs font-bold border border-[var(--border)]">
                             <Printer size={16} /> Print Report
                         </button>
                         <button onClick={resetAudit} className="bg-accent text-[var(--text-inverse)] hover:bg-accent-hover px-5 py-2.5 rounded-md font-bold text-xs transition-all active:scale-[0.98] inline-flex items-center gap-2">
@@ -108,7 +128,7 @@ export default function RapidAudit() {
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                     <div className="kpi-card">
                         <div className="kpi-label text-emerald-400">Matched Assets</div>
                         <div className="kpi-value text-emerald-400">{report.matched.length}</div>
@@ -124,6 +144,11 @@ export default function RapidAudit() {
                         <div className="kpi-value text-amber-400">{report.unexpected.length}</div>
                         <div className="kpi-change down">On shelf but not in system</div>
                     </div>
+                    <div className="kpi-card border-emerald-500/20">
+                        <div className="kpi-label text-emerald-400">Resolved Items</div>
+                        <div className="kpi-value text-emerald-400">{resolvedItems.size}</div>
+                        <div className="kpi-change up">Marked as investigated</div>
+                    </div>
                 </div>
 
                 {/* Search/Filter */}
@@ -136,7 +161,7 @@ export default function RapidAudit() {
                             value={searchFilter}
                             onChange={e => setSearchFilter(e.target.value)}
                             placeholder="Filter by IMEI..."
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] focus:border-accent rounded-lg pl-9 pr-4 py-2 text-xs text-[var(--text-primary)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
+                            className="w-full bg-[var(--bg-muted)] border border-[var(--border-secondary)] focus:border-accent rounded-lg pl-9 pr-4 py-2 text-xs text-[var(--text)] outline-none transition-all placeholder:text-[var(--text-tertiary)]"
                         />
                     </div>
                     <div className="flex-1" />
@@ -165,16 +190,33 @@ export default function RapidAudit() {
                                             <th>IMEI / Serial</th>
                                             <th>Last Action</th>
                                             <th className="text-right">Custodian</th>
+                                            <th className="text-right w-16">Act</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filterMissing.map((m: any) => (
-                                            <tr key={m.imei}>
-                                                <td className="font-mono text-xs font-bold">{m.imei}</td>
-                                                <td className="text-xs text-[var(--text-secondary)]">{m.last_action || '—'}</td>
-                                                <td className="text-right text-xs text-[var(--text-secondary)]">{(m.last_employee || '—').split('@')[0]}</td>
-                                            </tr>
-                                        ))}
+                                        {filterMissing.map((m: any) => {
+                                            const resolved = resolvedItems.has(m.imei);
+                                            return (
+                                                <tr key={m.imei} className={resolved ? 'opacity-50' : ''}>
+                                                    <td className="font-mono text-xs font-bold">{m.imei}</td>
+                                                    <td className="text-xs text-[var(--text-secondary)]">{m.last_action || '—'}</td>
+                                                    <td className="text-right text-xs text-[var(--text-secondary)]">{(m.last_employee || '—').split('@')[0]}</td>
+                                                    <td className="text-right">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            {!resolved && (
+                                                                <button onClick={() => markResolved(m.imei)}
+                                                                    className="p-1 rounded hover:bg-emerald-500/10 text-[var(--text-tertiary)] hover:text-emerald-400" title="Mark as investigated">
+                                                                    <CheckCircle2 size={13} />
+                                                                </button>
+                                                            )}
+                                                            <Link to={`/admin/track?q=${m.imei}`} className="p-1 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-accent" title="Investigate">
+                                                                <ExternalLink size={13} />
+                                                            </Link>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}
@@ -201,12 +243,28 @@ export default function RapidAudit() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filterUnexpected.map((imei: string) => (
-                                            <tr key={imei}>
-                                                <td className="font-mono text-xs font-bold">{imei}</td>
-                                                <td className="text-right"><span className="badge badge-neutral text-[10px]">Review Req</span></td>
-                                            </tr>
-                                        ))}
+                                        {filterUnexpected.map((imei: string) => {
+                                            const resolved = resolvedItems.has(imei);
+                                            return (
+                                                <tr key={imei} className={resolved ? 'opacity-50' : ''}>
+                                                    <td className="font-mono text-xs font-bold">{imei}</td>
+                                                    <td className="text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <span className="badge badge-neutral text-[10px]">Review Req</span>
+                                                            {!resolved && (
+                                                                <button onClick={() => markResolved(imei)}
+                                                                    className="p-1 rounded hover:bg-emerald-500/10 text-[var(--text-tertiary)] hover:text-emerald-400" title="Mark as investigated">
+                                                                    <CheckCircle2 size={13} />
+                                                                </button>
+                                                            )}
+                                                            <Link to={`/admin/track?q=${imei}`} className="p-1 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-accent" title="Investigate">
+                                                                <ExternalLink size={13} />
+                                                            </Link>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}
@@ -261,7 +319,7 @@ export default function RapidAudit() {
 
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
+                    <h1 className="text-[22px] font-bold text-[var(--text)] flex items-center gap-3">
                         Rapid Inventory Audit
                         <span className="bg-accent/10 text-accent text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
                             Physical Count
@@ -275,7 +333,7 @@ export default function RapidAudit() {
                 <div className="flex items-center gap-6">
                     <div className="text-right">
                         <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Scanned</div>
-                        <div className="text-2xl font-bold text-[var(--text-primary)] tabular-nums">{scannedImeis.length}</div>
+                        <div className="text-2xl font-bold text-[var(--text)] tabular-nums">{scannedImeis.length}</div>
                     </div>
                     <button
                         onClick={runAudit}
@@ -289,7 +347,7 @@ export default function RapidAudit() {
             </div>
 
             {/* Scanner */}
-            <div className="relative bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)] overflow-hidden">
+            <div className="relative bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/5 via-transparent to-purple-500/5 pointer-events-none" />
                 <div className="relative p-5">
                     <form onSubmit={handleScan} className="relative">
@@ -302,7 +360,7 @@ export default function RapidAudit() {
                             value={currentInput}
                             onChange={e => setCurrentInput(e.target.value)}
                             placeholder="Awaiting scan..."
-                            className="w-full bg-[var(--bg-tertiary)] border-2 border-[var(--border-secondary)] focus:border-accent rounded-xl pl-16 pr-6 py-6 text-2xl font-mono font-bold tracking-widest text-[var(--text-primary)] outline-none transition-all placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[var(--text-tertiary)]"
+                            className="w-full bg-[var(--bg-muted)] border-2 border-[var(--border-secondary)] focus:border-accent rounded-xl pl-16 pr-6 py-6 text-2xl font-mono font-bold tracking-widest text-[var(--text)] outline-none transition-all placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:text-[var(--text-tertiary)]"
                             autoFocus
                         />
                     </form>
@@ -335,7 +393,7 @@ export default function RapidAudit() {
                             <div key={imei} className="card p-4 flex justify-between items-center group hover:border-accent/30 transition-all">
                                 <div className="space-y-1 min-w-0">
                                     <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">#{scannedImeis.length - index}</div>
-                                    <div className="text-xs font-mono font-bold text-[var(--text-primary)] truncate">{imei}</div>
+                                    <div className="text-xs font-mono font-bold text-[var(--text)] truncate">{imei}</div>
                                 </div>
                                 <button onClick={() => removeImei(imei)} className="text-[var(--text-muted)] hover:text-red-400 transition-colors flex-shrink-0 ml-2">
                                     <Trash2 size={14} />

@@ -1,15 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Loader2, AlertCircle, Search, FileText, Copy, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Plus, Loader2, AlertCircle, Search, FileText, Copy, ExternalLink, CheckCircle2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchInvoices, generateShareLink, Invoice, extractError } from '../api/invoices';
 
+const PER_PAGE = 25;
+
+type SortField = 'invoice_number' | 'customer' | 'total' | 'status' | 'payment_status' | 'date';
+type SortDir = 'asc' | 'desc';
+
 function statusBadge(s: string) {
-  if (s === 'Paid') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-  if (s === 'Voided' || s === 'Refunded') return 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (s === 'Overdue') return 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (s === 'Partially_Paid') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  if (s === 'Unpaid') return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
-  return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
+  if (s === 'Paid') return 'badge-success';
+  if (s === 'Voided' || s === 'Refunded') return 'badge-neutral';
+  if (s === 'Overdue') return 'badge-error';
+  if (s === 'Partially_Paid') return 'badge-warning';
+  if (s === 'Unpaid') return 'badge-neutral';
+  return 'badge-neutral';
 }
 
 export default function InvoicesList() {
@@ -18,6 +23,9 @@ export default function InvoicesList() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [page, setPage] = useState(0);
 
   const load = useCallback(async (q?: string) => {
     setLoading(true);
@@ -25,6 +33,7 @@ export default function InvoicesList() {
     try {
       const data = await fetchInvoices(q);
       setInvoices(data);
+      setPage(0);
     } catch (err: any) {
       setError(extractError(err));
     } finally {
@@ -37,6 +46,56 @@ export default function InvoicesList() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     load(search || undefined);
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir(field === 'date' ? 'desc' : 'asc');
+    }
+    setPage(0);
+  };
+
+  const sorted = useMemo(() => {
+    const sorted = [...invoices];
+    sorted.sort((a, b) => {
+      let va: any, vb: any;
+      switch (sortField) {
+        case 'invoice_number':
+          va = a.invoice_number; vb = b.invoice_number;
+          break;
+        case 'customer':
+          va = (a.customer?.company_name || `${a.customer?.first_name || ''} ${a.customer?.last_name || ''}`.trim() || '').toLowerCase();
+          vb = (b.customer?.company_name || `${b.customer?.first_name || ''} ${b.customer?.last_name || ''}`.trim() || '').toLowerCase();
+          break;
+        case 'total':
+          va = a.total; vb = b.total;
+          break;
+        case 'status':
+          va = a.status; vb = b.status;
+          break;
+        case 'payment_status':
+          va = a.payment_status || ''; vb = b.payment_status || '';
+          break;
+        case 'date':
+          va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime();
+          break;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [invoices, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
+  const paged = sorted.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronDown size={12} className="opacity-30" />;
+    return sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
   };
 
   const handleShare = async (inv: Invoice) => {
@@ -57,29 +116,30 @@ export default function InvoicesList() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Invoices</h1>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Create, track, and share invoices</p>
+          <h1 className="page-title">Invoices</h1>
+          <p className="text-[13px] text-[var(--text-tertiary)] mt-1">Create, track, and share invoices</p>
         </div>
-        <Link to="/admin/invoices/new" className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium">
+        <Link to="/admin/invoices/new" className="btn-primary">
           <Plus size={16} />
           New Invoice
         </Link>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="p-4 rounded-lg flex items-center gap-3 text-[var(--destructive)] text-[13px] font-bold" style={{ background: '#FEE2E2' }}>
           <AlertCircle size={16} />{error}
         </div>
       )}
 
       {/* Search */}
       <form onSubmit={handleSearch} className="relative max-w-md">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
         <input
           type="text"
-          className="form-input pl-9"
+          className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-md pl-10 pr-4 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text-muted)]"
+          style={{ fontFamily: 'var(--font-body)' }}
           placeholder="Search by invoice #, customer, IMEI..."
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -92,78 +152,107 @@ export default function InvoicesList() {
         </div>
       ) : invoices.length === 0 ? (
         <div className="card text-center py-16">
-          <FileText size={48} className="mx-auto text-[var(--text-tertiary)] mb-3 opacity-30" />
-          <p className="text-[var(--text-secondary)] font-medium">No invoices found</p>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">Create your first invoice to get started</p>
+          <FileText size={48} className="mx-auto text-[var(--text-muted)] mb-3 opacity-40" />
+          <h3 className="text-base font-bold text-[var(--text)]" style={{ fontFamily: 'var(--font-heading)' }}>No invoices found</h3>
+          <p className="text-[13px] text-[var(--text-tertiary)] mt-1">Create your first invoice to get started</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
-                <th className="text-left p-3">Invoice #</th>
-                <th className="text-left p-3">Customer</th>
-                <th className="text-right p-3">Total</th>
-                <th className="text-center p-3">Status</th>
-                <th className="text-center p-3">Payment</th>
-                <th className="text-right p-3">Date</th>
-                <th className="text-center p-3 w-24">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-primary)]">
-              {invoices.map(inv => (
-                <tr key={inv.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                  <td className="p-3">
-                    <Link to={`/admin/invoices/${inv.invoice_number}`} className="font-mono text-xs font-semibold text-accent hover:underline">
-                      {inv.invoice_number}
-                    </Link>
-                  </td>
-                  <td className="p-3 text-[var(--text-secondary)] text-xs">
-                    {inv.customer?.company_name || `${inv.customer?.first_name || ''} ${inv.customer?.last_name || ''}`.trim() || '—'}
-                  </td>
-                  <td className="p-3 text-right font-medium text-[var(--text-primary)] text-xs">
-                    ${inv.total.toFixed(2)}
-                  </td>
-                  <td className="p-3 text-center">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${statusBadge(inv.status)}`}>
-                      {inv.status.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${statusBadge(inv.payment_status)}`}>
-                      {inv.payment_status?.replace(/_/g, ' ') || '—'}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right text-[var(--text-tertiary)] text-xs">
-                    {new Date(inv.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        onClick={() => handleShare(inv)}
-                        className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-accent transition-colors"
-                        title="Copy share link"
-                      >
-                        {copied === inv.invoice_number ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Link to={`/invoice/${inv.share_token}`} target="_blank" className="hidden" />}
-                        <Copy size={14} />
-                      </button>
-                      {inv.share_token && (
-                        <a
-                          href={`/invoice/${inv.share_token}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-accent transition-colors"
-                          title="Open public view"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                      )}
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('invoice_number')} className="text-left px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)] cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Invoice # <SortIcon field="invoice_number" /></div>
+                  </th>
+                  <th onClick={() => handleSort('customer')} className="text-left px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)] cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Customer <SortIcon field="customer" /></div>
+                  </th>
+                  <th onClick={() => handleSort('total')} className="text-right px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)] cursor-pointer select-none">
+                    <div className="flex items-center justify-end gap-1">Total <SortIcon field="total" /></div>
+                  </th>
+                  <th onClick={() => handleSort('status')} className="text-left px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)] cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
+                  </th>
+                  <th onClick={() => handleSort('payment_status')} className="text-left px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)] cursor-pointer select-none">
+                    <div className="flex items-center gap-1">Payment <SortIcon field="payment_status" /></div>
+                  </th>
+                  <th onClick={() => handleSort('date')} className="text-right px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)] cursor-pointer select-none">
+                    <div className="flex items-center justify-end gap-1">Date <SortIcon field="date" /></div>
+                  </th>
+                  <th className="text-right px-[14px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-muted)] border-b border-[var(--border)]"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paged.map(inv => (
+                  <tr key={inv.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-muted)] transition-colors">
+                    <td className="px-[14px] py-[10px] text-[13px]">
+                      <Link to={`/admin/invoices/${inv.invoice_number}`} className="font-semibold text-[var(--accent)]" style={{ fontFamily: 'monospace' }}>
+                        {inv.invoice_number}
+                      </Link>
+                    </td>
+                    <td className="px-[14px] py-[10px] text-[13px] text-[var(--text)] font-semibold">
+                      {inv.customer?.company_name || `${inv.customer?.first_name || ''} ${inv.customer?.last_name || ''}`.trim() || '—'}
+                    </td>
+                    <td className="px-[14px] py-[10px] text-[13px] text-right text-[var(--text)]" style={{ fontFamily: 'monospace' }}>
+                      ${inv.total.toFixed(2)}
+                    </td>
+                    <td className="px-[14px] py-[10px] text-[13px]">
+                      <span className={`badge ${statusBadge(inv.status)}`}>
+                        {inv.status.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-[14px] py-[10px] text-[13px]">
+                      <span className={`badge ${statusBadge(inv.payment_status)}`}>
+                        {inv.payment_status?.replace(/_/g, ' ') || '—'}
+                      </span>
+                    </td>
+                    <td className="px-[14px] py-[10px] text-[13px] text-right text-[var(--text-secondary)]">
+                      {new Date(inv.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-[14px] py-[10px] text-[13px] text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleShare(inv)}
+                          className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                          title="Copy share link"
+                        >
+                          {copied === inv.invoice_number ? <CheckCircle2 size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        </button>
+                        {inv.share_token && (
+                          <a
+                            href={`/invoice/${inv.share_token}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                            title="Open public view"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {totalPages > 1 && (
+            <div className="px-[18px] py-3 border-t border-[var(--border)] flex items-center justify-between text-[13px]">
+              <span className="text-[var(--text-tertiary)]">
+                {sorted.length} invoices &middot; Page {page + 1} of {totalPages}
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1.5 rounded hover:bg-[var(--bg-muted)] disabled:opacity-30">
+                  <ChevronLeft size={14} className="text-[var(--text)]" />
+                </button>
+                <span className="px-2 text-[var(--text)] font-bold">{page + 1}</span>
+                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1.5 rounded hover:bg-[var(--bg-muted)] disabled:opacity-30">
+                  <ChevronRight size={14} className="text-[var(--text)]" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

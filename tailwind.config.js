@@ -8,35 +8,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: {
-          DEFAULT: '#1a1a2e',
-          light: '#252540',
-          dark: '#12121f',
-        },
         accent: {
-          DEFAULT: '#00f0ff',
-          hover: '#00d4e6',
-          light: 'rgba(0,240,255,0.1)',
+          DEFAULT: '#059669',
+          hover: '#047857',
+          light: 'rgba(5,150,105,0.1)',
         },
-        success: {
-          DEFAULT: '#0f3460',
-          light: '#1a4a7a',
-        },
-        surface: {
-          DEFAULT: '#f5f5f5',
-          card: '#ffffff',
-        },
-        neon: {
-          cyan: '#00f0ff',
-          purple: '#a855f7',
-          pink: '#e94560',
-        },
-      },
-      backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #00f0ff, #a855f7)',
-        'gradient-cyan': 'linear-gradient(135deg, #00f0ff, #a855f7)',
-        'gradient-mesh': 'radial-gradient(ellipse at top left, rgba(0,240,255,0.08), transparent 50%), radial-gradient(ellipse at bottom right, rgba(168,85,247,0.08), transparent 50%)',
-        'gradient-sidebar': 'linear-gradient(135deg, rgba(0,240,255,0.15), rgba(168,85,247,0.1))',
+        destructive: '#DC2626',
+        success: '#16A34A',
+        warning: '#D97706',
+        info: '#2563EB',
+        purple: '#7C3AED',
+        orange: '#EA580C',
       },
       boxShadow: {
         'card': '0 1px 3px rgba(0,0,0,0.08)',

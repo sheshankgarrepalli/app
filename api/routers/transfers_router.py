@@ -191,6 +191,15 @@ def create_transfer(transfer: schemas.TransferOrderCreate, db: Session = Depends
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/{transfer_order_id}/dispatch")
+def dispatch_transfer_order(transfer_order_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
+    org_id = getattr(current_user, 'current_org_id', None)
+    try:
+        dispatched = wms_core.dispatch_transfer_order(db, transfer_order_id, current_user.email, org_id)
+        return {"message": "Transfer dispatched", "imeis": dispatched}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/{transfer_order_id}/receive")
 def receive_transfer(transfer_order_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
     org_id = getattr(current_user, 'current_org_id', None)

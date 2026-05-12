@@ -2,12 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2, AlertCircle, Save, Plus, Trash2, Search, X, Building2, User,
-  ArrowLeft, Wallet, Mail, Printer, Paperclip, FileEdit, Barcode, Pencil,
+  ArrowLeft, Wallet, Mail, Printer, FileEdit, Barcode, Pencil,
 } from 'lucide-react';
 import {
   createInvoice, updateInvoice, fetchInvoice, fetchAutocomplete,
   InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice,
 } from '../api/invoices';
+import api from '../api/api';
 import { fetchCustomers, Customer } from '../api/crm';
 
 interface PaymentRow {
@@ -38,7 +39,8 @@ export default function InvoiceForm() {
   const [statementMemo, setStatementMemo] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountTotal, setDiscountTotal] = useState(0);
-  const [taxPercent, setTaxPercent] = useState(8.5);
+  const [taxPercent, setTaxPercent] = useState(0);
+  const [defaultTaxRate, setDefaultTaxRate] = useState(8.5); // fallback while loading
   const [fulfillmentMethod, setFulfillmentMethod] = useState('Walk-in');
   const [currency, setCurrency] = useState('USD');
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -47,8 +49,23 @@ export default function InvoiceForm() {
   const [invoiceStatus, setInvoiceStatus] = useState<'Active' | 'Draft'>('Active');
   const [internalNotes, setInternalNotes] = useState('');
   const [scanImei, setScanImei] = useState('');
+  const [bulkScanImeis, setBulkScanImeis] = useState('');
+  const [showBulkScan, setShowBulkScan] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const [poNumber, setPoNumber] = useState('');
+  const [isWalkIn, setIsWalkIn] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEdit);
   const [lockedCustomer, setLockedCustomer] = useState<Customer | null>(null);
+
+  // Load org settings for default tax rate
+  useEffect(() => {
+    api.get('/api/admin/org-settings').then(({ data }) => {
+      if (data.default_tax_rate != null) {
+        setDefaultTaxRate(data.default_tax_rate);
+        setTaxPercent(data.default_tax_rate);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Load existing invoice for edit mode
   useEffect(() => {
@@ -64,7 +81,7 @@ export default function InvoiceForm() {
         setStatementMemo(inv.statement_memo || '');
         setDiscountPercent(inv.discount_percent || 0);
         setDiscountTotal(inv.discount_total || 0);
-        setTaxPercent(inv.tax_percent || 8.5);
+        setTaxPercent(inv.tax_percent || defaultTaxRate);
         setCurrency(inv.currency || 'USD');
         setFulfillmentMethod(inv.fulfillment_method || 'Walk-in');
         setInvoiceStatus(inv.status === 'Draft' ? 'Draft' : 'Active');
@@ -97,6 +114,20 @@ export default function InvoiceForm() {
       }
     })();
   }, [invoiceNumber]);
+
+  // When a wholesale customer is selected, adjust defaults
+  useEffect(() => {
+    const cust = lockedCustomer || selectedCustomer;
+    if (!cust || cust.customer_type !== 'Wholesale') return;
+    // Tax exempt
+    if (cust.tax_exempt_id) setTaxPercent(0);
+    // Payment terms from customer profile
+    if (cust.payment_terms_days > 0) {
+      setTerms(`Net ${cust.payment_terms_days}`);
+    } else {
+      setTerms('Net 15');
+    }
+  }, [customerId, lockedCustomer]);
 
   // Autocomplete per item index
   const [acIdx, setAcIdx] = useState<number | null>(null);
@@ -171,6 +202,11 @@ export default function InvoiceForm() {
   };
 
   const addPayment = () => setPayments(prev => [...prev, { ...emptyPayment }]);
+  const addSmartPayment = () => {
+    const paidSoFar = payments.reduce((s, p) => s + (p.amount || 0), 0);
+    const remaining = Math.max(0, total - paidSoFar);
+    setPayments(prev => [...prev, { ...emptyPayment, amount: parseFloat(remaining.toFixed(2)) }]);
+  };
   const removePayment = (idx: number) => setPayments(prev => prev.filter((_, i) => i !== idx));
   const updatePayment = (idx: number, field: keyof PaymentRow, value: any) => {
     const next = [...payments];
@@ -189,6 +225,19 @@ export default function InvoiceForm() {
   const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const balanceDue = total - totalPaid;
   const selectedCustomer = customers.find(c => c.crm_id === customerId);
+  const hasUnsavedChanges = items.some(i => i.description || i.imei || i.sku) || customerId || isWalkIn;
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
 
   // Handle scan barcode
   const handleScanBarcode = async () => {
@@ -229,14 +278,72 @@ export default function InvoiceForm() {
           return [...prev, newItem];
         });
       }
-    } catch { /* ignore */ }
+    } catch {
+      setScanError('Failed to look up IMEI. Check connection and try again.');
+    }
     setScanImei('');
   };
 
-  const handleSave = async () => {
+  // Bulk scan: process multiple IMEIs (one per line or comma-separated)
+  const handleBulkScan = async () => {
+    if (!bulkScanImeis.trim()) return;
+    const imeis = bulkScanImeis
+      .split(/[\n,]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (imeis.length === 0) return;
+
+    const newItems: InvoiceFormItem[] = [];
+    for (const imei of imeis) {
+      try {
+        const results = await fetchAutocomplete(imei);
+        if (results.length > 0) {
+          const r = results[0];
+          newItems.push({
+            ...emptyItem,
+            description: r.label,
+            imei: r.imei || imei,
+            model_number: r.model_number || r.sku,
+            sku: r.sku || r.model_number || '',
+            rate: r.price || 0,
+            taxable: true,
+          });
+        } else {
+          newItems.push({
+            ...emptyItem,
+            description: `Device ${imei}`,
+            imei,
+            rate: 0,
+            taxable: true,
+          });
+        }
+      } catch {
+        newItems.push({
+          ...emptyItem,
+          description: `Device ${imei} (lookup failed)`,
+          imei,
+          rate: 0,
+          taxable: true,
+        });
+      }
+    }
+
+    if (newItems.length < imeis.length) {
+      setScanError(`Found ${newItems.length} of ${imeis.length} IMEIs. Some may not be recognized.`);
+    }
+    setItems(prev => {
+      if (prev.length === 1 && !prev[0].description && !prev[0].imei) {
+        return newItems;
+      }
+      return [...prev, ...newItems];
+    });
+    setBulkScanImeis('');
+  };
+
+  const handleSave = async (desiredStatus: 'Draft' | 'Active') => {
     const validItems = items.filter(i => i.description || i.model_number || i.imei || i.sku);
     if (validItems.length === 0) { setError('Add at least one line item'); return; }
-    if (!customerId) { setError('Select a customer'); return; }
+    if (!customerId && !isWalkIn) { setError('Select a customer'); return; }
 
     const validPayments = payments
       .filter(p => p.amount > 0 && p.payment_method)
@@ -249,7 +356,7 @@ export default function InvoiceForm() {
     setSaving(true);
     setError(null);
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         items: validItems,
         terms,
         message_on_invoice: messageOnInvoice || undefined,
@@ -259,17 +366,25 @@ export default function InvoiceForm() {
         currency,
         tax_percent: taxPercent,
         fulfillment_method: fulfillmentMethod,
-        status: invoiceStatus,
         internal_notes: internalNotes || undefined,
+        po_number: poNumber || undefined,
         payments: validPayments,
       };
+      if (desiredStatus === 'Draft') {
+        payload.status = 'Draft';
+      }
 
       if (isEdit && invoiceNumber) {
         const updated = await updateInvoice(invoiceNumber, payload);
         navigate(`/admin/invoices/${updated.invoice_number}`, { replace: true });
       } else {
-        const created = await createInvoice({ ...payload, customer_id: customerId });
-        if (invoiceStatus === 'Draft') {
+        if (isWalkIn) {
+          payload.customer = { first_name: 'Walk-in', last_name: 'Customer' };
+        } else {
+          payload.customer_id = customerId;
+        }
+        const created = await createInvoice(payload as any);
+        if (desiredStatus === 'Draft') {
           navigate(`/admin/invoices/${created.invoice_number}`, { replace: true });
         } else {
           navigate('/admin/invoices', { replace: true });
@@ -283,9 +398,9 @@ export default function InvoiceForm() {
   };
 
   const handleEmailInvoice = async () => {
-    if (!customerId) { setError('Select a customer first'); return; }
+    if (!invoiceNumber) { setError('Save the invoice first before emailing'); return; }
     try {
-      await emailInvoice(customerId);
+      await emailInvoice(invoiceNumber);
       setError(null);
     } catch (err: any) {
       setError(extractError(err));
@@ -310,17 +425,17 @@ export default function InvoiceForm() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+          <button onClick={() => navigate(-1)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
             <ArrowLeft size={18} />
           </button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-[var(--text-primary)]">
+              <h1 className="text-xl font-bold text-[var(--text)]">
                 {isEdit ? 'EDIT INVOICE' : 'NEW INVOICE'}
               </h1>
               {isEdit && <span className="font-mono text-sm text-accent">{invoiceNumber}</span>}
               {invoiceStatus === 'Draft' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-[var(--warning)] border border-amber-500/30">
                   <FileEdit size={11} /> DRAFT
                 </span>
               )}
@@ -332,13 +447,13 @@ export default function InvoiceForm() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-[var(--text-tertiary)]">
-            Balance Due: <span className="text-red-400 font-bold font-mono">${balanceDue.toFixed(2)}</span>
+            Balance Due: <span className="text-[var(--destructive)] font-bold font-mono">${balanceDue.toFixed(2)}</span>
           </span>
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-[var(--destructive)] text-sm">
           <AlertCircle size={16} />{error}
         </div>
       )}
@@ -350,14 +465,32 @@ export default function InvoiceForm() {
           <div className="card p-5 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Customer Information</p>
-              {!isEdit && <button className="text-xs text-accent hover:text-accent/80 font-medium">+ Add New</button>}
+              {!isEdit && (
+                <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isWalkIn}
+                    onChange={(e) => {
+                      setIsWalkIn(e.target.checked);
+                      if (e.target.checked) {
+                        setCustomerId('');
+                        setCustomerSearch('');
+                        setCustomers([]);
+                        setShowCustomerDropdown(false);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-[var(--border-secondary)] bg-[var(--bg-muted)] accent-accent"
+                  />
+                  Walk-in Customer
+                </label>
+              )}
               {isEdit && <span className="text-[10px] text-[var(--text-tertiary)] italic">Locked — customer cannot be changed</span>}
             </div>
 
             {isEdit && lockedCustomer ? (
               <div className="flex items-start justify-between">
                 <div className="space-y-1.5">
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                  <p className="text-sm font-bold text-[var(--text)]">
                     {lockedCustomer.company_name || `${lockedCustomer.first_name || ''} ${lockedCustomer.last_name || ''}`.trim() || 'Customer'}
                   </p>
                   {lockedCustomer.email && <p className="text-xs text-[var(--text-secondary)]">{lockedCustomer.email}</p>}
@@ -366,13 +499,13 @@ export default function InvoiceForm() {
                   <div className="flex items-center gap-4 mt-2">
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Balance</p>
-                      <p className={`text-xs font-bold font-mono ${lockedCustomer.current_balance > 0 ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
+                      <p className={`text-xs font-bold font-mono ${lockedCustomer.current_balance > 0 ? 'text-[var(--destructive)]' : 'text-[var(--text)]'}`}>
                         ${lockedCustomer.current_balance.toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Credit Limit</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)] font-mono">${lockedCustomer.credit_limit.toFixed(2)}</p>
+                      <p className="text-xs font-bold text-[var(--text)] font-mono">${lockedCustomer.credit_limit.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -380,7 +513,7 @@ export default function InvoiceForm() {
             ) : !isEdit && selectedCustomer ? (
               <div className="flex items-start justify-between">
                 <div className="space-y-1.5">
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                  <p className="text-sm font-bold text-[var(--text)]">
                     {selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim() || 'Customer'}
                   </p>
                   {selectedCustomer.email && <p className="text-xs text-[var(--text-secondary)]">{selectedCustomer.email}</p>}
@@ -389,17 +522,17 @@ export default function InvoiceForm() {
                   <div className="flex items-center gap-4 mt-2">
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Balance</p>
-                      <p className={`text-xs font-bold font-mono ${selectedCustomer.current_balance > 0 ? 'text-red-400' : 'text-[var(--text-primary)]'}`}>
+                      <p className={`text-xs font-bold font-mono ${selectedCustomer.current_balance > 0 ? 'text-[var(--destructive)]' : 'text-[var(--text)]'}`}>
                         ${selectedCustomer.current_balance.toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Credit Limit</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)] font-mono">${selectedCustomer.credit_limit.toFixed(2)}</p>
+                      <p className="text-xs font-bold text-[var(--text)] font-mono">${selectedCustomer.credit_limit.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setCustomers([]); }} className="text-[var(--text-tertiary)] hover:text-red-400 shrink-0">
+                <button onClick={() => { setCustomerId(''); setCustomerSearch(''); setCustomers([]); }} className="text-[var(--text-tertiary)] hover:text-[var(--destructive)] shrink-0">
                   <X size={16} />
                 </button>
               </div>
@@ -415,17 +548,17 @@ export default function InvoiceForm() {
                   onFocus={() => customers.length > 0 && setShowCustomerDropdown(true)}
                 />
                 {showCustomerDropdown && customers.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-xl max-h-56 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl max-h-56 overflow-y-auto">
                     {customers.map(c => (
                       <button
                         key={c.crm_id}
-                        className="w-full text-left px-4 py-3 hover:bg-[var(--bg-tertiary)] flex items-center justify-between border-b border-[var(--border-primary)] last:border-0"
+                        className="w-full text-left px-4 py-3 hover:bg-[var(--bg-muted)] flex items-center justify-between border-b border-[var(--border)] last:border-0"
                         onClick={() => { setCustomerId(c.crm_id); setShowCustomerDropdown(false); }}
                       >
                         <div className="flex items-center gap-2.5">
-                          {c.customer_type === 'Wholesale' ? <Building2 size={16} className="text-accent" /> : <User size={16} className="text-accent" />}
+                          {c.customer_type === 'Wholesale' ? <Building2 size={16} className="text-[var(--accent)]" /> : <User size={16} className="text-[var(--accent)]" />}
                           <div>
-                            <p className="text-sm font-medium text-[var(--text-primary)]">
+                            <p className="text-sm font-medium text-[var(--text)]">
                               {c.company_name || `${c.first_name || ''} ${c.last_name || ''}`.trim()}
                             </p>
                             <p className="text-xs text-[var(--text-tertiary)]">
@@ -434,9 +567,9 @@ export default function InvoiceForm() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]">{c.customer_type}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-tertiary)]">{c.customer_type}</span>
                           {c.current_balance > 0 && (
-                            <p className="text-[10px] text-red-400 mt-0.5 font-mono">Bal: ${c.current_balance.toFixed(2)}</p>
+                            <p className="text-[10px] text-[var(--destructive)] mt-0.5 font-mono">Bal: ${c.current_balance.toFixed(2)}</p>
                           )}
                         </div>
                       </button>
@@ -449,35 +582,76 @@ export default function InvoiceForm() {
 
           {/* Line Items Table */}
           <div className="card overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-tertiary)]">
+            <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-muted)]">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Invoice Items</p>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    className="form-input text-xs py-1 px-2 w-36"
-                    placeholder="Scan IMEI / barcode..."
-                    value={scanImei}
-                    onChange={e => setScanImei(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleScanBarcode()}
-                  />
-                  <button
-                    onClick={handleScanBarcode}
-                    disabled={!scanImei.trim()}
-                    className="flex items-center gap-1 text-[10px] text-accent hover:text-accent/80 font-medium disabled:opacity-40"
-                  >
-                    <Barcode size={14} /> Scan
-                  </button>
-                </div>
-                <button onClick={addItem} className="flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 font-medium">
+                {!showBulkScan ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      className="form-input text-xs py-1 px-2 w-36"
+                      placeholder="Scan IMEI / barcode..."
+                      value={scanImei}
+                      onChange={e => setScanImei(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleScanBarcode()}
+                    />
+                    <button
+                      onClick={handleScanBarcode}
+                      disabled={!scanImei.trim()}
+                      className="flex items-center gap-1 text-[10px] text-accent hover:text-accent/80 font-medium disabled:opacity-40"
+                    >
+                      <Barcode size={14} /> Scan
+                    </button>
+                    <button
+                      onClick={() => setShowBulkScan(true)}
+                      className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text)] font-medium ml-1"
+                    >
+                      Bulk
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 flex-1">
+                    <textarea
+                      className="form-input text-xs py-1.5 px-2 flex-1 resize-none"
+                      rows={3}
+                      placeholder="Paste IMEIs (one per line or comma-separated)..."
+                      value={bulkScanImeis}
+                      onChange={e => setBulkScanImeis(e.target.value)}
+                    />
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={handleBulkScan}
+                        disabled={!bulkScanImeis.trim()}
+                        className="flex items-center gap-1 text-[10px] text-accent hover:text-accent/80 font-medium disabled:opacity-40 whitespace-nowrap"
+                      >
+                        <Barcode size={14} /> Process
+                      </button>
+                      <button
+                        onClick={() => { setShowBulkScan(false); setBulkScanImeis(''); }}
+                        className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text)] font-medium whitespace-nowrap"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <button onClick={addItem} className="flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 font-medium shrink-0">
                   <Plus size={14} /> Add Line Item
                 </button>
               </div>
             </div>
+            {scanError && (
+              <div className="flex items-center justify-between px-5 py-2 bg-red-500/10 border-b border-red-500/20">
+                <span className="text-xs text-[var(--destructive)]">{scanError}</span>
+                <button onClick={() => setScanError('')} className="text-[var(--destructive)] hover:opacity-70">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
 
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
+                <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border)]">
                   <th className="text-left p-3 w-[22%]">Product / Service</th>
                   <th className="text-left p-3 w-[12%]">SKU</th>
                   <th className="text-left p-3 w-[12%]">Serial / IMEI</th>
@@ -501,14 +675,14 @@ export default function InvoiceForm() {
                           onChange={e => handleItemDescChange(idx, e.target.value)}
                         />
                         {acIdx === idx && acResults.length > 0 && (
-                          <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-xl max-h-44 overflow-y-auto">
+                          <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl max-h-44 overflow-y-auto">
                             {acResults.map((r, ri) => (
                               <button
                                 key={ri}
-                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-tertiary)] border-b border-[var(--border-primary)] last:border-0"
+                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-muted)] border-b border-[var(--border)] last:border-0"
                                 onClick={() => selectAutocomplete(idx, r)}
                               >
-                                <p className="text-xs text-[var(--text-primary)]">{r.label}</p>
+                                <p className="text-xs text-[var(--text)]">{r.label}</p>
                                 <p className="text-[10px] text-[var(--text-tertiary)]">{r.sublabel}</p>
                               </button>
                             ))}
@@ -621,11 +795,11 @@ export default function InvoiceForm() {
                         />
                       </div>
                     </td>
-                    <td className="p-2 text-right text-xs font-mono text-[var(--text-primary)]">
+                    <td className="p-2 text-right text-xs font-mono text-[var(--text)]">
                       ${((item.rate * item.qty) - (item.item_discount_amount || 0) - ((item.item_discount_percent || 0) / 100 * item.rate * item.qty)).toFixed(2)}
                     </td>
                     <td className="p-2">
-                      <button onClick={() => removeItem(idx)} className="text-[var(--text-tertiary)] hover:text-red-400">
+                      <button onClick={() => removeItem(idx)} className="text-[var(--text-tertiary)] hover:text-[var(--destructive)]">
                         <Trash2 size={14} />
                       </button>
                     </td>
@@ -643,11 +817,16 @@ export default function InvoiceForm() {
 
           {/* Payments */}
           <div className="card overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-tertiary)]">
+            <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-muted)]">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Payments Received</p>
-              <button onClick={addPayment} className="flex items-center gap-1 text-xs text-accent hover:text-accent/80 font-medium">
-                <Plus size={13} /> Split Payment
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={addSmartPayment} className="flex items-center gap-1 text-xs text-accent hover:text-accent/80 font-medium">
+                  <Wallet size={13} /> Add Payment
+                </button>
+                <button onClick={addPayment} className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text)] font-medium">
+                  <Plus size={13} /> Split
+                </button>
+              </div>
             </div>
             {payments.length === 0 ? (
               <div className="px-5 py-4 text-center">
@@ -659,7 +838,7 @@ export default function InvoiceForm() {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-primary)]">
+                  <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border)]">
                     <th className="text-left p-3">Method</th>
                     <th className="text-right p-3 w-28">Amount ($)</th>
                     <th className="text-left p-3 w-40">Reference</th>
@@ -681,7 +860,7 @@ export default function InvoiceForm() {
                         <input type="text" className="form-input text-xs py-1.5" placeholder="e.g. last 4 digits" value={p.reference_id} onChange={e => updatePayment(idx, 'reference_id', e.target.value)} />
                       </td>
                       <td className="p-2">
-                        <button onClick={() => removePayment(idx)} className="text-[var(--text-tertiary)] hover:text-red-400"><Trash2 size={14} /></button>
+                        <button onClick={() => removePayment(idx)} className="text-[var(--text-tertiary)] hover:text-[var(--destructive)]"><Trash2 size={14} /></button>
                       </td>
                     </tr>
                   ))}
@@ -689,7 +868,7 @@ export default function InvoiceForm() {
               </table>
             )}
             {payments.length === 1 && payments[0].amount < total - 0.01 && total > 0 && (
-              <div className="px-5 py-2 border-t border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50">
+              <div className="px-5 py-2 border-t border-[var(--border)] bg-[var(--bg-muted)]/50">
                 <button
                   onClick={() => updatePayment(0, 'amount', parseFloat(total.toFixed(2)))}
                   className="text-xs text-accent hover:text-accent/80 font-medium"
@@ -699,36 +878,48 @@ export default function InvoiceForm() {
               </div>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <button
-              onClick={handleEmailInvoice}
-              className="card p-4 text-left hover:border-accent/30 transition-colors group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2 group-hover:bg-accent/20 transition-colors">
-                <Mail size={14} className="text-accent" />
+          <div className="grid grid-cols-2 gap-4">
+            {isEdit ? (
+              <button
+                onClick={handleEmailInvoice}
+                className="card p-4 text-left hover:border-accent/30 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2 group-hover:bg-accent/20 transition-colors">
+                  <Mail size={14} className="text-[var(--accent)]" />
+                </div>
+                <p className="text-xs font-semibold text-[var(--text)]">Email</p>
+                <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Email invoice to customer</p>
+              </button>
+            ) : (
+              <div className="card p-4 text-left opacity-50">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2">
+                  <Mail size={14} className="text-[var(--accent)]" />
+                </div>
+                <p className="text-xs font-semibold text-[var(--text)]">Email</p>
+                <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Save invoice first to email</p>
               </div>
-              <p className="text-xs font-semibold text-[var(--text-primary)]">Email</p>
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Email invoice to customer directly</p>
-            </button>
+            )}
 
-            <button
-              onClick={handlePrint}
-              className="card p-4 text-left hover:border-accent/30 transition-colors group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2 group-hover:bg-accent/20 transition-colors">
-                <Printer size={14} className="text-accent" />
+            {isEdit ? (
+              <button
+                onClick={handlePrint}
+                className="card p-4 text-left hover:border-accent/30 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2 group-hover:bg-accent/20 transition-colors">
+                  <Printer size={14} className="text-[var(--accent)]" />
+                </div>
+                <p className="text-xs font-semibold text-[var(--text)]">Print</p>
+                <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Print or download as PDF</p>
+              </button>
+            ) : (
+              <div className="card p-4 text-left opacity-50">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2">
+                  <Printer size={14} className="text-[var(--accent)]" />
+                </div>
+                <p className="text-xs font-semibold text-[var(--text)]">Print</p>
+                <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Save invoice first to print</p>
               </div>
-              <p className="text-xs font-semibold text-[var(--text-primary)]">Print</p>
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Print or download as PDF</p>
-            </button>
-
-            <button className="card p-4 text-left hover:border-accent/30 transition-colors group">
-              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center mb-2 group-hover:bg-accent/20 transition-colors">
-                <Paperclip size={14} className="text-accent" />
-              </div>
-              <p className="text-xs font-semibold text-[var(--text-primary)]">Attachments</p>
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Attach files or related documents</p>
-            </button>
+            )}
           </div>
         </div>
 
@@ -736,14 +927,14 @@ export default function InvoiceForm() {
         <div className="w-[340px] shrink-0 space-y-5">
           {/* Invoice Preview Card */}
           <div className="card overflow-hidden sticky top-5">
-            <div className="px-4 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border-primary)]">
+            <div className="px-4 py-3 bg-[var(--bg-muted)] border-b border-[var(--border)]">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">INVOICE PREVIEW</p>
             </div>
 
             <div className="p-5 space-y-4">
               {/* Company Info */}
-              <div className="text-center space-y-1 pb-4 border-b border-[var(--border-primary)]">
-                <p className="text-sm font-bold text-[var(--text-primary)]">AMAFH ELECTRONICS</p>
+              <div className="text-center space-y-1 pb-4 border-b border-[var(--border)]">
+                <p className="text-sm font-bold text-[var(--text)]">AMAFH ELECTRONICS</p>
                 <p className="text-[10px] text-[var(--text-tertiary)]">123 Business Ave, Suite 100</p>
                 <p className="text-[10px] text-[var(--text-tertiary)]">Dallas, TX 75201 · Tax ID: XX-XXXXXXX</p>
               </div>
@@ -753,7 +944,7 @@ export default function InvoiceForm() {
                 <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">Bill To</p>
                 {selectedCustomer ? (
                   <>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">
+                    <p className="text-xs font-semibold text-[var(--text)]">
                       {selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim()}
                     </p>
                     <p className="text-[10px] text-[var(--text-tertiary)]">
@@ -766,13 +957,13 @@ export default function InvoiceForm() {
               </div>
 
               {/* Items Summary */}
-              <div className="space-y-1.5 pt-2 border-t border-[var(--border-primary)]">
+              <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
                 {items.filter(i => i.description || i.imei || i.sku).slice(0, 4).map((item, i) => (
                   <div key={i} className="flex justify-between text-[10px]">
                     <span className="text-[var(--text-tertiary)] truncate max-w-[180px]">
                       {item.description || item.sku || item.imei} × {item.qty}
                     </span>
-                    <span className="text-[var(--text-primary)] font-mono">${(item.rate * item.qty).toFixed(2)}</span>
+                    <span className="text-[var(--text)] font-mono">${(item.rate * item.qty).toFixed(2)}</span>
                   </div>
                 ))}
                 {items.filter(i => i.description || i.imei || i.sku).length > 4 && (
@@ -783,40 +974,54 @@ export default function InvoiceForm() {
               </div>
 
               {/* Totals */}
-              <div className="space-y-1.5 pt-2 border-t border-[var(--border-primary)]">
+              <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
                 <div className="flex justify-between text-[10px]">
                   <span className="text-[var(--text-tertiary)]">Subtotal</span>
-                  <span className="text-[var(--text-primary)] font-mono">${subtotal.toFixed(2)}</span>
+                  <span className="text-[var(--text)] font-mono">${subtotal.toFixed(2)}</span>
                 </div>
                 {totalDiscount > 0 && (
                   <div className="flex justify-between text-[10px]">
                     <span className="text-[var(--text-tertiary)]">Discount</span>
-                    <span className="text-red-400 font-mono">-${totalDiscount.toFixed(2)}</span>
+                    <span className="text-[var(--destructive)] font-mono">-${totalDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-[10px]">
                   <span className="text-[var(--text-tertiary)]">Tax ({taxPercent}%)</span>
-                  <span className="text-[var(--text-primary)] font-mono">${taxAmount.toFixed(2)}</span>
+                  <span className="text-[var(--text)] font-mono">${taxAmount.toFixed(2)}</span>
                 </div>
-                <hr className="border-[var(--border-primary)]" />
+                <hr className="border-[var(--border)]" />
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-[var(--text-primary)]">Total</span>
-                  <span className="text-[var(--text-primary)] font-mono">${total.toFixed(2)}</span>
+                  <span className="text-[var(--text)]">Total</span>
+                  <span className="text-[var(--text)] font-mono">${total.toFixed(2)}</span>
                 </div>
                 {totalPaid > 0 && (
-                  <div className="flex justify-between text-[10px] text-emerald-400">
+                  <div className="flex justify-between text-[10px] text-[var(--success)]">
                     <span>Paid</span>
                     <span className="font-mono">${totalPaid.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-[10px] font-bold">
-                  <span className="text-red-400">Balance Due</span>
-                  <span className="text-red-400 font-mono">${balanceDue.toFixed(2)}</span>
+                  <span className="text-[var(--destructive)]">Balance Due</span>
+                  <span className="text-[var(--destructive)] font-mono">${balanceDue.toFixed(2)}</span>
                 </div>
               </div>
 
+              {/* PO Number (wholesale only) */}
+              {(selectedCustomer?.customer_type === 'Wholesale' || lockedCustomer?.customer_type === 'Wholesale') && (
+                <div className="text-[10px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border)]">
+                  <p className="font-semibold uppercase mb-0.5">PO Number</p>
+                  <input
+                    type="text"
+                    className="form-input text-[10px] py-1 px-2 w-full"
+                    placeholder="Customer PO #"
+                    value={poNumber}
+                    onChange={e => setPoNumber(e.target.value)}
+                  />
+                </div>
+              )}
+
               {/* Terms */}
-              <div className="text-[10px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border-primary)]">
+              <div className="text-[10px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border)]">
                 <p className="font-semibold uppercase mb-0.5">Terms</p>
                 <input
                   type="text"
@@ -828,7 +1033,7 @@ export default function InvoiceForm() {
 
               {/* Notes */}
               {messageOnInvoice && (
-                <div className="text-[10px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border-primary)]">
+                <div className="text-[10px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border)]">
                   <p className="font-semibold uppercase mb-0.5">Notes</p>
                   <p>{messageOnInvoice}</p>
                 </div>
@@ -839,17 +1044,17 @@ export default function InvoiceForm() {
             <div className="px-5 pb-5 space-y-2">
               {!isEdit && (
                 <button
-                  onClick={() => { setInvoiceStatus('Draft'); handleSave(); }}
+                  onClick={() => handleSave('Draft')}
                   disabled={saving}
                   className="w-full btn-secondary flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
                 >
-                  {saving && invoiceStatus === 'Draft' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Save as Draft
                 </button>
               )}
               <button
-                onClick={() => { setInvoiceStatus('Active'); handleSave(); }}
-                disabled={saving || !customerId || items.filter(i => i.description || i.imei).length === 0}
+                onClick={() => handleSave('Active')}
+                disabled={saving || (!customerId && !isWalkIn) || items.filter(i => i.description || i.imei).length === 0}
                 className="w-full btn-primary flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : isEdit ? <Pencil size={16} /> : <Plus size={16} />}
@@ -860,52 +1065,55 @@ export default function InvoiceForm() {
         </div>
       </div>
 
-      {/* Settings (hidden by default, shown via preview) */}
-      <div className="grid grid-cols-4 gap-4" style={{ display: 'none' }}>
-        {/* Hidden fields needed for form state */}
-        <div className="form-group">
-          <label className="form-label text-xs">Tax %</label>
-          <input type="number" step="0.01" className="form-input" value={taxPercent} onChange={e => setTaxPercent(parseFloat(e.target.value) || 0)} />
+      {/* Invoice Settings Card */}
+      <div className="card overflow-hidden">
+        <div className="px-4 py-3 bg-[var(--bg-muted)] border-b border-[var(--border)]">
+          <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Invoice Settings</p>
         </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Discount %</label>
-          <input type="number" step="0.01" className="form-input" value={discountPercent} onChange={e => setDiscountPercent(parseFloat(e.target.value) || 0)} />
+        <div className="p-4 space-y-3">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Discount %</label>
+              <input type="number" step="0.01" className="form-input text-xs py-1.5" value={discountPercent} onChange={e => setDiscountPercent(parseFloat(e.target.value) || 0)} />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Tax %</label>
+              <input type="number" step="0.01" className="form-input text-xs py-1.5" value={taxPercent} onChange={e => setTaxPercent(parseFloat(e.target.value) || 0)} />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Currency</label>
+              <select className="form-input text-xs py-1.5" value={currency} onChange={e => setCurrency(e.target.value)}>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="CAD">CAD (C$)</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Fulfillment</label>
+              <select className="form-input text-xs py-1.5" value={fulfillmentMethod} onChange={e => setFulfillmentMethod(e.target.value)}>
+                <option value="Walk-in">Walk-in</option>
+                <option value="Pickup">Pickup</option>
+                <option value="Delivery">Delivery</option>
+                <option value="Shipping">Shipping</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Message on Invoice</label>
+            <textarea className="form-input text-xs py-1.5 resize-none" rows={2} value={messageOnInvoice} onChange={e => setMessageOnInvoice(e.target.value)} placeholder="Optional note shown on invoice" />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Statement Memo</label>
+            <input type="text" className="form-input text-xs py-1.5" value={statementMemo} onChange={e => setStatementMemo(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Internal Notes</label>
+            <textarea className="form-input text-xs py-1.5 resize-none" rows={2} value={internalNotes} onChange={e => setInternalNotes(e.target.value)} placeholder="Staff notes — not shown to customer" />
+          </div>
         </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Discount Total</label>
-          <input type="number" step="0.01" className="form-input" value={discountTotal} onChange={e => setDiscountTotal(parseFloat(e.target.value) || 0)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Currency</label>
-          <select className="form-input" value={currency} onChange={e => setCurrency(e.target.value)}>
-            <option value="USD">USD ($)</option>
-            <option value="EUR">EUR (€)</option>
-            <option value="GBP">GBP (£)</option>
-            <option value="CAD">CAD (C$)</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Fulfillment</label>
-          <select className="form-input" value={fulfillmentMethod} onChange={e => setFulfillmentMethod(e.target.value)}>
-            <option value="Walk-in">Walk-in</option>
-            <option value="Pickup">Pickup</option>
-            <option value="Delivery">Delivery</option>
-            <option value="Shipping">Shipping</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Message on Invoice</label>
-          <textarea className="form-input" rows={2} value={messageOnInvoice} onChange={e => setMessageOnInvoice(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Statement Memo</label>
-          <input type="text" className="form-input" value={statementMemo} onChange={e => setStatementMemo(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label text-xs">Internal Notes</label>
-          <textarea className="form-input" rows={2} value={internalNotes} onChange={e => setInternalNotes(e.target.value)} placeholder="Staff notes — not shown to customer" />
-        </div>
-
       </div>
     </div>
   );

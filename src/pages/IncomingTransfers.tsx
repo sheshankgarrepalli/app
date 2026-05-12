@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
 import { useLocationFilter } from '../context/LocationContext';
 import { Truck, Loader2, AlertCircle, CheckCircle2, FileText, ArrowDownCircle } from 'lucide-react';
 
@@ -38,7 +37,6 @@ function getStatusBadge(status: string) {
 }
 
 export default function IncomingTransfers() {
-    const { token } = useAuth();
     const { availableLocations } = useLocationFilter();
     const [transfers, setTransfers] = useState<TransferOrder[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -56,11 +54,9 @@ export default function IncomingTransfers() {
     const fetchTransfers = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${apiUrl}/api/transfers/incoming`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.get(`${apiUrl}/api/transfers/incoming`);
             setTransfers(res.data || []);
-        } catch { /* ignore */ } finally { setLoading(false); }
+        } catch { setError('Failed to load incoming transfers'); } finally { setLoading(false); }
     };
 
     useEffect(() => { fetchTransfers(); }, []);
@@ -71,9 +67,7 @@ export default function IncomingTransfers() {
         }
         setExpandedId(id); setDetailLoading(true); setError(null); setSuccess(null);
         try {
-            const res = await axios.get(`${apiUrl}/api/transfers/incoming/${id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.get(`${apiUrl}/api/transfers/incoming/${id}`);
             setDetail(res.data);
         } catch { setError('Failed to load transfer detail'); } finally { setDetailLoading(false); }
     };
@@ -84,15 +78,12 @@ export default function IncomingTransfers() {
         try {
             await axios.post(
                 `${apiUrl}/api/transfers/${detail.id}/receive-item`,
-                { imei: scanImei.trim() },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { imei: scanImei.trim() }
             );
             setSuccess(`Received ${scanImei.trim()}`);
             setScanImei('');
             // Refresh detail
-            const res = await axios.get(`${apiUrl}/api/transfers/incoming/${detail.id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.get(`${apiUrl}/api/transfers/incoming/${detail.id}`);
             setDetail(res.data);
             if (res.data.received_count >= res.data.total_count) {
                 fetchTransfers();
@@ -105,12 +96,12 @@ export default function IncomingTransfers() {
 
     const receiveAll = async () => {
         if (!detail) return;
+        if (!window.confirm(`Receive all ${detail.total_count - detail.received_count} remaining devices? This marks the entire transfer as received.`)) return;
         setRouting(true); setError(null); setSuccess(null);
         try {
             const res = await axios.post(
                 `${apiUrl}/api/transfers/${detail.id}/receive-all`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
+                {}
             );
             setSuccess(`Received all ${res.data.received_count} devices`);
             setExpandedId(null); setDetail(null);
@@ -121,8 +112,15 @@ export default function IncomingTransfers() {
         } finally { setRouting(false); }
     };
 
-    const downloadPdf = (id: string) => {
-        window.open(`${apiUrl}/api/transfers/${id}/pdf?token=${token}`, '_blank');
+    const downloadPdf = async (id: string) => {
+        try {
+            const res = await axios.get(`${apiUrl}/api/transfers/${id}/pdf`, { responseType: 'blob' });
+            const url = URL.createObjectURL(res.data);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch {
+            setError('Failed to download transfer PDF');
+        }
     };
 
     return (
@@ -130,7 +128,7 @@ export default function IncomingTransfers() {
             <div>
                 <h1 className="text-[22px] font-bold text-[var(--text-primary)] flex items-center gap-3">
                     Incoming Transfers
-                    <span className="bg-accent/10 text-accent text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
+                    <span className="badge-neutral text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border border-accent/20">
                         Receive
                     </span>
                 </h1>
@@ -138,13 +136,13 @@ export default function IncomingTransfers() {
             </div>
 
             {error && (
-                <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-lg flex items-center gap-3 text-red-400 text-xs font-bold">
+                <div className="p-4 bg-[#FEE2E2] border border-red-500/10 rounded-lg flex items-center gap-3 text-[var(--destructive)] text-xs font-bold">
                     <AlertCircle size={16} /> {error}
-                    <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400">Dismiss</button>
+                    <button onClick={() => setError(null)} className="ml-auto text-[var(--destructive)]/60 hover:text-[var(--destructive)]">Dismiss</button>
                 </div>
             )}
             {success && (
-                <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-lg flex items-center gap-3 text-emerald-400 text-xs font-bold">
+                <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-lg flex items-center gap-3 text-[var(--success)] text-xs font-bold">
                     <CheckCircle2 size={16} /> {success}
                 </div>
             )}
@@ -173,7 +171,7 @@ export default function IncomingTransfers() {
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${t.status === 'Received' ? 'bg-emerald-500/10' : 'bg-accent/10'}`}>
-                                        <Truck size={20} className={t.status === 'Received' ? 'text-emerald-400' : 'text-accent'} />
+                                        <Truck size={20} className={t.status === 'Received' ? 'text-[var(--success)]' : 'text-accent'} />
                                     </div>
                                     <div>
                                         <div className="text-sm font-bold text-[var(--text-primary)]">{t.id}</div>

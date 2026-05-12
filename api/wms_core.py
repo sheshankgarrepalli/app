@@ -82,7 +82,10 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
                 "final_price": round(final_price, 2)
             })
 
-        tax_percent = 0.0 if customer.tax_exempt_id else 8.5
+        org_settings = db.query(OrganizationSettings).filter(
+            OrganizationSettings.org_id == org_id
+        ).first()
+        tax_percent = 0.0 if customer.tax_exempt_id else (org_settings.default_tax_rate if org_settings else 8.5)
         tax_amount = subtotal * (tax_percent / 100)
         total_due = subtotal + tax_amount
 
@@ -170,9 +173,6 @@ def process_bulk_checkout(db: Session, imei_list: List[str], crm_id: str, employ
             )
             db.add(db_item)
 
-        org_settings = db.query(OrganizationSettings).filter(
-            OrganizationSettings.org_id == org_id
-        ).first()
         invoice_terms = org_settings.invoice_terms if org_settings else None
 
         invoice_payload = {
@@ -235,23 +235,61 @@ def create_transfer_order(db: Session, imei_list: List[str], destination_locatio
             destination_location_id=destination_location_id,
             notes=notes,
             created_by_email=employee_id,
-            org_id=org_id
+            org_id=org_id,
+            status="Draft",
         )
         db.add(new_to)
-        
+
         for device in devices:
             if device.device_status in [DeviceStatus.Sold, DeviceStatus.In_Transit]:
                 raise ValueError(f"Device {device.imei} cannot be transferred. Current status: {device.device_status.value}")
-                
-            prev_status = device.device_status.value
-            device.device_status = DeviceStatus.In_Transit
-            device.sub_location_bin = None
+
             device.assigned_transfer_order_id = transfer_order_id
-            
-            _log_history(db, device.imei, "Transferred_Out", employee_id, device.device_status.value, prev_status, f"Added to TO {transfer_order_id}", org_id=org_id)
+
+            _log_history(db, device.imei, "Transfer_Draft", employee_id, device.device_status.value, device.device_status.value if device.device_status else None, f"Added to draft TO {transfer_order_id}", org_id=org_id)
 
         db.commit()
         return transfer_order_id
+    except Exception as e:
+        db.rollback()
+        raise e
+
+def dispatch_transfer_order(db: Session, transfer_order_id: str, employee_id: str, org_id: str) -> List[str]:
+    try:
+        transfer_order = db.query(TransferOrder).filter(
+            TransferOrder.id == transfer_order_id,
+            TransferOrder.org_id == org_id,
+        ).first()
+        if not transfer_order:
+            raise ValueError(f"Transfer Order {transfer_order_id} not found.")
+        if transfer_order.status == "In_Transit":
+            raise ValueError(f"Transfer Order {transfer_order_id} has already been dispatched.")
+        if transfer_order.status == "Received":
+            raise ValueError(f"Transfer Order {transfer_order_id} has already been received.")
+
+        devices = db.query(DeviceInventory).filter(
+            DeviceInventory.assigned_transfer_order_id == transfer_order_id,
+        ).all()
+        if not devices:
+            raise ValueError("No devices assigned to this transfer order.")
+
+        dispatched_imeis = []
+        for device in devices:
+            if device.device_status in [DeviceStatus.Sold, DeviceStatus.In_Transit]:
+                raise ValueError(f"Device {device.imei} cannot be dispatched. Current status: {device.device_status.value}")
+
+            prev_status = device.device_status.value if device.device_status else None
+            device.device_status = DeviceStatus.In_Transit
+            device.sub_location_bin = None
+            dispatched_imeis.append(device.imei)
+
+            _log_history(db, device.imei, "Transfer_Dispatched", employee_id,
+                        DeviceStatus.In_Transit.value, prev_status,
+                        f"Dispatched on TO {transfer_order_id}", org_id=org_id)
+
+        transfer_order.status = "In_Transit"
+        db.commit()
+        return dispatched_imeis
     except Exception as e:
         db.rollback()
         raise e
