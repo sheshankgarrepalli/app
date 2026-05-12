@@ -37,6 +37,20 @@ def generate_model_number(name: str, storage_gb: int) -> str:
     slug = slugify_name(name)
     return f"AAP-{slug}-{storage_gb}"
 
+KNOWN_BRANDS = ["Apple", "Samsung", "Motorola", "Google", "OnePlus", "Nokia", "Xiaomi", "Oppo", "Huawei", "LG", "Sony"]
+
+def detect_brand_and_name(raw_name: str) -> tuple:
+    """Detect brand from model name. Returns (brand, display_name)."""
+    name = raw_name.strip()
+    for brand in KNOWN_BRANDS:
+        prefix = brand + " "
+        if name.lower().startswith(prefix.lower()):
+            return brand, name[len(prefix):].strip()
+    parts = name.split(" ", 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return name, name
+
 # ── endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/auction-devices")
@@ -194,7 +208,8 @@ def excel_import(
         storage_gb = parse_storage_gb(row.storage)
         mn = generate_model_number(row.model_name, storage_gb)
         if mn not in models_to_create:
-            models_to_create[mn] = {"name": row.model_name.strip(), "storage_gb": storage_gb}
+            brand, display_name = detect_brand_and_name(row.model_name)
+            models_to_create[mn] = {"brand": brand, "name": display_name, "storage_gb": storage_gb}
 
     # Check which models already exist (idempotent)
     from_db = db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(list(models_to_create.keys()))).all()
@@ -206,7 +221,7 @@ def excel_import(
         if mn not in existing_model_numbers:
             pm = PhoneModel(
                 model_number=mn,
-                brand="Apple",
+                brand=data["brand"],
                 name=data["name"],
                 color=None,
                 storage_gb=data["storage_gb"],
