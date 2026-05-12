@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Search, MapPin, Clock, User, Hash, Smartphone, AlertTriangle, Package } from 'lucide-react';
+import { Search, MapPin, Clock, User, Hash, Smartphone, AlertTriangle, Package, ArrowRightLeft, FileText, Printer } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../api/api';
 
 interface DeviceModel {
@@ -91,7 +92,7 @@ export default function Track() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <h2 className="text-xl font-bold text-[var(--text-primary)]">Track Device</h2>
+      <h2 className="text-xl font-bold text-[var(--text)]">Track Device</h2>
 
       {/* Search */}
       <div className="flex gap-3">
@@ -104,14 +105,14 @@ export default function Track() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Enter IMEI, Serial, or Phone Number..."
-            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] outline-none focus:border-accent transition-colors"
+            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-muted)] border border-[var(--border-secondary)] rounded-lg text-[var(--text)] text-sm placeholder:text-[var(--text-muted)] outline-none focus:border-accent transition-colors"
             autoFocus
           />
         </div>
         <button
           onClick={handleTrack}
           disabled={loading || !query.trim()}
-          className="px-6 py-3 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="px-6 py-3 bg-[var(--accent)] text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {loading ? 'Tracking...' : 'Track'}
         </button>
@@ -119,7 +120,7 @@ export default function Track() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEE2E2] border border-[var(--destructive)]/20 text-[var(--destructive)] text-sm">
           <AlertTriangle size={16} /> {error}
         </div>
       )}
@@ -127,24 +128,24 @@ export default function Track() {
       {device && (
         <>
           {/* Device Info Card */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
             <div className="flex items-center gap-4 mb-4">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${dotColor}`}>
                 <Smartphone size={22} className="text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-[var(--text-primary)]">
-                  {device.model ? `${device.model.brand} ${device.model.name}` : 'Unknown Device'}
+                <h3 className="text-lg font-bold text-[var(--text)]">
+                  {device.model ? (device.model.name.toLowerCase().startsWith(device.model.brand.toLowerCase()) ? device.model.name : `${device.model.brand} ${device.model.name}`) : 'Unknown Device'}
                 </h3>
                 <p className="text-sm text-[var(--text-tertiary)]">
-                  {device.model && `${device.model.color} · ${device.model.storage_gb}GB`}
+                  {device.model && `${device.model.color || ''}${device.model.color ? ' · ' : ''}${device.model.storage_gb}GB`}
                 </p>
               </div>
               <div className="ml-auto">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
                   currentStatus
-                    ? 'bg-opacity-20 text-[var(--text-primary)] border border-[var(--border-secondary)]'
-                    : 'bg-zinc-500/20 text-zinc-400 border border-zinc-500/30'
+                    ? 'bg-opacity-20 text-[var(--text)] border border-[var(--border-secondary)]'
+                    : 'badge-neutral border border-zinc-500/30'
                 }`}>
                   <span className={`w-2 h-2 rounded-full ${dotColor}`} />
                   {currentStatus || 'Unknown'}
@@ -169,15 +170,36 @@ export default function Track() {
             </div>
           </div>
 
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Link
+              to={`/admin/routing?imei=${device.imei}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-white rounded-lg text-xs font-semibold hover:bg-accent-hover transition-colors"
+            >
+              <ArrowRightLeft size={14} /> Route Device
+            </Link>
+            <Link
+              to={`/admin/invoices/new?imei=${device.imei}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-muted)] transition-colors"
+            >
+              <FileText size={14} /> Create Invoice
+            </Link>
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-muted)] transition-colors"
+            >
+              <Printer size={14} /> Print Label
+            </button>
+          </div>
+
           {/* Timeline */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5">
             <h3 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-5">
               Device Journey ({timeline.length} {timeline.length === 1 ? 'event' : 'events'})
             </h3>
 
             <div className="relative">
               {timeline.map((entry, i) => {
-                const isFirst = i === 0;
                 const isLast = i === timeline.length - 1;
                 const color = STATUS_COLORS[entry.new_status] || 'bg-zinc-500';
 
@@ -185,16 +207,14 @@ export default function Track() {
                   <div key={entry.log_id} className="flex gap-4">
                     {/* Timeline rail */}
                     <div className="flex flex-col items-center">
-                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isFirst ? color : 'bg-[var(--border-secondary)]'}`}>
-                        {isFirst && <span className="block w-full h-full rounded-full ring-4 ring-opacity-30 ring-current" style={{ '--tw-ring-color': 'currentColor' } as React.CSSProperties} />}
-                      </div>
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${color}`} />
                       {!isLast && <div className="w-0.5 flex-1 bg-[var(--border-primary)] min-h-[24px]" />}
                     </div>
 
                     {/* Content */}
                     <div className={`flex-1 pb-5 ${isLast ? '' : ''}`}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        <span className="text-sm font-semibold text-[var(--text)]">
                           {entry.action_type}
                         </span>
                         <span className="text-xs text-[var(--text-muted)]">
@@ -210,11 +230,11 @@ export default function Track() {
                           <span className="flex items-center gap-1">
                             <span className="text-[var(--text-muted)]">{entry.previous_status}</span>
                             <span className="text-[var(--text-tertiary)]">→</span>
-                            <span className="text-[var(--text-primary)] font-medium">{entry.new_status}</span>
+                            <span className="text-[var(--text)] font-medium">{entry.new_status}</span>
                           </span>
                         )}
                         {!entry.previous_status && (
-                          <span className="text-[var(--text-primary)] font-medium">{entry.new_status}</span>
+                          <span className="text-[var(--text)] font-medium">{entry.new_status}</span>
                         )}
                       </div>
 
@@ -250,7 +270,7 @@ function Info({ icon: Icon, label, value }: { icon: React.ElementType; label: st
       <Icon size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
       <div className="min-w-0">
         <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">{label}</span>
-        <span className="text-sm text-[var(--text-primary)] font-medium truncate block">{value}</span>
+        <span className="text-sm text-[var(--text)] font-medium truncate block">{value}</span>
       </div>
     </div>
   );
