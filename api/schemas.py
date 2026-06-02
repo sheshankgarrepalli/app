@@ -326,6 +326,8 @@ class InventoryListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+    sellable_count: int = 0
+    in_repair_count: int = 0
 
 class ManifestItemOut(BaseModel):
     imei: str
@@ -945,3 +947,10 @@ class ExcelImportResponse(BaseModel):
     devices_imported: int
     new_models_created: int
     errors: List[str] = []
+
+class SkuCreateRequest(BaseModel):
+    product_name: str
+    product_type: str
+    brand: Optional[str] = None
+    price: Optional[float] = None
+    custom_sku: Optional[str] = None

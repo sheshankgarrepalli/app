@@ -27,15 +27,10 @@ def parse_storage_gb(raw: str) -> int:
     except ValueError:
         return 0
 
-def slugify_name(name: str) -> str:
-    """Turn model name into a safe slug: 'iPhone 14 Pro' -> 'iPhone14Pro'."""
-    cleaned = re.sub(r'[^A-Za-z0-9 ]', '', name)
-    return cleaned.replace(' ', '')
 
-def generate_model_number(name: str, storage_gb: int) -> str:
-    """Generate deterministic synthetic model_number: AAP-iPhone14Pro-128."""
-    slug = slugify_name(name)
-    return f"AAP-{slug}-{storage_gb}"
+def generate_model_number(display_name: str, storage_gb: int) -> str:
+    """Generate human-readable model_number: 'iPhone 11 - 64GB'."""
+    return f"{display_name} - {storage_gb}GB"
 
 KNOWN_BRANDS = ["Apple", "Samsung", "Motorola", "Google", "OnePlus", "Nokia", "Xiaomi", "Oppo", "Huawei", "LG", "Sony"]
 
@@ -119,20 +114,27 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
     if all_imeis:
         existing_imeis = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_imeis)).all()}
 
-    model_numbers = [generate_model_number(r.model_name, parse_storage_gb(r.storage)) for r in req.rows]
-    existing_models = set()
-    if model_numbers:
-        existing_models = {m[0] for m in db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(model_numbers)).all()}
-
     results: List[PreviewRowResult] = []
     seen_imeis_in_batch = set()
     duplicate_imeis = 0
     new_models_set = set()
 
+    # Pre-compute model numbers using display names
+    row_model_numbers = []
+    for row in req.rows:
+        storage_gb = parse_storage_gb(row.storage)
+        _, display_name = detect_brand_and_name(row.model_name)
+        mn = generate_model_number(display_name, storage_gb)
+        row_model_numbers.append(mn)
+
+    existing_models = set()
+    if row_model_numbers:
+        existing_models = {m[0] for m in db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(row_model_numbers)).all()}
+
     for i, row in enumerate(req.rows):
         imei = (row.imei or "").strip()
         storage_gb = parse_storage_gb(row.storage)
-        mn = generate_model_number(row.model_name, storage_gb)
+        mn = row_model_numbers[i]
         errors = []
 
         if not imei:
@@ -206,9 +208,9 @@ def excel_import(
     models_to_create: dict[str, dict] = {}
     for row in req.rows:
         storage_gb = parse_storage_gb(row.storage)
-        mn = generate_model_number(row.model_name, storage_gb)
+        brand, display_name = detect_brand_and_name(row.model_name)
+        mn = generate_model_number(display_name, storage_gb)
         if mn not in models_to_create:
-            brand, display_name = detect_brand_and_name(row.model_name)
             models_to_create[mn] = {"brand": brand, "name": display_name, "storage_gb": storage_gb}
 
     # Check which models already exist (idempotent)
@@ -240,7 +242,8 @@ def excel_import(
     history_logs = []
     for row in req.rows:
         storage_gb = parse_storage_gb(row.storage)
-        mn = generate_model_number(row.model_name, storage_gb)
+        _, display_name = detect_brand_and_name(row.model_name)
+        mn = generate_model_number(display_name, storage_gb)
 
         devices.append(DeviceInventory(
             imei=row.imei.strip(),

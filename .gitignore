@@ -40,3 +40,4 @@ build/
 .env*.local
 .gstack/
 .env.skyvern
+.env*

@@ -8,11 +8,12 @@ from schemas import (
     PartsInventoryOut, PartIntakeOut, PartReceiveRequest, PartPriceRequest,
     PartCreateRequest, PartUpdateRequest, PartIntakeRequest, PartReturnRequest,
     StockAdjustRequest, PartDetailOut, SupplierOut, LaborRateConfigOut,
-    LaborRateConfigCreate, LaborRateConfigUpdate
+    LaborRateConfigCreate, LaborRateConfigUpdate, SkuCreateRequest
 )
 from models import LaborRateConfig
 from auth import get_current_user
 import uuid
+import re
 
 router = APIRouter(prefix="/api/parts", tags=["Parts"])
 
@@ -28,6 +29,25 @@ def _sku(model: str, category: str, quality: str) -> str:
     cat_code = cat_map.get(category, category[:3].upper())
     qual_code = qual_map.get(quality, quality[:3].upper())
     return f"{model}-{cat_code}-{qual_code}"
+
+
+TYPE_CODE_MAP = {
+    "Phone Case": "CASE", "Accessory": "ACC", "Charger": "CHG",
+    "Cable": "CBL", "Screen Protector": "SCR", "Repair Part": "PRT",
+    "Other": "GEN",
+}
+
+
+def _generate_sku(product_name: str, product_type: str, org_id: str, db: Session) -> str:
+    type_code = TYPE_CODE_MAP.get(product_type, "GEN")
+    name_slug = re.sub(r'[^A-Za-z0-9]', '', product_name.upper())[:8]
+    prefix = f"{type_code}-{name_slug}"
+    count = db.query(PartsInventory).filter(
+        PartsInventory.sku.like(f"{prefix}-%"),
+        PartsInventory.org_id == org_id
+    ).count()
+    seq = str(count + 1).zfill(5)
+    return f"{prefix}-{seq}"
 
 
 # ── Static routes FIRST (before parameterized routes) ────────────────────────
@@ -129,6 +149,32 @@ def list_unpriced(db: Session = Depends(get_db),
     return db.query(PartIntake).filter(
         PartIntake.is_priced == 0, PartIntake.org_id == org_id
     ).all()
+
+
+@router.post("/create-custom", response_model=PartsInventoryOut, status_code=status.HTTP_201_CREATED)
+def create_custom_sku(req: SkuCreateRequest, db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    if req.custom_sku and req.custom_sku.strip():
+        sku = req.custom_sku.strip().upper()
+        existing = db.query(PartsInventory).filter(
+            PartsInventory.sku == sku, PartsInventory.org_id == org_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"SKU {sku} already exists")
+    else:
+        sku = _generate_sku(req.product_name, req.product_type, org_id, db)
+    part = PartsInventory(
+        sku=sku, org_id=org_id,
+        part_name=req.product_name,
+        current_stock_qty=1,
+        moving_average_cost=req.price or 0.0,
+        low_stock_threshold=5
+    )
+    db.add(part)
+    db.commit()
+    db.refresh(part)
+    return part
 
 
 # ── Suppliers ────────────────────────────────────────────────────────────────

@@ -2120,6 +2120,73 @@ def email_invoice(
     if not invoice.customer or not invoice.customer.email:
         raise HTTPException(status_code=400, detail="Customer has no email address")
 
+    from services.email_service import send_invoice_email
+
+    # Build customer info
+    customer = invoice.customer
+    customer_name = customer.company_name or f"{customer.first_name or ''} {customer.last_name or ''}".strip()
+    due_date = invoice.due_date.strftime("%Y-%m-%d") if invoice.due_date else "—"
+
+    # Build invoice data for PDF
+    customer_info = {
+        "crm_id": invoice.customer_id,
+        "name": customer_name,
+        "phone": customer.phone,
+        "email": customer.email,
+    }
+    invoice_data = {
+        "invoice_id": invoice.invoice_number,
+        "date": invoice.created_at.isoformat(),
+        "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
+        "customer": customer_info,
+        "lines": [{
+            "imei": i.imei,
+            "model": i.model_number,
+            "description": i.description,
+            "sku": i.sku,
+            "batch_serial": i.batch_serial,
+            "qty": i.quantity,
+            "rate": i.rate,
+            "amount": i.amount,
+            "item_discount_amount": i.item_discount_amount,
+            "final_price": i.unit_price or i.rate,
+        } for i in invoice.items],
+        "summary": {
+            "subtotal": invoice.subtotal,
+            "discount_percent": invoice.discount_percent,
+            "discount_total": invoice.discount_total,
+            "tax_percent": invoice.tax_percent,
+            "tax_amount": invoice.tax_amount,
+            "total_due": invoice.total,
+            "paid_amount": invoice.paid_amount,
+            "balance_due": invoice.total - invoice.paid_amount,
+        },
+        "terms": invoice.invoice_terms,
+        "message": invoice.message_on_invoice,
+        "memo": invoice.statement_memo,
+    }
+    pdf_bytes = generate_wholesale_invoice_pdf(invoice_data)
+
+    # Load org settings for custom email template
+    org_settings = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+
+    result = send_invoice_email(
+        to_email=customer.email,
+        invoice_number=invoice.invoice_number,
+        customer_name=customer_name,
+        total=invoice.total,
+        due_date=due_date,
+        pdf_bytes=pdf_bytes,
+        message=invoice.message_on_invoice,
+        subject_template=getattr(org_settings, 'email_template_body', None),
+        body_template=getattr(org_settings, 'email_template_body', None),
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {result.get('error', 'Unknown error')}")
+
     invoice.emailed_at = datetime.utcnow()
     invoice.sent_at = invoice.sent_at or datetime.utcnow()
     db.commit()
@@ -2127,7 +2194,7 @@ def email_invoice(
     return {
         "status": "sent",
         "invoice_number": invoice.invoice_number,
-        "recipient": invoice.customer.email,
+        "recipient": customer.email,
         "sent_at": invoice.emailed_at.isoformat(),
     }
 

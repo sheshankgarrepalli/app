@@ -6,7 +6,7 @@ import { useLocationFilter } from '../context/LocationContext';
 import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -34,6 +34,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'inventory', label: 'All Inventory', path: '/admin/inventory', icon: PackageSearch, roles: ['admin', 'warehouse', 'store'] },
         { id: 'import', label: 'Import Inventory', path: '/admin/import-inventory', icon: Upload, roles: ['admin', 'warehouse', 'store'] },
         { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'sku', label: 'SKU Generator', path: '/admin/sku-generator', icon: QrCode, roles: ['admin', 'warehouse', 'store'] },
       ]
     },
     {
@@ -48,6 +49,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       items: [
         { id: 'invoices', label: 'Invoices', path: '/admin/invoices', icon: FileText, roles: ['admin', 'store'] },
         { id: 'settings', label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['admin'] },
+      ]
+    },
+    {
+      label: 'Reports',
+      items: [
+        { id: 'analytics', label: 'Analytics', path: '/admin/analytics', icon: BarChart3, roles: ['admin'] },
       ]
     },
   ];

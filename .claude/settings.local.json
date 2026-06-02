@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m py_compile api/auth.py)",
+      "Bash(python3 -m py_compile api/schemas.py)",
+      "Bash(python3 -m py_compile api/routers/pos_router.py)",
+      "Bash(python3 -m py_compile api/routers/track_router.py)",
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npx vercel *)",
+      "Bash(curl *)",
+      "Bash(python3 -m py_compile api/db_sync.py)",
+      "Bash(python3 -m py_compile api/routers/admin_router.py)",
+      "Bash(python3 -m py_compile api/routers/transfers_router.py)",
+      "Bash(python -m pytest tests/ -x -q)",
+      "Bash(python3 -m pytest tests/ -x -q)",
+      "Bash(python3 -m pytest /home/sheshank/Desktop/app/api/test_backend.py -x -q)"
+    ]
+  }
+}

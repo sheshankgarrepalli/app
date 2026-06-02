@@ -103,6 +103,10 @@ def get_dashboard(
         total_devices = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.org_id == org_id
         ).count()
+        sellable_devices = db.query(func.count(models.DeviceInventory.imei)).filter(
+            models.DeviceInventory.org_id == org_id,
+            models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+        ).scalar() or 0
         scrapped = 0
         try:
             scrapped = db.query(models.DeviceInventory).filter(
@@ -151,6 +155,7 @@ def get_dashboard(
             "active_repairs": active_repairs,
             "low_stock_parts": low_stock,
             "total_devices": total_devices,
+            "sellable_devices": sellable_devices,
         }
     except Exception:
         tb = traceback.format_exc()
@@ -176,3 +181,110 @@ def export_dashboard_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=dashboard_export.csv"}
     )
+
+
+def _granularity(date_range: str) -> str:
+    """Derive grouping granularity from date_range preset."""
+    if date_range == "Today":
+        return "hour"
+    elif date_range in ("This Week", "This Month"):
+        return "day"
+    elif date_range in ("3 Months", "6 Months"):
+        return "week"
+    else:
+        return "month"
+
+
+def _date_trunc(granularity: str, col):
+    """Return a SQLAlchemy expression for date truncation."""
+    if granularity == "hour":
+        return func.date_trunc("hour", col)
+    elif granularity == "day":
+        return func.date(col)
+    elif granularity == "week":
+        return func.date_trunc("week", col)
+    else:
+        return func.date_trunc("month", col)
+
+
+@router.get("/dashboard/timeseries")
+def get_timeseries(
+        date_range: str = Query("This Month"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    start = _resolve_start(date_range)
+    gran = _granularity(date_range)
+
+    # Sales time-series — invoice items grouped by period
+    sales_group = _date_trunc(gran, models.Invoice.created_at)
+    sales_rows = db.query(
+        sales_group.label("period"), func.count(models.InvoiceItem.id)
+    ).join(models.InvoiceItem).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id
+    ).group_by(sales_group).order_by(sales_group).all()
+
+    sales_series = [
+        {"date": str(r[0])[:10], "count": r[1]}
+        for r in sales_rows
+    ]
+
+    # Revenue time-series — invoice totals grouped by period
+    rev_group = _date_trunc(gran, models.Invoice.created_at)
+    rev_rows = db.query(
+        rev_group.label("period"), func.sum(models.Invoice.total)
+    ).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id
+    ).group_by(rev_group).order_by(rev_group).all()
+
+    revenue_series = [
+        {"date": str(r[0])[:10], "amount": round(float(r[1] or 0), 2)}
+        for r in rev_rows
+    ]
+
+    # Inventory levels — starting count + net change per period
+    devices_before = db.query(func.count(models.DeviceInventory.imei)).filter(
+        models.DeviceInventory.received_date < start,
+        models.DeviceInventory.org_id == org_id
+    ).scalar() or 0
+
+    received_group = _date_trunc(gran, models.DeviceInventory.received_date)
+    received_rows = db.query(
+        received_group.label("period"), func.count(models.DeviceInventory.imei)
+    ).filter(
+        models.DeviceInventory.received_date >= start,
+        models.DeviceInventory.org_id == org_id
+    ).group_by(received_group).order_by(received_group).all()
+
+    sold_group = _date_trunc(gran, models.Invoice.created_at)
+    sold_rows = db.query(
+        sold_group.label("period"), func.count(models.InvoiceItem.id)
+    ).join(models.InvoiceItem).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id
+    ).group_by(sold_group).order_by(sold_group).all()
+
+    received_map = {str(r[0])[:10]: r[1] for r in received_rows}
+    sold_map = {str(r[0])[:10]: r[1] for r in sold_rows}
+
+    # Collect all period keys for inventory series
+    all_periods = sorted(set(
+        str(r[0])[:10] for r in received_rows + sold_rows
+    ))
+
+    running = devices_before
+    inventory_series = []
+    for period in all_periods:
+        received_in = received_map.get(period, 0)
+        sold_in = sold_map.get(period, 0)
+        running = running + received_in - sold_in
+        inventory_series.append({"date": period, "count": running})
+
+    return {
+        "sales": sales_series,
+        "revenue": revenue_series,
+        "inventory_levels": inventory_series,
+    }

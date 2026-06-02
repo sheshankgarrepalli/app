@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List
 import models, schemas, auth, state_machine
 import wms_core
@@ -69,7 +70,7 @@ def fast_receive(request: schemas.FastReceiveRequest, db: Session = Depends(get_
 @router.get("/central", response_model=List[schemas.DeviceInventoryOut])
 def get_central_inventory(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin"]))):
     # Admins can see global central inventory, but we'll filter by Warehouse_Alpha by default
-    return db.query(models.DeviceInventory).filter(
+    return db.query(models.DeviceInventory).options(joinedload(models.DeviceInventory.model)).filter(
         models.DeviceInventory.location_id == "Warehouse_Alpha",
         models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None)
     ).all()
@@ -77,7 +78,7 @@ def get_central_inventory(db: Session = Depends(get_db), current_user: models.Us
 @router.get("/store", response_model=List[schemas.DeviceInventoryOut])
 def get_store_inventory(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
-        stmt = db.query(models.DeviceInventory).filter(models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None))
+        stmt = db.query(models.DeviceInventory).options(joinedload(models.DeviceInventory.model)).filter(models.DeviceInventory.org_id == getattr(current_user, 'current_org_id', None))
         
         # Admin OR user with null store_id bypasses the filter
         if current_user.role == "admin" or not current_user.store_id:
@@ -134,7 +135,7 @@ def list_inventory(
         )
 
     total = stmt.count()
-    items = stmt.order_by(models.DeviceInventory.received_date.desc()).offset(offset).limit(limit).all()
+    items = stmt.options(joinedload(models.DeviceInventory.model)).order_by(models.DeviceInventory.received_date.desc()).offset(offset).limit(limit).all()
 
     # Enrich with store_name and location_type
     store_map = {}
@@ -169,7 +170,17 @@ def list_inventory(
         )
         out_items.append(item)
 
-    return schemas.InventoryListResponse(items=out_items, total=total, limit=limit, offset=offset)
+    # Aggregate status counts (not affected by pagination)
+    sellable_count = db.query(func.count(models.DeviceInventory.imei)).filter(
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceInventory.device_status == models.DeviceStatus.Sellable
+    ).scalar() or 0
+    in_repair_count = db.query(func.count(models.DeviceInventory.imei)).filter(
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceInventory.device_status == models.DeviceStatus.In_Repair
+    ).scalar() or 0
+
+    return schemas.InventoryListResponse(items=out_items, total=total, limit=limit, offset=offset, sellable_count=sellable_count, in_repair_count=in_repair_count)
         
 @router.post("/routing", response_model=schemas.DeviceInventoryOut)
 def route_device_internally(
@@ -484,6 +495,80 @@ def batch_reconcile(
     db.commit()
     return {"status": "success", "reconciled_count": updated_count}
 
+
+# ── Autocomplete for Invoice Line Items ─────────────────────────────────────
+
+@router.get("/autocomplete")
+def autocomplete(
+    q: str = "",
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    results = []
+    sf = f"%{q}%"
+
+    # Search device_inventory (all active devices, not just sellable)
+    # Exclude Sold and Scrapped — they are no longer in inventory
+    devices = db.query(models.DeviceInventory).filter(
+        models.DeviceInventory.org_id == org_id,
+        ~models.DeviceInventory.device_status.in_([
+            models.DeviceStatus.Sold,
+            models.DeviceStatus.Scrapped,
+        ]),
+        (models.DeviceInventory.imei.ilike(sf)) |
+        (models.DeviceInventory.model_number.ilike(sf)) |
+        (models.DeviceInventory.serial_number.ilike(sf))
+    ).limit(10).all()
+    for d in devices:
+        model_info = f"{d.model.brand} {d.model.name} {d.model.storage_gb}GB" if d.model else d.model_number
+        results.append({
+            "type": "device_inventory",
+            "label": f"IMEI: {d.imei} - {model_info or 'Unknown'}",
+            "sublabel": f"Status: {d.device_status.value} | Location: {d.location_id}",
+            "imei": d.imei,
+            "model_number": d.model_number,
+            "price": d.cost_basis or 0,
+            "cost_basis": d.cost_basis or 0,
+            "status": d.device_status.value if d.device_status else None,
+            "location_id": d.location_id,
+        })
+
+    # Search device_catalog
+    catalog = db.query(models.DeviceCatalog).filter(
+        (models.DeviceCatalog.model_number.ilike(sf)) |
+        (models.DeviceCatalog.brand.ilike(sf)) |
+        (models.DeviceCatalog.name.ilike(sf))
+    ).limit(5).all()
+    for c in catalog:
+        results.append({
+            "type": "device_catalog",
+            "label": f"{c.brand} {c.name} ({c.storage}) - {c.model_number}",
+            "sublabel": f"Color: {c.color}",
+            "model_number": c.model_number,
+            "price": 0,
+        })
+
+    # Search parts_inventory
+    parts = db.query(models.PartsInventory).filter(
+        models.PartsInventory.org_id == org_id,
+        (models.PartsInventory.sku.ilike(sf)) |
+        (models.PartsInventory.part_name.ilike(sf))
+    ).limit(5).all()
+    for p in parts:
+        results.append({
+            "type": "parts_inventory",
+            "label": f"{p.part_name} ({p.sku})",
+            "sublabel": f"Stock: {p.current_stock_qty} | Avg Cost: ${p.moving_average_cost:.2f}",
+            "sku": p.sku,
+            "part_name": p.part_name,
+            "price": p.moving_average_cost or 0,
+            "stock_qty": p.current_stock_qty,
+        })
+
+    return results[:20]
+
+
 @router.get("/{imei}", response_model=schemas.DeviceInventoryOut)
 def get_device_by_imei(imei: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "store", "technician"]))):
     device = db.query(models.DeviceInventory).filter(
@@ -625,70 +710,3 @@ def batch_route_devices(
     )
 
 
-# ── Autocomplete for Invoice Line Items ─────────────────────────────────────
-
-@router.get("/autocomplete")
-def autocomplete(
-    q: str = "",
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    org_id = getattr(current_user, 'current_org_id', None)
-    results = []
-    sf = f"%{q}%"
-
-    # Search device_inventory (sellable devices by IMEI or model)
-    devices = db.query(models.DeviceInventory).filter(
-        models.DeviceInventory.org_id == org_id,
-        models.DeviceInventory.device_status == models.DeviceStatus.Sellable,
-        (models.DeviceInventory.imei.ilike(sf)) |
-        (models.DeviceInventory.model_number.ilike(sf)) |
-        (models.DeviceInventory.serial_number.ilike(sf))
-    ).limit(10).all()
-    for d in devices:
-        model_info = f"{d.model.brand} {d.model.name} {d.model.storage_gb}GB" if d.model else d.model_number
-        results.append({
-            "type": "device_inventory",
-            "label": f"IMEI: {d.imei} - {model_info or 'Unknown'}",
-            "sublabel": f"Status: {d.device_status.value} | Location: {d.location_id}",
-            "imei": d.imei,
-            "model_number": d.model_number,
-            "price": d.cost_basis or 0,
-            "cost_basis": d.cost_basis or 0,
-            "status": d.device_status.value if d.device_status else None,
-            "location_id": d.location_id,
-        })
-
-    # Search device_catalog
-    catalog = db.query(models.DeviceCatalog).filter(
-        (models.DeviceCatalog.model_number.ilike(sf)) |
-        (models.DeviceCatalog.brand.ilike(sf)) |
-        (models.DeviceCatalog.name.ilike(sf))
-    ).limit(5).all()
-    for c in catalog:
-        results.append({
-            "type": "device_catalog",
-            "label": f"{c.brand} {c.name} ({c.storage}) - {c.model_number}",
-            "sublabel": f"Color: {c.color}",
-            "model_number": c.model_number,
-            "price": 0,
-        })
-
-    # Search parts_inventory
-    parts = db.query(models.PartsInventory).filter(
-        models.PartsInventory.org_id == org_id,
-        (models.PartsInventory.sku.ilike(sf)) |
-        (models.PartsInventory.part_name.ilike(sf))
-    ).limit(5).all()
-    for p in parts:
-        results.append({
-            "type": "parts_inventory",
-            "label": f"{p.part_name} ({p.sku})",
-            "sublabel": f"Stock: {p.current_stock_qty} | Avg Cost: ${p.moving_average_cost:.2f}",
-            "sku": p.sku,
-            "part_name": p.part_name,
-            "price": p.moving_average_cost or 0,
-            "stock_qty": p.current_stock_qty,
-        })
-
-    return results[:20]

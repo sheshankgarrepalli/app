@@ -9,7 +9,7 @@ import {
   InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice,
 } from '../api/invoices';
 import api from '../api/api';
-import { fetchCustomers, Customer } from '../api/crm';
+import { fetchCustomers, createCustomer, Customer, CustomerCreate } from '../api/crm';
 
 interface PaymentRow {
   amount: number;
@@ -56,6 +56,14 @@ export default function InvoiceForm() {
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEdit);
   const [lockedCustomer, setLockedCustomer] = useState<Customer | null>(null);
+
+  // Quick customer creation dialog
+  const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [newCustomerSaving, setNewCustomerSaving] = useState(false);
+  const [newCustomerError, setNewCustomerError] = useState('');
 
   // Load org settings for default tax rate
   useEffect(() => {
@@ -149,6 +157,43 @@ export default function InvoiceForm() {
     } catch { setCustomers([]); }
   }, []);
 
+  const openNewCustomerDialog = () => {
+    setNewCustomerName(customerSearch);
+    setNewCustomerPhone('');
+    setNewCustomerEmail('');
+    setNewCustomerError('');
+    setShowNewCustomerDialog(true);
+    setShowCustomerDropdown(false);
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!newCustomerPhone.trim()) {
+      setNewCustomerError('Phone number is required');
+      return;
+    }
+    setNewCustomerSaving(true);
+    setNewCustomerError('');
+    try {
+      const [firstName, ...lastParts] = newCustomerName.trim().split(' ');
+      const payload: CustomerCreate = {
+        customer_type: 'Retail',
+        first_name: firstName || newCustomerName.trim(),
+        last_name: lastParts.join(' ') || '',
+        phone: newCustomerPhone.trim(),
+      };
+      if (newCustomerEmail.trim()) payload.email = newCustomerEmail.trim();
+      const created = await createCustomer(payload);
+      setCustomerId(created.crm_id);
+      setCustomerSearch('');
+      setCustomers([]);
+      setShowNewCustomerDialog(false);
+    } catch (err: any) {
+      setNewCustomerError(extractError(err));
+    } finally {
+      setNewCustomerSaving(false);
+    }
+  };
+
   const doAutocomplete = useCallback(async (q: string, idx: number) => {
     if (!q || q.length < 2) { setAcResults([]); setAcIdx(null); return; }
     setAcIdx(idx);
@@ -170,11 +215,12 @@ export default function InvoiceForm() {
     const next = [...items];
     next[idx] = {
       ...next[idx],
-      description: result.label,
-      imei: result.imei,
+      description: result.model_number || result.label,
+      imei: result.imei || next[idx].batch_serial,
       model_number: result.model_number || result.sku,
       sku: result.sku || result.model_number || '',
-      rate: result.price || 0,
+      batch_serial: result.imei || (next[idx].batch_serial || ''),
+      rate: result.price || next[idx].rate || 0,
       taxable: true,
     };
     setItems(next);
@@ -248,10 +294,11 @@ export default function InvoiceForm() {
         const r = results[0];
         const newItem: InvoiceFormItem = {
           ...emptyItem,
-          description: r.label,
+          description: r.model_number || r.label,
           imei: r.imei || scanImei.trim(),
           model_number: r.model_number || r.sku,
           sku: r.sku || r.model_number || '',
+          batch_serial: r.imei || scanImei.trim(),
           rate: r.price || 0,
           taxable: true,
         };
@@ -268,6 +315,7 @@ export default function InvoiceForm() {
           ...emptyItem,
           description: `Device ${scanImei.trim()}`,
           imei: scanImei.trim(),
+          batch_serial: scanImei.trim(),
           rate: 0,
           taxable: true,
         };
@@ -278,8 +326,9 @@ export default function InvoiceForm() {
           return [...prev, newItem];
         });
       }
-    } catch {
-      setScanError('Failed to look up IMEI. Check connection and try again.');
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || err?.message || 'Unknown error';
+      setScanError(`Failed to look up IMEI: ${detail}`);
     }
     setScanImei('');
   };
@@ -301,10 +350,11 @@ export default function InvoiceForm() {
           const r = results[0];
           newItems.push({
             ...emptyItem,
-            description: r.label,
+            description: r.model_number || r.label,
             imei: r.imei || imei,
             model_number: r.model_number || r.sku,
             sku: r.sku || r.model_number || '',
+            batch_serial: r.imei || imei,
             rate: r.price || 0,
             taxable: true,
           });
@@ -313,6 +363,7 @@ export default function InvoiceForm() {
             ...emptyItem,
             description: `Device ${imei}`,
             imei,
+            batch_serial: imei,
             rate: 0,
             taxable: true,
           });
@@ -322,6 +373,7 @@ export default function InvoiceForm() {
           ...emptyItem,
           description: `Device ${imei} (lookup failed)`,
           imei,
+          batch_serial: imei,
           rate: 0,
           taxable: true,
         });
@@ -545,9 +597,9 @@ export default function InvoiceForm() {
                   placeholder="Search by name, phone, email or company..."
                   value={customerSearch}
                   onChange={e => searchCustomers(e.target.value)}
-                  onFocus={() => customers.length > 0 && setShowCustomerDropdown(true)}
+                  onFocus={() => (customers.length > 0 || customerSearch.length >= 3) && setShowCustomerDropdown(true)}
                 />
-                {showCustomerDropdown && customers.length > 0 && (
+                {showCustomerDropdown && (customers.length > 0 || customerSearch.length >= 3) && (
                   <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl max-h-56 overflow-y-auto">
                     {customers.map(c => (
                       <button
@@ -574,6 +626,15 @@ export default function InvoiceForm() {
                         </div>
                       </button>
                     ))}
+                    {customerSearch.length >= 3 && (
+                      <button
+                        className="w-full text-left px-4 py-3 hover:bg-accent/10 flex items-center gap-2.5 border-b border-[var(--border)] last:border-0 text-accent"
+                        onClick={openNewCustomerDialog}
+                      >
+                        <Plus size={16} />
+                        <span className="text-sm font-medium">Create new customer profile</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -742,7 +803,7 @@ export default function InvoiceForm() {
                                 const next = [...items];
                                 next[idx] = {
                                   ...next[idx],
-                                  description: next[idx].description || r.label,
+                                  description: next[idx].description || r.model_number || r.label,
                                   imei: r.imei || val,
                                   model_number: next[idx].model_number || matchedModel,
                                   sku: next[idx].sku || r.sku || '',
@@ -752,7 +813,10 @@ export default function InvoiceForm() {
                                 setItems(next);
                               }
                             }
-                          } catch { /* ignore */ }
+                          } catch (err: any) {
+                            const detail = err?.response?.data?.detail || err?.message || 'Unknown error';
+                            setError(`Failed to look up IMEI: ${detail}`);
+                          }
                         }}
                       />
                     </td>
@@ -1115,6 +1179,82 @@ export default function InvoiceForm() {
           </div>
         </div>
       </div>
+
+      {/* Quick Customer Create Dialog */}
+      {showNewCustomerDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowNewCustomerDialog(false)}>
+          <div className="bg-[var(--bg-card)] rounded-xl shadow-2xl border border-[var(--border)] w-full max-w-md mx-4 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[var(--text)]">New Customer Profile</h3>
+              <button onClick={() => setShowNewCustomerDialog(false)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
+                <X size={18} />
+              </button>
+            </div>
+
+            {newCustomerError && (
+              <div className="flex items-center gap-2 text-xs text-[var(--destructive)] bg-red-500/10 px-3 py-2 rounded-lg">
+                <AlertCircle size={14} />
+                <span>{newCustomerError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Full Name</label>
+                <input
+                  type="text"
+                  className="form-input text-sm"
+                  placeholder="Customer name"
+                  value={newCustomerName}
+                  onChange={e => setNewCustomerName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">
+                  Phone Number <span className="text-[var(--destructive)]">*</span>
+                </label>
+                <input
+                  type="tel"
+                  className="form-input text-sm"
+                  placeholder="Primary identifier — must be unique"
+                  value={newCustomerPhone}
+                  onChange={e => setNewCustomerPhone(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleCreateCustomer()}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">Email <span className="text-[var(--text-tertiary)]">(optional)</span></label>
+                <input
+                  type="email"
+                  className="form-input text-sm"
+                  placeholder="For sending invoices"
+                  value={newCustomerEmail}
+                  onChange={e => setNewCustomerEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleCreateCustomer()}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => setShowNewCustomerDialog(false)}
+                className="flex-1 px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCustomer}
+                disabled={newCustomerSaving || !newCustomerPhone.trim()}
+                className="flex-1 px-4 py-2 text-xs font-bold rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {newCustomerSaving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                Create Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
