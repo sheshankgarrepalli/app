@@ -32,8 +32,8 @@ def _sku(model: str, category: str, quality: str) -> str:
 
 
 TYPE_CODE_MAP = {
-    "Device": "DEV", "Phone Case": "CASE", "Accessory": "ACC",
-    "Charger": "CHG", "Cable": "CBL", "Screen Protector": "SCR",
+    "Device": "DEV", "Case": "CASE", "Screen Protector": "PROT",
+    "Charger & Cable": "PWR", "Audio & Accessory": "ACC",
     "Repair Part": "PRT", "Other": "GEN",
 }
 

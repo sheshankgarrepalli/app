@@ -10,11 +10,12 @@ interface SkuRow {
   created_at: string;
 }
 
-const PRODUCT_TYPES = ['Device', 'Phone Case', 'Accessory', 'Charger', 'Cable', 'Screen Protector', 'Repair Part', 'Other'];
+const PRODUCT_TYPES = ['Device', 'Case', 'Screen Protector', 'Charger & Cable', 'Audio & Accessory', 'Repair Part', 'Other'];
 
 const TYPE_CODE_MAP: Record<string, string> = {
-  'Device': 'DEV', 'Phone Case': 'CASE', 'Accessory': 'ACC', 'Charger': 'CHG',
-  'Cable': 'CBL', 'Screen Protector': 'SCR', 'Repair Part': 'PRT', 'Other': 'GEN',
+  'Device': 'DEV', 'Case': 'CASE', 'Screen Protector': 'PROT',
+  'Charger & Cable': 'PWR', 'Audio & Accessory': 'ACC',
+  'Repair Part': 'PRT', 'Other': 'GEN',
 };
 
 export default function SkuGenerator() {
