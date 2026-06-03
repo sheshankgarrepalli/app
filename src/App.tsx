@@ -35,12 +35,14 @@ import TaxSummary from './pages/TaxSummary';
 import ProfitLoss from './pages/ProfitLoss';
 import CustomerStatement from './pages/CustomerStatement';
 
+const isDevEnv = import.meta.env.VITE_VERCEL_ENV === 'preview' || import.meta.env.VITE_VERCEL_ENV === 'development';
+
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { user, isLoading } = useAuth();
   
-  if (!isUserLoaded || !isOrgLoaded || isLoading) {
+  if (!isUserLoaded || (!isDevEnv && !isOrgLoaded) || isLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
@@ -56,8 +58,8 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
     return <RedirectToSignIn />;
   }
 
-  // Tier 2: Authenticated, but No Org
-  if (!organization) {
+  // Tier 2: Authenticated, but No Org — skip in dev/preview
+  if (!organization && !isDevEnv) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <OrganizationList hidePersonal={true} />
@@ -65,7 +67,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
     );
   }
 
-  // Tier 3: Fully Authenticated & Org Active
+  // Tier 3: Fully Authenticated & Org Active (or dev mode)
   if (!user) return <Navigate to="/login" replace />;
   if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   
@@ -166,7 +168,7 @@ function AuthWrapper() {
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { user, isLoading } = useAuth();
   
-  if (!isUserLoaded || !isOrgLoaded || isLoading) {
+  if (!isUserLoaded || (!isDevEnv && !isOrgLoaded) || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Synchronizing Identity...</div>
@@ -179,8 +181,8 @@ function AuthWrapper() {
     return <RedirectToSignIn />;
   }
 
-  // Tier 2: Authenticated, but No Org
-  if (!organization) {
+  // Tier 2: Authenticated, but No Org — skip in dev
+  if (!organization && !isDevEnv) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <OrganizationList hidePersonal={true} />

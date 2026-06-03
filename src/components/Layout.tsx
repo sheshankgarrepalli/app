@@ -91,7 +91,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!organization) {
+  if (!organization && !window.location.hostname.includes('vercel.app')) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--bg-primary)]">
         <CreateOrganization />
