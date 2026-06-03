@@ -231,6 +231,101 @@ def get_tax_summary(
         "totals": totals,
         "date_range": date_range,
     }
+
+
+@router.get("/profit-loss")
+def get_profit_loss(
+        date_range: str = Query("This Month"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    start = _resolve_start(date_range)
+
+    # Revenue: sum of all non-voided/non-draft invoice totals
+    revenue = db.query(func.sum(models.Invoice.total)).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Paid,
+            models.InvoiceStatus.Partially_Paid,
+            models.InvoiceStatus.Unpaid,
+            models.InvoiceStatus.Overdue,
+        ])
+    ).scalar() or 0
+
+    # COGS: sum cost_basis for devices sold in period
+    sold_cost = db.query(func.sum(models.DeviceInventory.cost_basis)).join(
+        models.InvoiceItem, models.InvoiceItem.imei == models.DeviceInventory.imei
+    ).join(
+        models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
+    ).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id,
+        models.DeviceInventory.org_id == org_id
+    ).scalar() or 0
+
+    # Parts sold (non-device SKUs) — estimate cost from parts_inventory
+    parts_sold = db.query(
+        models.InvoiceItem.sku, func.sum(models.InvoiceItem.quantity)
+    ).join(
+        models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
+    ).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id,
+        models.InvoiceItem.sku != None,
+        models.InvoiceItem.imei == None,
+    ).group_by(models.InvoiceItem.sku).all()
+
+    parts_cost = 0.0
+    parts_revenue = 0.0
+    for sku, qty in parts_sold:
+        part = db.query(models.PartsInventory).filter(
+            models.PartsInventory.sku == sku, models.PartsInventory.org_id == org_id
+        ).first()
+        if part:
+            parts_cost += (part.moving_average_cost or 0) * (qty or 0)
+
+    # Parts revenue from non-device items
+    parts_revenue = db.query(func.sum(models.InvoiceItem.amount)).join(
+        models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
+    ).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id,
+        models.InvoiceItem.imei == None,
+    ).scalar() or 0
+
+    # Repair labor costs consumed
+    repair_labor = db.query(func.sum(models.DeviceCostLedger.amount)).filter(
+        models.DeviceCostLedger.cost_type.like("Labor:%"),
+        models.DeviceCostLedger.created_at >= start,
+        models.DeviceCostLedger.org_id == org_id
+    ).scalar() or 0
+
+    # Total COGS = devices + parts
+    total_cogs = float(sold_cost) + parts_cost
+
+    # Gross profit
+    gross_profit = float(revenue) - total_cogs
+
+    gross_margin_pct = (gross_profit / float(revenue) * 100) if revenue > 0 else 0
+
+    return {
+        "revenue": round(float(revenue), 2),
+        "device_revenue": round(float(revenue) - parts_revenue, 2),
+        "parts_revenue": round(parts_revenue, 2),
+        "cost_of_goods_sold": round(total_cogs, 2),
+        "device_cogs": round(float(sold_cost), 2),
+        "parts_cogs": round(parts_cost, 2),
+        "gross_profit": round(gross_profit, 2),
+        "gross_margin_pct": round(gross_margin_pct, 1),
+        "repair_labor_cost": round(repair_labor, 2),
+        "operating_expenses": {
+            "repair_labor": round(repair_labor, 2),
+        },
+        "net_profit": round(gross_profit - repair_labor, 2),
+        "date_range": date_range,
+    }
 def export_dashboard_csv(
         date_range: str = Query("This Month"),
         db: Session = Depends(get_db),
