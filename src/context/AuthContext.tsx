@@ -16,7 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const IS_PREVIEW = typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost');
+const IS_PREVIEW = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { user: clerkUser, isLoaded: isUserLoaded } = useUser();

@@ -35,7 +35,7 @@ import TaxSummary from './pages/TaxSummary';
 import ProfitLoss from './pages/ProfitLoss';
 import CustomerStatement from './pages/CustomerStatement';
 
-const isDevEnv = typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost');
+const isDevEnv = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
