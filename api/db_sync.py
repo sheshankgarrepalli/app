@@ -90,6 +90,13 @@ def db_sync():
         _safe_add_column(db, "part_intakes", "org_id", "TEXT")
         _safe_add_column(db, "purchase_orders", "org_id", "TEXT")
         _safe_add_column(db, "po_items", "org_id", "TEXT")
+        _safe_add_column(db, "suppliers", "contact_email", "TEXT")
+        _safe_add_column(db, "suppliers", "contact_phone", "TEXT")
+        _safe_add_column(db, "suppliers", "payment_terms", "TEXT", "'Net 30'")
+        _safe_add_column(db, "suppliers", "lead_time_days", "INTEGER", "7")
+        _safe_add_column(db, "suppliers", "notes", "TEXT")
+        _safe_add_column(db, "suppliers", "is_active", "INTEGER", "1")
+        _safe_add_column(db, "invoice_items", "unit_cost", "FLOAT", "0.0")
 
         # labor_rate_config: org_id
         _safe_add_column(db, "labor_rate_config", "org_id", "TEXT")

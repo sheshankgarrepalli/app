@@ -89,10 +89,47 @@ class RepairAssignRequest(BaseModel):
 class SupplierBase(BaseModel):
     name: str
 
-class SupplierCreate(SupplierBase): pass
+class SupplierCreate(SupplierBase):
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    payment_terms: str = "Net 30"
+    lead_time_days: int = 7
+    notes: Optional[str] = None
+
+class SupplierUpdate(BaseModel):
+    name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    payment_terms: Optional[str] = None
+    lead_time_days: Optional[int] = None
+    notes: Optional[str] = None
+    is_active: Optional[int] = None
 
 class SupplierOut(SupplierBase):
     id: int
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    payment_terms: Optional[str] = None
+    lead_time_days: Optional[int] = None
+    notes: Optional[str] = None
+    is_active: Optional[int] = None
+    class Config: from_attributes = True
+
+
+class SupplierPricingBase(BaseModel):
+    supplier_id: int
+    sku: str
+    supplier_sku: Optional[str] = None
+    unit_cost: float = 0.0
+    moq: int = 1
+    lead_time_days: int = 7
+    is_preferred: int = 0
+
+class SupplierPricingCreate(SupplierPricingBase): pass
+
+class SupplierPricingOut(SupplierPricingBase):
+    id: int
+    last_updated: datetime
     class Config: from_attributes = True
 
 class PartIntakeBase(BaseModel):

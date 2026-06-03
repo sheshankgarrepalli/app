@@ -431,6 +431,29 @@ class Supplier(Base):
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(String, index=True, nullable=True)
     name = Column(String, nullable=False)
+    contact_email = Column(String, nullable=True)
+    contact_phone = Column(String, nullable=True)
+    payment_terms = Column(String, default="Net 30")
+    lead_time_days = Column(Integer, default=7)
+    notes = Column(String, nullable=True)
+    is_active = Column(Integer, default=1)
+
+
+class SupplierPricing(Base):
+    __tablename__ = "supplier_pricing"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+    sku = Column(String, nullable=False)
+    supplier_sku = Column(String, nullable=True)
+    unit_cost = Column(Float, default=0.0)
+    moq = Column(Integer, default=1)
+    lead_time_days = Column(Integer, default=7)
+    is_preferred = Column(Integer, default=0)
+    last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    supplier = relationship("Supplier")
+
 
 class PartIntake(Base):
     __tablename__ = "part_intakes"

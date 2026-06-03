@@ -3,17 +3,19 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
 from database import get_db
-from models import PartsInventory, User, Supplier, PartIntake, UnifiedCustomer, CustomerType
+from models import PartsInventory, User, Supplier, PartIntake, UnifiedCustomer, CustomerType, SupplierPricing
 from schemas import (
     PartsInventoryOut, PartIntakeOut, PartReceiveRequest, PartPriceRequest,
     PartCreateRequest, PartUpdateRequest, PartIntakeRequest, PartReturnRequest,
     StockAdjustRequest, PartDetailOut, SupplierOut, LaborRateConfigOut,
-    LaborRateConfigCreate, LaborRateConfigUpdate, SkuCreateRequest
+    LaborRateConfigCreate, LaborRateConfigUpdate, SkuCreateRequest,
+    SupplierCreate, SupplierUpdate, SupplierPricingCreate, SupplierPricingOut
 )
 from models import LaborRateConfig
 from auth import get_current_user
 import uuid
 import re
+from datetime import datetime
 
 router = APIRouter(prefix="/api/parts", tags=["Parts"])
 
@@ -189,19 +191,97 @@ def list_suppliers(db: Session = Depends(get_db),
 
 
 @router.post("/suppliers", response_model=SupplierOut, status_code=status.HTTP_201_CREATED)
-def create_supplier(name: str, db: Session = Depends(get_db),
+def create_supplier(req: SupplierCreate, db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_user)):
     org_id = _get_org_id(current_user)
     existing = db.query(Supplier).filter(
-        Supplier.name == name, Supplier.org_id == org_id
+        Supplier.name == req.name, Supplier.org_id == org_id
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Supplier already exists")
-    supplier = Supplier(name=name, org_id=org_id)
+    supplier = Supplier(org_id=org_id, **req.model_dump())
     db.add(supplier)
     db.commit()
     db.refresh(supplier)
     return supplier
+
+
+@router.put("/suppliers/{supplier_id}", response_model=SupplierOut)
+def update_supplier(supplier_id: int, req: SupplierUpdate, db: Session = Depends(get_db),
+                    current_user: User = Depends(get_current_user)):
+    org_id = _get_org_id(current_user)
+    supplier = db.query(Supplier).filter(
+        Supplier.id == supplier_id, Supplier.org_id == org_id
+    ).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    for k, v in req.model_dump(exclude_unset=True).items():
+        setattr(supplier, k, v)
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+@router.get("/supplier-pricing", response_model=List[SupplierPricingOut])
+def list_supplier_pricing(
+    supplier_id: int = 0,
+    sku: str = "",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    org_id = _get_org_id(current_user)
+    q = db.query(SupplierPricing).filter(SupplierPricing.org_id == org_id)
+    if supplier_id:
+        q = q.filter(SupplierPricing.supplier_id == supplier_id)
+    if sku:
+        q = q.filter(SupplierPricing.sku.ilike(f"%{sku}%"))
+    return q.order_by(SupplierPricing.unit_cost).all()
+
+
+@router.post("/supplier-pricing", response_model=SupplierPricingOut, status_code=status.HTTP_201_CREATED)
+def add_supplier_pricing(
+    req: SupplierPricingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    org_id = _get_org_id(current_user)
+    existing = db.query(SupplierPricing).filter(
+        SupplierPricing.supplier_id == req.supplier_id,
+        SupplierPricing.sku == req.sku,
+        SupplierPricing.org_id == org_id
+    ).first()
+    if existing:
+        existing.unit_cost = req.unit_cost
+        existing.supplier_sku = req.supplier_sku
+        existing.moq = req.moq
+        existing.lead_time_days = req.lead_time_days
+        existing.is_preferred = req.is_preferred
+        existing.last_updated = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        return existing
+    sp = SupplierPricing(org_id=org_id, **req.model_dump())
+    db.add(sp)
+    db.commit()
+    db.refresh(sp)
+    return sp
+
+
+@router.delete("/supplier-pricing/{pricing_id}")
+def delete_supplier_pricing(
+    pricing_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    org_id = _get_org_id(current_user)
+    sp = db.query(SupplierPricing).filter(
+        SupplierPricing.id == pricing_id, SupplierPricing.org_id == org_id
+    ).first()
+    if not sp:
+        raise HTTPException(status_code=404, detail="Pricing not found")
+    db.delete(sp)
+    db.commit()
+    return {"status": "deleted"}
 
 
 # ── Labor Rates ──────────────────────────────────────────────────────────────

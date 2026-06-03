@@ -29,6 +29,7 @@ import ExcelImport from './pages/ExcelImport';
 import Analytics from './pages/Analytics';
 import SkuGenerator from './pages/SkuGenerator';
 import PurchaseOrders from './pages/PurchaseOrders';
+import Suppliers from './pages/Suppliers';
 import ArAging from './pages/ArAging';
 import TaxSummary from './pages/TaxSummary';
 import ProfitLoss from './pages/ProfitLoss';
@@ -127,6 +128,7 @@ function AuthRoutes() {
       <Route path="/admin/incoming-transfers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><IncomingTransfers /></ProtectedRoute>} />
       <Route path="/admin/sku-generator" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><SkuGenerator /></ProtectedRoute>} />
       <Route path="/admin/purchase-orders" element={<ProtectedRoute allowedRoles={['admin']}><PurchaseOrders /></ProtectedRoute>} />
+      <Route path="/admin/suppliers" element={<ProtectedRoute allowedRoles={['admin']}><Suppliers /></ProtectedRoute>} />
 
       {/* CRM Routes */}
       <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><Customers /></ProtectedRoute>} />
