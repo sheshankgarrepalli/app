@@ -197,32 +197,35 @@ function PreviewRoutes() {
   return (
     <Layout><ErrorBoundary>
       <Routes>
-        <Route path="/admin/inventory" element={<Inventory />} />
-        <Route path="/admin/manual-intake" element={<ManualIntake />} />
-        <Route path="/admin/phone-routing" element={<PhoneRouting />} />
-        <Route path="/admin/rapid-audit" element={<RapidAudit />} />
-        <Route path="/admin/qc" element={<QC />} />
-        <Route path="/admin/repairs" element={<Repairs />} />
-        <Route path="/admin/track" element={<Track />} />
-        <Route path="/admin/import-inventory" element={<ExcelImport />} />
-        <Route path="/admin/incoming-transfers" element={<IncomingTransfers />} />
-        <Route path="/admin/sku-generator" element={<SkuGenerator />} />
-        <Route path="/admin/purchase-orders" element={<PurchaseOrders />} />
-        <Route path="/admin/suppliers" element={<Suppliers />} />
-        <Route path="/admin/customers" element={<Customers />} />
-        <Route path="/admin/customers/:crmId" element={<CustomerDetail />} />
-        <Route path="/admin/customers/:crmId/statement" element={<CustomerStatement />} />
-        <Route path="/admin/consignments" element={<Consignments />} />
-        <Route path="/admin/consignments/:batchId" element={<ConsignmentDetail />} />
-        <Route path="/admin/invoices" element={<InvoicesList />} />
-        <Route path="/admin/invoices/new" element={<InvoiceForm />} />
-        <Route path="/admin/invoices/:invoiceNumber/edit" element={<InvoiceForm />} />
-        <Route path="/admin/invoices/:invoiceNumber" element={<InvoiceDetail />} />
-        <Route path="/admin/settings" element={<Settings />} />
-        <Route path="/admin/analytics" element={<Analytics />} />
-        <Route path="/admin/ar-aging" element={<ArAging />} />
-        <Route path="/admin/tax-summary" element={<TaxSummary />} />
-        <Route path="/admin/profit-loss" element={<ProfitLoss />} />
+        <Route path="inventory" element={<Inventory />} />
+        <Route path="manual-intake" element={<ManualIntake />} />
+        <Route path="phone-routing" element={<PhoneRouting />} />
+        <Route path="rapid-audit" element={<RapidAudit />} />
+        <Route path="qc" element={<QC />} />
+        <Route path="repairs" element={<Repairs />} />
+        <Route path="track" element={<Track />} />
+        <Route path="import-inventory" element={<ExcelImport />} />
+        <Route path="incoming-transfers" element={<IncomingTransfers />} />
+        <Route path="sku-generator" element={<SkuGenerator />} />
+        <Route path="purchase-orders" element={<PurchaseOrders />} />
+        <Route path="suppliers" element={<Suppliers />} />
+        <Route path="customers" element={<Customers />} />
+        <Route path="customers/:crmId" element={<CustomerDetail />} />
+        <Route path="customers/:crmId/statement" element={<CustomerStatement />} />
+        <Route path="consignments" element={<Consignments />} />
+        <Route path="consignments/:batchId" element={<ConsignmentDetail />} />
+        <Route path="invoices" element={<InvoicesList />} />
+        <Route path="invoices/new" element={<InvoiceForm />} />
+        <Route path="invoices/:invoiceNumber/edit" element={<InvoiceForm />} />
+        <Route path="invoices/:invoiceNumber" element={<InvoiceDetail />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="ar-aging" element={<ArAging />} />
+        <Route path="tax-summary" element={<TaxSummary />} />
+        <Route path="profit-loss" element={<ProfitLoss />} />
+        <Route path="daily-close" element={<DailyClose />} />
+        <Route path="employee-sales" element={<EmployeeSales />} />
+        <Route path="low-stock" element={<LowStockAlerts />} />
         <Route path="*" element={<Navigate to="/admin/inventory" replace />} />
       </Routes>
     </ErrorBoundary></Layout>
