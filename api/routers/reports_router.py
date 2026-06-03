@@ -326,6 +326,70 @@ def get_profit_loss(
         "net_profit": round(gross_profit - repair_labor, 2),
         "date_range": date_range,
     }
+
+
+@router.get("/customer-statement/{crm_id}")
+def get_customer_statement(
+        crm_id: str,
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    customer = db.query(models.UnifiedCustomer).filter(
+        models.UnifiedCustomer.crm_id == crm_id,
+        models.UnifiedCustomer.org_id == org_id
+    ).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.customer_id == crm_id,
+        models.Invoice.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Paid,
+            models.InvoiceStatus.Partially_Paid,
+            models.InvoiceStatus.Unpaid,
+            models.InvoiceStatus.Overdue,
+        ])
+    ).order_by(models.Invoice.created_at.desc()).limit(50).all()
+
+    name = ""
+    if customer.company_name:
+        name = customer.company_name
+    elif customer.first_name or customer.last_name:
+        name = f"{customer.first_name or ''} {customer.last_name or ''}".strip()
+    else:
+        name = crm_id
+
+    statement = {
+        "customer_name": name,
+        "crm_id": crm_id,
+        "customer_type": customer.customer_type.value if customer.customer_type else "Retail",
+        "email": customer.email or "",
+        "phone": customer.phone or "",
+        "current_balance": customer.current_balance or 0,
+        "credit_limit": customer.credit_limit or 0,
+        "invoices": [],
+        "total_outstanding": 0.0,
+        "total_paid": 0.0,
+    }
+
+    for inv in invoices:
+        paid = inv.paid_amount or 0
+        balance = inv.total - paid
+        statement["total_outstanding"] += balance
+        statement["total_paid"] += paid
+        statement["invoices"].append({
+            "invoice_number": inv.invoice_number,
+            "created_at": inv.created_at.isoformat() if inv.created_at else None,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "total": round(inv.total, 2),
+            "paid": round(paid, 2),
+            "balance": round(balance, 2),
+            "status": inv.status.value if hasattr(inv.status, 'value') else str(inv.status),
+        })
+
+    return statement
 def export_dashboard_csv(
         date_range: str = Query("This Month"),
         db: Session = Depends(get_db),

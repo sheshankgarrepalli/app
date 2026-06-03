@@ -31,6 +31,7 @@ import SkuGenerator from './pages/SkuGenerator';
 import ArAging from './pages/ArAging';
 import TaxSummary from './pages/TaxSummary';
 import ProfitLoss from './pages/ProfitLoss';
+import CustomerStatement from './pages/CustomerStatement';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -128,6 +129,7 @@ function AuthRoutes() {
       {/* CRM Routes */}
       <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><Customers /></ProtectedRoute>} />
       <Route path="/admin/customers/:crmId" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><CustomerDetail /></ProtectedRoute>} />
+      <Route path="/admin/customers/:crmId/statement" element={<ProtectedRoute allowedRoles={['admin', 'store']}><CustomerStatement /></ProtectedRoute>} />
       <Route path="/admin/consignments" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><Consignments /></ProtectedRoute>} />
       <Route path="/admin/consignments/:batchId" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><ConsignmentDetail /></ProtectedRoute>} />
 
