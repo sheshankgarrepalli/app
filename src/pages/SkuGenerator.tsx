@@ -10,10 +10,10 @@ interface SkuRow {
   created_at: string;
 }
 
-const PRODUCT_TYPES = ['Phone Case', 'Accessory', 'Charger', 'Cable', 'Screen Protector', 'Repair Part', 'Other'];
+const PRODUCT_TYPES = ['Device', 'Phone Case', 'Accessory', 'Charger', 'Cable', 'Screen Protector', 'Repair Part', 'Other'];
 
 const TYPE_CODE_MAP: Record<string, string> = {
-  'Phone Case': 'CASE', 'Accessory': 'ACC', 'Charger': 'CHG',
+  'Device': 'DEV', 'Phone Case': 'CASE', 'Accessory': 'ACC', 'Charger': 'CHG',
   'Cable': 'CBL', 'Screen Protector': 'SCR', 'Repair Part': 'PRT', 'Other': 'GEN',
 };
 
