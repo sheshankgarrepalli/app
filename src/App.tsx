@@ -112,6 +112,17 @@ function App() {
 function AuthRoutes() {
   const { isSignedIn, isLoaded } = useUser();
 
+  if (isDevEnv) {
+    return (
+      <Routes>
+        <Route path="/" element={<Navigate to="/admin/inventory" replace />} />
+        <Route path="/admin/*" element={<PreviewRoutes />} />
+        <Route path="/invoice/:shareToken" element={<ErrorBoundary><PublicInvoice /></ErrorBoundary>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+
   if (!isLoaded) return null; // ClerkLoading handled above
 
   return (
@@ -170,6 +181,45 @@ function AuthRoutes() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+function PreviewRoutes() {
+  const { isLoading } = useAuth();
+  if (isLoading) return <div className="flex h-screen items-center justify-center"><div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Loading Preview...</div></div>;
+  
+  return (
+    <Layout><ErrorBoundary>
+      <Routes>
+        <Route path="/admin/inventory" element={<Inventory />} />
+        <Route path="/admin/manual-intake" element={<ManualIntake />} />
+        <Route path="/admin/phone-routing" element={<PhoneRouting />} />
+        <Route path="/admin/rapid-audit" element={<RapidAudit />} />
+        <Route path="/admin/qc" element={<QC />} />
+        <Route path="/admin/repairs" element={<Repairs />} />
+        <Route path="/admin/track" element={<Track />} />
+        <Route path="/admin/import-inventory" element={<ExcelImport />} />
+        <Route path="/admin/incoming-transfers" element={<IncomingTransfers />} />
+        <Route path="/admin/sku-generator" element={<SkuGenerator />} />
+        <Route path="/admin/purchase-orders" element={<PurchaseOrders />} />
+        <Route path="/admin/suppliers" element={<Suppliers />} />
+        <Route path="/admin/customers" element={<Customers />} />
+        <Route path="/admin/customers/:crmId" element={<CustomerDetail />} />
+        <Route path="/admin/customers/:crmId/statement" element={<CustomerStatement />} />
+        <Route path="/admin/consignments" element={<Consignments />} />
+        <Route path="/admin/consignments/:batchId" element={<ConsignmentDetail />} />
+        <Route path="/admin/invoices" element={<InvoicesList />} />
+        <Route path="/admin/invoices/new" element={<InvoiceForm />} />
+        <Route path="/admin/invoices/:invoiceNumber/edit" element={<InvoiceForm />} />
+        <Route path="/admin/invoices/:invoiceNumber" element={<InvoiceDetail />} />
+        <Route path="/admin/settings" element={<Settings />} />
+        <Route path="/admin/analytics" element={<Analytics />} />
+        <Route path="/admin/ar-aging" element={<ArAging />} />
+        <Route path="/admin/tax-summary" element={<TaxSummary />} />
+        <Route path="/admin/profit-loss" element={<ProfitLoss />} />
+        <Route path="*" element={<Navigate to="/admin/inventory" replace />} />
+      </Routes>
+    </ErrorBoundary></Layout>
   );
 }
 
