@@ -288,3 +288,96 @@ def get_timeseries(
         "revenue": revenue_series,
         "inventory_levels": inventory_series,
     }
+
+
+@router.get("/ar-aging")
+def get_ar_aging(
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    now = datetime.utcnow()
+
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Unpaid,
+            models.InvoiceStatus.Partially_Paid,
+            models.InvoiceStatus.Overdue,
+        ])
+    ).all()
+
+    customer_aging = defaultdict(lambda: {
+        "crm_id": "",
+        "customer_name": "",
+        "customer_type": "",
+        "total_outstanding": 0.0,
+        "current": 0.0,
+        "1_30": 0.0,
+        "31_60": 0.0,
+        "61_90": 0.0,
+        "90_plus": 0.0,
+        "invoices": [],
+    })
+
+    for inv in invoices:
+        cid = inv.customer_id or "unassigned"
+        entry = customer_aging[cid]
+        entry["crm_id"] = cid
+        if inv.customer:
+            if inv.customer.customer_type and inv.customer.customer_type != models.CustomerType.Retail:
+                entry["customer_name"] = inv.customer.company_name or ""
+                entry["customer_type"] = inv.customer.customer_type.value if hasattr(inv.customer.customer_type, 'value') else str(inv.customer.customer_type)
+            else:
+                first = inv.customer.first_name or ""
+                last = inv.customer.last_name or ""
+                entry["customer_name"] = f"{first} {last}".strip() or "Walk-in"
+                entry["customer_type"] = "Retail"
+        else:
+            entry["customer_name"] = "Walk-in"
+            entry["customer_type"] = "Retail"
+
+        balance = inv.total - (inv.paid_amount or 0)
+        if balance <= 0:
+            continue
+
+        entry["total_outstanding"] += balance
+
+        if inv.due_date and now > inv.due_date:
+            days_overdue = (now - inv.due_date).days
+            if days_overdue <= 30:
+                entry["1_30"] += balance
+            elif days_overdue <= 60:
+                entry["31_60"] += balance
+            elif days_overdue <= 90:
+                entry["61_90"] += balance
+            else:
+                entry["90_plus"] += balance
+        else:
+            entry["current"] += balance
+
+        entry["invoices"].append({
+            "invoice_number": inv.invoice_number,
+            "total": inv.total,
+            "paid": round(inv.paid_amount, 2),
+            "balance": round(balance, 2),
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "created_at": inv.created_at.isoformat() if inv.created_at else None,
+            "status": inv.status.value if hasattr(inv.status, 'value') else str(inv.status),
+        })
+
+    result = sorted(customer_aging.values(), key=lambda x: x["total_outstanding"], reverse=True)
+    totals = {
+        "current": sum(r["current"] for r in result),
+        "1_30": sum(r["1_30"] for r in result),
+        "31_60": sum(r["31_60"] for r in result),
+        "61_90": sum(r["61_90"] for r in result),
+        "90_plus": sum(r["90_plus"] for r in result),
+        "total_outstanding": sum(r["total_outstanding"] for r in result),
+    }
+
+    return {
+        "customers": result,
+        "totals": totals,
+        "customer_count": len(result),
+    }

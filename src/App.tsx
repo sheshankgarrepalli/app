@@ -28,6 +28,7 @@ import Settings from './pages/Settings';
 import ExcelImport from './pages/ExcelImport';
 import Analytics from './pages/Analytics';
 import SkuGenerator from './pages/SkuGenerator';
+import ArAging from './pages/ArAging';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -139,6 +140,7 @@ function AuthRoutes() {
 
       {/* Reports Routes */}
       <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><Analytics /></ProtectedRoute>} />
+      <Route path="/admin/ar-aging" element={<ProtectedRoute allowedRoles={['admin']}><ArAging /></ProtectedRoute>} />
 
       {/* Public Invoice Route — no auth */}
       <Route path="/invoice/:shareToken" element={<ErrorBoundary><PublicInvoice /></ErrorBoundary>} />
