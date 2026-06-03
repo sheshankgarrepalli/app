@@ -17,7 +17,7 @@ from wholesale_invoice_pdf import generate_wholesale_invoice_pdf
 router = APIRouter(prefix="/api/pos", tags=["pos"])
 
 
-def _resolve_tax_rate(db: Session, store_id: str, org_id: str, customer_tax_exempt_id: str | None = None) -> float:
+def _resolve_tax_rate(db: Session, store_id: str, org_id: str, customer_tax_exempt_id=None) -> float:
     if customer_tax_exempt_id:
         return 0.0
     store = db.query(models.StoreLocation).filter(
