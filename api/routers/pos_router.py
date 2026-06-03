@@ -1152,6 +1152,7 @@ def create_invoice_from_form(
         currency=req.currency or "USD",
         due_date=req.due_date or (datetime.utcnow() + timedelta(days=30)),
         internal_notes=req.internal_notes,
+        created_by_email=current_user.email,
         org_id=org_id
     )
     db.add(db_invoice)
@@ -2068,6 +2069,67 @@ def void_draft_invoice(
     db.commit()
 
     return {"status": "voided", "invoice_number": invoice.invoice_number, "devices_released": released}
+
+
+@router.post("/invoices/{invoice_id}/refund")
+def partial_refund(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    invoice = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+        models.Invoice.org_id == org_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    total_paid = invoice.paid_amount or 0
+    if total_paid <= 0:
+        raise HTTPException(status_code=400, detail="No payments to refund")
+
+    items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice.id
+    ).all()
+
+    released = 0
+    for item in items:
+        if item.imei:
+            device = db.query(models.DeviceInventory).filter(
+                models.DeviceInventory.imei == item.imei,
+                models.DeviceInventory.org_id == org_id
+            ).first()
+            if device:
+                device.device_status = models.DeviceStatus.Sellable
+                device.sold_to_crm_id = None
+                device.warranty_expiry_date = None
+                released += 1
+        if item.sku and not item.imei:
+            part = db.query(models.PartsInventory).filter(
+                models.PartsInventory.sku == item.sku,
+                models.PartsInventory.org_id == org_id
+            ).first()
+            if part:
+                part.current_stock_qty += item.quantity
+
+    invoice.status = models.InvoiceStatus.Refunded
+    invoice.payment_status = models.PaymentStatus.Refunded
+
+    db.add(models.AdminAuditLog(
+        org_id=org_id,
+        actor_email=current_user.email,
+        action="partial_refund",
+        target=invoice_id,
+        details=f"Refunded ${total_paid:.2f}, released {released} devices"
+    ))
+    db.commit()
+    return {
+        "status": "refunded",
+        "invoice_number": invoice.invoice_number,
+        "amount_refunded": round(total_paid, 2),
+        "devices_released": released,
+    }
 
 
 # ── PDF Download ────────────────────────────────────────────────────────────

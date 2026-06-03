@@ -281,6 +281,7 @@ class Invoice(Base):
     currency = Column(String, default="USD")
     share_token = Column(String, unique=True, index=True, nullable=True)
     internal_notes = Column(String, nullable=True)
+    created_by_email = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
     customer = relationship("UnifiedCustomer")

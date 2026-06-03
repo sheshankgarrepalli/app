@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../api/api';
 import { Loader2, AlertCircle, ArrowLeft, Copy, ExternalLink, CheckCircle2, Ban, Clock, Pencil } from 'lucide-react';
 import { fetchInvoice, fetchInvoiceTimeline, generateShareLink, voidInvoice, Invoice, InvoiceTimeline, extractError } from '../api/invoices';
 
@@ -93,6 +94,17 @@ export default function InvoiceDetail() {
     }
   };
 
+  const handleRefund = async () => {
+    if (!invoice || !confirm(`Refund entire invoice ${invoice.invoice_number}? All devices will be returned to inventory and status set to Refunded.`)) return;
+    setError(null);
+    try {
+      await api.post(`/api/pos/invoices/${invoice.invoice_number}/refund`);
+      await load();
+    } catch (err: any) {
+      setError(extractError(err));
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -112,7 +124,9 @@ export default function InvoiceDetail() {
 
   const isDraft = invoice.status === 'Draft';
   const isVoided = invoice.status === 'Voided';
+  const isRefunded = invoice.status === 'Refunded';
   const canVoid = isDraft && !isVoided;
+  const canRefund = ['Paid', 'Partially_Paid', 'Unpaid'].includes(invoice.status) && !isRefunded;
   const totalPaid = invoice.payments?.reduce((s, p) => s + p.amount, 0) || 0;
 
   return (
@@ -169,6 +183,14 @@ export default function InvoiceDetail() {
             >
               {voiding ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
               Void Draft
+            </button>
+          )}
+          {canRefund && (
+            <button
+              onClick={handleRefund}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/30 hover:bg-orange-500/20"
+            >
+              Refund
             </button>
           )}
         </div>

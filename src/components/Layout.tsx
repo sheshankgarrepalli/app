@@ -6,7 +6,7 @@ import { useLocationFilter } from '../context/LocationContext';
 import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -50,6 +50,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       label: 'Sales',
       items: [
         { id: 'invoices', label: 'Invoices', path: '/admin/invoices', icon: FileText, roles: ['admin', 'store'] },
+        { id: 'daily-close', label: 'Daily Close', path: '/admin/daily-close', icon: DollarSign, roles: ['admin'] },
         { id: 'settings', label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['admin'] },
       ]
     },
@@ -60,6 +61,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'ar-aging', label: 'AR Aging', path: '/admin/ar-aging', icon: Clock, roles: ['admin'] },
         { id: 'tax-summary', label: 'Tax Summary', path: '/admin/tax-summary', icon: Receipt, roles: ['admin'] },
         { id: 'profit-loss', label: 'Profit & Loss', path: '/admin/profit-loss', icon: TrendingUp, roles: ['admin'] },
+        { id: 'employee-sales', label: 'Employee Sales', path: '/admin/employee-sales', icon: ShoppingCart, roles: ['admin'] },
+        { id: 'low-stock', label: 'Low Stock', path: '/admin/low-stock', icon: AlertTriangle, roles: ['admin', 'warehouse'] },
       ]
     },
   ];

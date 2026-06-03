@@ -390,6 +390,121 @@ def get_customer_statement(
         })
 
     return statement
+
+
+@router.get("/daily-close")
+def daily_close(
+        date: str = Query("today"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    if date == "today":
+        target = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        target = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.created_at >= target,
+        models.Invoice.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid,
+            models.InvoiceStatus.Unpaid, models.InvoiceStatus.Overdue,
+        ])
+    ).all()
+
+    payments = db.query(models.PaymentTransaction).filter(
+        models.PaymentTransaction.timestamp >= target,
+        models.PaymentTransaction.org_id == org_id,
+    ).all()
+
+    by_payment_method = defaultdict(lambda: 0.0)
+    for p in payments:
+        by_payment_method[p.payment_method.value if hasattr(p.payment_method, 'value') else str(p.payment_method)] += p.amount
+
+    total_invoices = len(invoices)
+    total_revenue = sum(inv.total for inv in invoices)
+    total_paid = sum(inv.paid_amount for inv in invoices)
+    total_outstanding = total_revenue - total_paid
+    total_tax = sum(inv.tax_amount or 0 for inv in invoices)
+    total_discounts = sum(inv.discount_total or 0 for inv in invoices)
+
+    return {
+        "date": target.isoformat(),
+        "total_invoices": total_invoices,
+        "total_revenue": round(total_revenue, 2),
+        "total_paid": round(total_paid, 2),
+        "total_outstanding": round(total_outstanding, 2),
+        "total_tax": round(total_tax, 2),
+        "total_discounts": round(total_discounts, 2),
+        "by_payment_method": {k: round(v, 2) for k, v in by_payment_method.items()},
+    }
+
+
+@router.get("/employee-sales")
+def employee_sales(
+        date_range: str = Query("Today"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    start = _resolve_start(date_range)
+
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid,
+            models.InvoiceStatus.Unpaid, models.InvoiceStatus.Overdue,
+        ])
+    ).all()
+
+    by_employee = defaultdict(lambda: {"email": "", "invoices": 0, "sales": 0.0, "items": 0})
+    for inv in invoices:
+        email = getattr(inv, 'created_by_email', None) or "unattributed"
+        by_employee[email]["email"] = email
+        by_employee[email]["invoices"] += 1
+        by_employee[email]["sales"] += inv.total or 0
+        by_employee[email]["items"] += len(inv.items or [])
+
+    result = sorted(by_employee.values(), key=lambda x: x["sales"], reverse=True)
+    for r in result:
+        r["sales"] = round(r["sales"], 2)
+
+    return {
+        "employees": result,
+        "date_range": date_range,
+        "total_sales": round(sum(r["sales"] for r in result), 2),
+    }
+
+
+@router.get("/low-stock")
+def low_stock_alerts(
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    parts = db.query(models.PartsInventory).filter(
+        models.PartsInventory.org_id == org_id,
+        models.PartsInventory.current_stock_qty <= models.PartsInventory.low_stock_threshold,
+        models.PartsInventory.current_stock_qty > 0,
+    ).all()
+
+    out_of_stock = db.query(models.PartsInventory).filter(
+        models.PartsInventory.org_id == org_id,
+        models.PartsInventory.current_stock_qty <= 0,
+    ).all()
+
+    return {
+        "low_stock": [{
+            "sku": p.sku, "part_name": p.part_name,
+            "current_stock_qty": p.current_stock_qty,
+            "low_stock_threshold": p.low_stock_threshold,
+        } for p in parts],
+        "out_of_stock": [{"sku": p.sku, "part_name": p.part_name} for p in out_of_stock],
+        "low_stock_count": len(parts),
+        "out_of_stock_count": len(out_of_stock),
+    }
 def export_dashboard_csv(
         date_range: str = Query("This Month"),
         db: Session = Depends(get_db),

@@ -34,6 +34,9 @@ import ArAging from './pages/ArAging';
 import TaxSummary from './pages/TaxSummary';
 import ProfitLoss from './pages/ProfitLoss';
 import CustomerStatement from './pages/CustomerStatement';
+import DailyClose from './pages/DailyClose';
+import EmployeeSales from './pages/EmployeeSales';
+import LowStockAlerts from './pages/LowStockAlerts';
 
 const isDevEnv = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
@@ -174,6 +177,9 @@ function AuthRoutes() {
       <Route path="/admin/ar-aging" element={<ProtectedRoute allowedRoles={['admin']}><ArAging /></ProtectedRoute>} />
       <Route path="/admin/tax-summary" element={<ProtectedRoute allowedRoles={['admin']}><TaxSummary /></ProtectedRoute>} />
       <Route path="/admin/profit-loss" element={<ProtectedRoute allowedRoles={['admin']}><ProfitLoss /></ProtectedRoute>} />
+      <Route path="/admin/daily-close" element={<ProtectedRoute allowedRoles={['admin']}><DailyClose /></ProtectedRoute>} />
+      <Route path="/admin/employee-sales" element={<ProtectedRoute allowedRoles={['admin']}><EmployeeSales /></ProtectedRoute>} />
+      <Route path="/admin/low-stock" element={<ProtectedRoute allowedRoles={['admin']}><LowStockAlerts /></ProtectedRoute>} />
 
       {/* Public Invoice Route — no auth */}
       <Route path="/invoice/:shareToken" element={<ErrorBoundary><PublicInvoice /></ErrorBoundary>} />
