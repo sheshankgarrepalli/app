@@ -99,7 +99,6 @@ def db_sync():
         _safe_add_column(db, "invoice_items", "unit_cost", "FLOAT", "0.0")
         _safe_add_column(db, "device_inventory", "device_type", "TEXT")
         _safe_add_column(db, "invoices", "created_by_email", "TEXT")
-        _safe_add_enum_value(db, "devicetype", "Phone")
 
         # labor_rate_config: org_id
         _safe_add_column(db, "labor_rate_config", "org_id", "TEXT")

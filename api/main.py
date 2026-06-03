@@ -19,8 +19,14 @@ from routers import (
     inventory_router, models_router, transfers_router,
     track_router, pos_router, reports_router, crm_router,
     parts_router, repair_router, import_router, admin_router,
-    qc_router, consignment_router, po_router
+    qc_router, consignment_router
 )
+try:
+    from routers import po_router
+except Exception as e:
+    import sys
+    print(f"WARNING: po_router import failed: {e}", file=sys.stderr)
+    po_router = None
 from db_sync import db_sync
 
 app = FastAPI(title="Mobile Store API")
@@ -70,7 +76,8 @@ app.include_router(admin_router.router)
 app.include_router(qc_router.router)
 app.include_router(consignment_router.router)
 app.include_router(import_router.router)
-app.include_router(po_router.router)
+if po_router is not None:
+    app.include_router(po_router.router)
 
 
 @app.get("/api/health")
