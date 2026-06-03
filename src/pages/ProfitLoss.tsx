@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import api from '../api/api';
 
 interface PLResponse {
@@ -60,7 +60,10 @@ export default function ProfitLoss() {
   const isProfitable = data.net_profit >= 0;
   const fmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const rows = [
+  const rows: Array<{
+    label: string;
+    items: Array<{ label: string; value: number; bold?: boolean; accent?: boolean; isBottom?: boolean }>;
+  }> = [
     { label: 'Revenue', items: [
       { label: 'Device Sales', value: data.device_revenue },
       { label: 'Parts & Accessories', value: data.parts_revenue },

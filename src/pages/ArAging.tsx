@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Loader2, AlertCircle, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../api/api';
 
 interface AgingInvoice {
