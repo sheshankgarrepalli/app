@@ -340,7 +340,8 @@ class InvoiceItem(Base):
     batch_serial = Column(String, nullable=True)
     item_discount_amount = Column(Float, default=0.0)
     item_discount_percent = Column(Float, default=0.0)
-    unit_price = Column(Float)  # deprecated, use rate
+    unit_price = Column(Float)
+    unit_cost = Column(Float, default=0.0)
 
     invoice = relationship("Invoice", back_populates="items")
 

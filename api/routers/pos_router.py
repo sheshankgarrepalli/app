@@ -1171,6 +1171,7 @@ def create_invoice_from_form(
     warranty_expiry = datetime.utcnow() + timedelta(days=15)
 
     for item in req.items:
+        db_store_inv = None
         if item.imei:
             db_store_inv = db.query(models.DeviceInventory).filter(
                 models.DeviceInventory.imei == item.imei,
@@ -1189,6 +1190,16 @@ def create_invoice_from_form(
                 db_store_inv.warranty_expiry_date = warranty_expiry
 
         line_total = item.rate * item.qty
+        captured_cost = 0.0
+        if item.imei and db_store_inv:
+            captured_cost = db_store_inv.cost_basis or 0.0
+        elif item.sku:
+            part = db.query(models.PartsInventory).filter(
+                models.PartsInventory.sku == item.sku,
+                models.PartsInventory.org_id == org_id
+            ).first()
+            if part:
+                captured_cost = (part.moving_average_cost or 0.0) * item.qty
         db_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
             imei=item.imei or None,
@@ -1203,7 +1214,8 @@ def create_invoice_from_form(
             batch_serial=item.batch_serial,
             item_discount_amount=item.item_discount_amount,
             item_discount_percent=item.item_discount_percent,
-            unit_price=item.rate
+            unit_price=item.rate,
+            unit_cost=captured_cost
         )
         db.add(db_item)
 

@@ -702,6 +702,7 @@ class InvoiceFormItemCreate(BaseModel):
     batch_serial: Optional[str] = None
     item_discount_amount: float = 0.0
     item_discount_percent: float = 0.0
+    unit_cost: float = 0.0
 
 class InvoiceFormCreate(BaseModel):
     """Create an invoice from structured form data (not barcode scan)."""
