@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
 import { useLocationFilter } from '../context/LocationContext';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, AlertCircle, Smartphone, ChevronLeft, ChevronRight, X, MapPin, Clock, User, Hash, Package, ArrowRightLeft } from 'lucide-react';
@@ -60,7 +59,6 @@ function getStatusBadge(status: string) {
 function statusLabel(s: string) { return s.replace(/_/g, ' '); }
 
 export default function Inventory() {
-    const { token } = useAuth();
     const { selectedLocationId } = useLocationFilter();
     const [devices, setDevices] = useState<DeviceItem[]>([]);
     const [total, setTotal] = useState(0);
@@ -77,8 +75,6 @@ export default function Inventory() {
     const [historyLoading, setHistoryLoading] = useState(false);
     const limit = 50;
 
-    const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-
     const fetchInventory = useCallback(async () => {
         setLoading(true); setError(null);
         try {
@@ -89,9 +85,7 @@ export default function Inventory() {
             params.set('limit', String(limit));
             params.set('offset', String(page * limit));
 
-            const res = await axios.get(`${apiUrl}/api/inventory/?${params.toString()}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await api.get(`/api/inventory/?${params.toString()}`);
             setDevices(res.data.items || []);
             setTotal(res.data.total || 0);
             setSellableCount(res.data.sellable_count ?? 0);
@@ -99,7 +93,7 @@ export default function Inventory() {
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to load inventory');
         } finally { setLoading(false); }
-    }, [token, selectedLocationId, statusFilter, search, page]);
+    }, [selectedLocationId, statusFilter, search, page]);
 
     useEffect(() => { fetchInventory(); }, [fetchInventory]);
 
@@ -117,9 +111,8 @@ export default function Inventory() {
         setDeviceDetail(null);
         setHistoryTimeline([]);
         try {
-            const res = await axios.get(`${apiUrl}/api/track/`, {
+            const res = await api.get(`/api/track/`, {
                 params: { identifier: imei },
-                headers: { Authorization: `Bearer ${token}` },
             });
             setDeviceDetail(res.data.device);
             setHistoryTimeline(res.data.timeline || []);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/api';
 import { useLocationFilter } from '../context/LocationContext';
 import { Truck, Loader2, AlertCircle, CheckCircle2, FileText, ArrowDownCircle } from 'lucide-react';
 
@@ -48,13 +48,12 @@ export default function IncomingTransfers() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
     const locationNames = new Map(availableLocations.map(l => [l.id, l.name]));
 
     const fetchTransfers = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${apiUrl}/api/transfers/incoming`);
+            const res = await api.get(`/api/transfers/incoming`);
             setTransfers(res.data || []);
         } catch { setError('Failed to load incoming transfers'); } finally { setLoading(false); }
     };
@@ -67,7 +66,7 @@ export default function IncomingTransfers() {
         }
         setExpandedId(id); setDetailLoading(true); setError(null); setSuccess(null);
         try {
-            const res = await axios.get(`${apiUrl}/api/transfers/incoming/${id}`);
+            const res = await api.get(`/api/transfers/incoming/${id}`);
             setDetail(res.data);
         } catch { setError('Failed to load transfer detail'); } finally { setDetailLoading(false); }
     };
@@ -76,14 +75,14 @@ export default function IncomingTransfers() {
         if (!detail || !scanImei.trim()) return;
         setRouting(true); setError(null); setSuccess(null);
         try {
-            await axios.post(
-                `${apiUrl}/api/transfers/${detail.id}/receive-item`,
+            await api.post(
+                `/api/transfers/${detail.id}/receive-item`,
                 { imei: scanImei.trim() }
             );
             setSuccess(`Received ${scanImei.trim()}`);
             setScanImei('');
             // Refresh detail
-            const res = await axios.get(`${apiUrl}/api/transfers/incoming/${detail.id}`);
+            const res = await api.get(`/api/transfers/incoming/${detail.id}`);
             setDetail(res.data);
             if (res.data.received_count >= res.data.total_count) {
                 fetchTransfers();
@@ -99,8 +98,8 @@ export default function IncomingTransfers() {
         if (!window.confirm(`Receive all ${detail.total_count - detail.received_count} remaining devices? This marks the entire transfer as received.`)) return;
         setRouting(true); setError(null); setSuccess(null);
         try {
-            const res = await axios.post(
-                `${apiUrl}/api/transfers/${detail.id}/receive-all`,
+            const res = await api.post(
+                `/api/transfers/${detail.id}/receive-all`,
                 {}
             );
             setSuccess(`Received all ${res.data.received_count} devices`);
@@ -114,7 +113,7 @@ export default function IncomingTransfers() {
 
     const downloadPdf = async (id: string) => {
         try {
-            const res = await axios.get(`${apiUrl}/api/transfers/${id}/pdf`, { responseType: 'blob' });
+            const res = await api.get(`/api/transfers/${id}/pdf`, { responseType: 'blob' });
             const url = URL.createObjectURL(res.data);
             window.open(url, '_blank');
             setTimeout(() => URL.revokeObjectURL(url), 60000);

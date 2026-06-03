@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from './AuthContext';
+import api from '../api/api';
 
 interface StoreLocation {
     id: string;
@@ -24,7 +23,6 @@ const LocationContext = createContext<LocationContextType>({
 });
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-    const { token } = useAuth();
     const [selectedLocationId, setSelectedLocationIdRaw] = useState<string | null>(() => {
         return localStorage.getItem('selectedLocationId') || null;
     });
@@ -41,16 +39,13 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
-        if (!token) return;
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         setLoading(true);
-        axios.get(`${apiUrl}/api/inventory/stores`, {
-            headers: { Authorization: `Bearer ${token}` },
+        api.get(`/api/inventory/stores`, {
         })
             .then(res => setAvailableLocations(res.data || []))
             .catch(() => {})
             .finally(() => setLoading(false));
-    }, [token]);
+    }, []);
 
     return (
         <LocationContext.Provider value={{ selectedLocationId, setSelectedLocationId, availableLocations, loading }}>

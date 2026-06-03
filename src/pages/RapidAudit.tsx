@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, FormEvent } from 'react';
-import axios from 'axios';
+import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import {
@@ -53,7 +53,7 @@ export default function RapidAudit() {
     const runAudit = async () => {
         setIsProcessing(true);
         try {
-            const res = await axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/inventory/rapid-audit', {
+            const res = await api.post('/api/inventory/rapid-audit', {
                 imeis: scannedImeis
             });
             setReport(res.data);

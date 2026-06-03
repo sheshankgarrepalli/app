@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
 import { useLocationFilter } from '../context/LocationContext';
 import {
     Search, ArrowRightLeft, Smartphone, Loader2, AlertCircle, CheckCircle2,
@@ -64,7 +63,6 @@ function getStatusBadge(status: string) {
 function statusLabel(s: string) { return s.replace(/_/g, ' '); }
 
 export default function PhoneRouting() {
-    const { token } = useAuth();
     const [imei, setImei] = useState('');
     const [device, setDevice] = useState<DeviceInfo | null>(null);
     const [transitions, setTransitions] = useState<Transition[]>([]);
@@ -97,12 +95,8 @@ export default function PhoneRouting() {
         setLoading(true); setError(null); setSuccess(null); setNotes('');
         try {
             const [trackRes, transRes] = await Promise.all([
-                axios.get(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/track/?identifier=${query}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
-                axios.get(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/inventory/${query}/transitions`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
+                api.get(`/api/track/?identifier=${query}`),
+                api.get(`/api/inventory/${query}/transitions`),
             ]);
             setDevice(trackRes.data.device);
             setTransitions(transRes.data || []);
@@ -121,10 +115,9 @@ export default function PhoneRouting() {
         if ((targetStatus === 'Scrapped' || targetStatus === 'Sold') && !window.confirm(`Are you sure you want to mark device ${device.imei} as "${targetStatus}"? This cannot be undone.`)) return;
         setRouting(true); setError(null); setSuccess(null);
         try {
-            await axios.post(
-                `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/inventory/routing?imei=${device.imei}`,
-                { new_status: targetStatus, notes: notes || undefined },
-                { headers: { Authorization: `Bearer ${token}` } }
+            await api.post(
+                `/api/inventory/routing?imei=${device.imei}`,
+                { new_status: targetStatus, notes: notes || undefined }
             );
             setSuccess(`Routed ${device.imei} to ${statusLabel(targetStatus)}`);
             setDevice(null); setTransitions([]); setImei('');
@@ -138,10 +131,9 @@ export default function PhoneRouting() {
         if (!device) return;
         setRouting(true); setError(null); setSuccess(null); setShowLocationPicker(null);
         try {
-            const res = await axios.post(
-                `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/api/transfers/`,
-                { imei_list: [device.imei], destination_location_id: targetBin, transfer_type: 'Restock', notes: notes || undefined },
-                { headers: { Authorization: `Bearer ${token}` } }
+            const res = await api.post(
+                `/api/transfers/`,
+                { imei_list: [device.imei], destination_location_id: targetBin, transfer_type: 'Restock', notes: notes || undefined }
             );
             setPendingTransfer(res.data.transfer_order_id);
             setSuccess(`Transfer ${res.data.transfer_order_id} saved as draft for ${device.imei}`);
@@ -168,7 +160,6 @@ export default function PhoneRouting() {
         const imeis = parseImeis();
         if (imeis.length === 0) return;
         setBatchLoading(true); setError(null); setSuccess(null); setBatchResults(null);
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         const results = new Map<string, { device: DeviceInfo | null; transitions: Transition[]; error?: string }>();
 
         // Fetch all devices in parallel, 10 at a time to not overwhelm the server
@@ -179,8 +170,8 @@ export default function PhoneRouting() {
                 chunk.map(async (imei) => {
                     try {
                         const [trackRes, transRes] = await Promise.all([
-                            axios.get(`${apiUrl}/api/track/?identifier=${imei}`, { headers: { Authorization: `Bearer ${token}` } }),
-                            axios.get(`${apiUrl}/api/inventory/${imei}/transitions`, { headers: { Authorization: `Bearer ${token}` } }),
+                            api.get(`/api/track/?identifier=${imei}`),
+                            api.get(`/api/inventory/${imei}/transitions`),
                         ]);
                         return { imei, device: trackRes.data.device as DeviceInfo, transitions: transRes.data as Transition[] };
                     } catch (err: any) {
@@ -214,7 +205,6 @@ export default function PhoneRouting() {
     const executeBatchRoute = async (targetStatus: string, targetBin: string, notesStr: string) => {
         if (foundDevices.length === 0) return;
         setBatchRouting(true); setError(null); setSuccess(null); setBatchResults(null); setShowBatchLocationPicker(false); setBatchTargetAction(null);
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         const items = foundDevices.map(d => ({
             imei: d.device!.imei,
             new_status: targetStatus,
@@ -223,10 +213,9 @@ export default function PhoneRouting() {
         }));
 
         try {
-            const res = await axios.post(
-                `${apiUrl}/api/inventory/routing/batch`,
-                { items },
-                { headers: { Authorization: `Bearer ${token}` } }
+            const res = await api.post(
+                `/api/inventory/routing/batch`,
+                { items }
             );
             const data = res.data as { results: Array<{ imei: string; success: boolean; error?: string }>; total: number; succeeded: number; failed: number };
             setBatchResults(data.results);
@@ -255,17 +244,15 @@ export default function PhoneRouting() {
         if (foundDevices.length === 0) return;
         setBatchRouting(true); setError(null); setSuccess(null);
         setShowBatchLocationPicker(false); setBatchTargetAction(null);
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         try {
-            const res = await axios.post(
-                `${apiUrl}/api/transfers/`,
+            const res = await api.post(
+                `/api/transfers/`,
                 {
                     imei_list: foundDevices.map(d => d.device!.imei),
                     destination_location_id: targetBin,
                     transfer_type: 'Restock',
                     notes: notes || undefined,
-                },
-                { headers: { Authorization: `Bearer ${token}` } }
+                }
             );
             setPendingTransfer(res.data.transfer_order_id);
             setSuccess(`Transfer ${res.data.transfer_order_id} saved as draft with ${foundDevices.length} devices`);
@@ -275,11 +262,9 @@ export default function PhoneRouting() {
     };
 
     const downloadTransferPdf = async (id: string) => {
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         try {
-            const res = await axios.get(`${apiUrl}/api/transfers/${id}/pdf`, {
+            const res = await api.get(`/api/transfers/${id}/pdf`, {
                 responseType: 'blob',
-                headers: { Authorization: `Bearer ${token}` },
             });
             const url = URL.createObjectURL(res.data);
             window.open(url, '_blank');
@@ -291,12 +276,10 @@ export default function PhoneRouting() {
 
     const dispatchTransfer = async (id: string) => {
         setDispatching(true); setError(null);
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
         try {
-            await axios.post(
-                `${apiUrl}/api/transfers/${id}/dispatch`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
+            await api.post(
+                `/api/transfers/${id}/dispatch`,
+                {}
             );
             const count = activeTab === 'batch' ? foundDevices.length : 1;
             setSuccess(`Transfer ${id} dispatched — ${count} device(s) now In Transit`);
