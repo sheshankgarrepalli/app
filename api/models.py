@@ -30,6 +30,15 @@ class DeviceStatus(str, enum.Enum):
     Awaiting_Parts = "Awaiting_Parts"
     On_Consignment = "On_Consignment"
 
+class DeviceType(str, enum.Enum):
+    Phone = "Phone"
+    Tablet = "Tablet"
+    Laptop = "Laptop"
+    Console = "Console"
+    Watch = "Watch"
+    Accessory = "Accessory"
+    Other = "Other"
+
 class TransferType(str, enum.Enum):
     Restock = "Restock"
     Repair_Routing = "Repair_Routing"
@@ -203,6 +212,7 @@ class DeviceInventory(Base):
     received_date = Column(DateTime, default=func.now())
     warranty_expiry_date = Column(DateTime, nullable=True)
     
+    device_type = Column(Enum(DeviceType), default=DeviceType.Phone, nullable=True)
     model = relationship("PhoneModel")
     transfer_order = relationship("TransferOrder")
     customer = relationship("UnifiedCustomer")

@@ -298,6 +298,7 @@ class DeviceInventoryOut(BaseModel):
     assigned_technician_id: Optional[str]
     cost_basis: float
     received_date: datetime
+    device_type: Optional[str] = None
     model: Optional[PhoneModelOut]
     store_name: Optional[str] = None
     location_type: Optional[str] = None
