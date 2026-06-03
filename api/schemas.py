@@ -949,3 +949,55 @@ class SkuCreateRequest(BaseModel):
     brand: Optional[str] = None
     price: Optional[float] = None
     custom_sku: Optional[str] = None
+
+
+class POItemCreate(BaseModel):
+    sku: Optional[str] = None
+    description: str
+    quantity_ordered: int = 1
+    unit_cost: float = 0.0
+
+
+class POItemOut(POItemCreate):
+    id: int
+    po_id: str
+    quantity_received: int = 0
+    total_cost: float = 0.0
+    class Config: from_attributes = True
+
+
+class PurchaseOrderCreate(BaseModel):
+    supplier_id: int
+    store_id: Optional[str] = None
+    items: List[POItemCreate]
+    expected_date: Optional[datetime] = None
+    shipping_cost: float = 0.0
+    tax_cost: float = 0.0
+    notes: Optional[str] = None
+
+
+class PurchaseOrderOut(BaseModel):
+    id: str
+    po_number: str
+    supplier_id: int
+    store_id: Optional[str] = None
+    status: str
+    expected_date: Optional[datetime] = None
+    received_date: Optional[datetime] = None
+    total_cost: float = 0.0
+    shipping_cost: float = 0.0
+    tax_cost: float = 0.0
+    notes: Optional[str] = None
+    created_by_email: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    supplier_name: Optional[str] = None
+    items: List[POItemOut] = []
+    received_count: int = 0
+    total_count: int = 0
+    class Config: from_attributes = True
+
+
+class POReceiveItem(BaseModel):
+    item_id: int
+    qty: int

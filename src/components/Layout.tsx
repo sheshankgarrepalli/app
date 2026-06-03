@@ -6,7 +6,7 @@ import { useLocationFilter } from '../context/LocationContext';
 import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -35,6 +35,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'import', label: 'Import Inventory', path: '/admin/import-inventory', icon: Upload, roles: ['admin', 'warehouse', 'store'] },
         { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store'] },
         { id: 'sku', label: 'SKU Generator', path: '/admin/sku-generator', icon: QrCode, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'po', label: 'Purchase Orders', path: '/admin/purchase-orders', icon: Package, roles: ['admin'] },
       ]
     },
     {

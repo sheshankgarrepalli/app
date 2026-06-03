@@ -532,3 +532,48 @@ class ConsignmentItem(Base):
     batch = relationship("ConsignmentBatch", back_populates="items")
     device = relationship("DeviceInventory")
     resulting_invoice = relationship("Invoice")
+
+
+class POStatus(str, enum.Enum):
+    Draft = "Draft"
+    Ordered = "Ordered"
+    Partially_Received = "Partially_Received"
+    Received = "Received"
+    Cancelled = "Cancelled"
+
+
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+    id = Column(String, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    po_number = Column(String, unique=True, index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+    store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
+    status = Column(Enum(POStatus), default=POStatus.Draft)
+    expected_date = Column(DateTime, nullable=True)
+    received_date = Column(DateTime, nullable=True)
+    total_cost = Column(Float, default=0.0)
+    shipping_cost = Column(Float, default=0.0)
+    tax_cost = Column(Float, default=0.0)
+    notes = Column(String, nullable=True)
+    created_by_email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    supplier = relationship("Supplier")
+    items = relationship("POItem", back_populates="purchase_order")
+
+
+class POItem(Base):
+    __tablename__ = "po_items"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    po_id = Column(String, ForeignKey("purchase_orders.id"), nullable=False)
+    sku = Column(String, nullable=True)
+    description = Column(String, nullable=False)
+    quantity_ordered = Column(Integer, default=1)
+    quantity_received = Column(Integer, default=0)
+    unit_cost = Column(Float, default=0.0)
+    total_cost = Column(Float, default=0.0)
+
+    purchase_order = relationship("PurchaseOrder", back_populates="items")

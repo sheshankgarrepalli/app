@@ -88,6 +88,8 @@ def db_sync():
 
         # part_intakes: org_id
         _safe_add_column(db, "part_intakes", "org_id", "TEXT")
+        _safe_add_column(db, "purchase_orders", "org_id", "TEXT")
+        _safe_add_column(db, "po_items", "org_id", "TEXT")
 
         # labor_rate_config: org_id
         _safe_add_column(db, "labor_rate_config", "org_id", "TEXT")
