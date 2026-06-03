@@ -41,3 +41,4 @@ build/
 .gstack/
 .env.skyvern
 .env*
+test-login.mjs
