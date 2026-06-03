@@ -163,7 +163,74 @@ def get_dashboard(
         raise HTTPException(status_code=500, detail=tb[-500:])
 
 
-@router.get("/dashboard/export")
+@router.get("/tax-summary")
+def get_tax_summary(
+        date_range: str = Query("This Month"),
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.require_role(["admin"]))
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    start = _resolve_start(date_range)
+
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.created_at >= start,
+        models.Invoice.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Paid,
+            models.InvoiceStatus.Partially_Paid,
+            models.InvoiceStatus.Unpaid,
+            models.InvoiceStatus.Overdue,
+        ]),
+    ).all()
+
+    by_store = defaultdict(lambda: {
+        "store_name": "",
+        "total_sales": 0.0,
+        "taxable_sales": 0.0,
+        "exempt_sales": 0.0,
+        "tax_collected": 0.0,
+        "tax_rate": 0.0,
+        "invoice_count": 0,
+    })
+
+    for inv in invoices:
+        sid = inv.store_id or "unknown"
+        entry = by_store[sid]
+        entry["store_name"] = inv.store_id or "Unknown"
+        entry["total_sales"] += inv.subtotal or 0
+        if inv.tax_amount and inv.tax_amount > 0:
+            entry["taxable_sales"] += inv.subtotal or 0
+            entry["tax_collected"] += inv.tax_amount or 0
+            entry["tax_rate"] = inv.tax_percent or 0
+        else:
+            entry["exempt_sales"] += inv.subtotal or 0
+        entry["invoice_count"] += 1
+
+    store_list = []
+    for sid, e in by_store.items():
+        store = db.query(models.StoreLocation).filter(
+            models.StoreLocation.id == sid, models.StoreLocation.org_id == org_id
+        ).first()
+        e["store_name"] = store.name if store else sid
+        e["total_sales"] = round(e["total_sales"], 2)
+        e["taxable_sales"] = round(e["taxable_sales"], 2)
+        e["exempt_sales"] = round(e["exempt_sales"], 2)
+        e["tax_collected"] = round(e["tax_collected"], 2)
+        store_list.append(dict(e))
+
+    totals = {
+        "total_sales": round(sum(e["total_sales"] for e in store_list), 2),
+        "taxable_sales": round(sum(e["taxable_sales"] for e in store_list), 2),
+        "exempt_sales": round(sum(e["exempt_sales"] for e in store_list), 2),
+        "tax_collected": round(sum(e["tax_collected"] for e in store_list), 2),
+        "total_invoices": sum(e["invoice_count"] for e in store_list),
+    }
+
+    return {
+        "stores": store_list,
+        "totals": totals,
+        "date_range": date_range,
+    }
 def export_dashboard_csv(
         date_range: str = Query("This Month"),
         db: Session = Depends(get_db),

@@ -127,7 +127,8 @@ def db_sync():
         _safe_add_column(db, "invoice_items", "item_discount_amount", "FLOAT", "0.0")
         _safe_add_column(db, "invoice_items", "item_discount_percent", "FLOAT", "0.0")
         _safe_add_column(db, "store_locations", "invoice_prefix", "TEXT")
-        _safe_add_column(db, "manifest_items", "org_id", "TEXT")
+        _safe_add_column(db, "store_locations", "tax_rate", "FLOAT", "8.25")
+        _safe_add_column(db, "store_locations", "manifest_items", "org_id", "TEXT")
 
         # ── Ensure PostgreSQL enum types have all values ──
         _safe_add_enum_value(db, "devicestatus", "Pending_Acknowledgment")

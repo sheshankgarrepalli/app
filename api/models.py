@@ -65,6 +65,7 @@ class StoreLocation(Base):
     address = Column(String, nullable=True)
     location_type = Column(Enum(LocationType), nullable=False, default=LocationType.retail)
     invoice_prefix = Column(String, nullable=True)  # e.g., "WH", "GP", "FL", "FS" for invoice numbering
+    tax_rate = Column(Float, default=8.25)  # Texas base rate, override per store
 
 class OrganizationSettings(Base):
     __tablename__ = "organization_settings"

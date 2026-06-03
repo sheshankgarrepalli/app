@@ -313,14 +313,6 @@ class TransferDispatchRequest(BaseModel):
     courier_name: Optional[str] = None
     origin: Optional[str] = "warehouse" # Default or can be dynamic from context
 
-class StoreLocationOut(BaseModel):
-    id: str
-    name: str
-    location_type: str
-    address: Optional[str] = None
-    invoice_prefix: Optional[str] = None
-    class Config: from_attributes = True
-
 class InventoryListResponse(BaseModel):
     items: List[DeviceInventoryOut]
     total: int
@@ -608,6 +600,9 @@ class StoreLocationBase(BaseModel):
 class StoreLocationCreate(StoreLocationBase): pass
 
 class StoreLocationOut(StoreLocationBase):
+    location_type: Optional[str] = None
+    invoice_prefix: Optional[str] = None
+    tax_rate: Optional[float] = None
     class Config: from_attributes = True
 
 class DeviceUpdateRequest(BaseModel):

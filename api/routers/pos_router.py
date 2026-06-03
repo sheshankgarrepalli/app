@@ -16,6 +16,22 @@ from wholesale_invoice_pdf import generate_wholesale_invoice_pdf
 
 router = APIRouter(prefix="/api/pos", tags=["pos"])
 
+
+def _resolve_tax_rate(db: Session, store_id: str, org_id: str, customer_tax_exempt_id: str | None = None) -> float:
+    if customer_tax_exempt_id:
+        return 0.0
+    store = db.query(models.StoreLocation).filter(
+        models.StoreLocation.id == store_id,
+        models.StoreLocation.org_id == org_id
+    ).first()
+    if store and store.tax_rate is not None:
+        return store.tax_rate
+    org = db.query(models.OrganizationSettings).filter(
+        models.OrganizationSettings.org_id == org_id
+    ).first()
+    return org.default_tax_rate if org else 8.25
+
+
 def _generate_invoice_number(db: Session, store_id: str, org_id: str) -> str:
     """Generate {STORE_PREFIX}-{YYMM}-{NNNN} invoice number, per-store monthly sequence."""
     now = datetime.utcnow()
@@ -108,6 +124,8 @@ def retail_checkout(
     final_tax_percent = req.tax_percent
     if customer_db_obj and customer_db_obj.tax_exempt_id:
         final_tax_percent = 0.0
+    else:
+        final_tax_percent = _resolve_tax_rate(db, current_user.store_id, org_id, customer_db_obj.tax_exempt_id if customer_db_obj else None)
 
     tax_amount = subtotal * (final_tax_percent / 100)
     total = subtotal + tax_amount
@@ -581,7 +599,7 @@ def update_invoice(
 
     # Update Invoice Totals
     customer = db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.crm_id == invoice.customer_id).first()
-    tax_percent = 0.0 if customer and customer.tax_exempt_id else 8.5
+    tax_percent = _resolve_tax_rate(db, invoice.store_id or current_user.store_id, org_id, customer.tax_exempt_id if customer else None)
     tax_amount = subtotal * (tax_percent / 100)
     new_total = subtotal + tax_amount
 
@@ -1076,6 +1094,8 @@ def create_invoice_from_form(
     final_tax_percent = req.tax_percent
     if customer_db_obj and customer_db_obj.tax_exempt_id:
         final_tax_percent = 0.0
+    else:
+        final_tax_percent = _resolve_tax_rate(db, current_user.store_id, org_id, customer_db_obj.tax_exempt_id if customer_db_obj else None)
 
     discount_total = req.discount_total or 0.0
     if req.discount_percent and req.discount_percent > 0:
