@@ -481,7 +481,7 @@ def employee_sales(
 @router.get("/low-stock")
 def low_stock_alerts(
         db: Session = Depends(get_db),
-        current_user: models.User = Depends(get_current_user)
+        current_user: models.User = Depends(auth.require_role(["admin", "warehouse"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
     parts = db.query(models.PartsInventory).filter(
