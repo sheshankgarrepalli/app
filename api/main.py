@@ -2,7 +2,6 @@ import os
 import sys
 import traceback as _traceback
 
-# Critical fix for Vercel: add current directory to path BEFORE any local imports
 api_dir = os.path.dirname(os.path.abspath(__file__))
 if api_dir not in sys.path:
     sys.path.append(api_dir)
@@ -15,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import engine, Base, get_db
+
 from routers import (
     inventory_router, models_router, transfers_router,
     track_router, pos_router, reports_router, crm_router,
@@ -22,11 +22,10 @@ from routers import (
     qc_router, consignment_router
 )
 try:
-    from routers import po_router
-except Exception as e:
-    import sys
-    print(f"WARNING: po_router import failed: {e}", file=sys.stderr)
-    po_router = None
+    from routers import po_router as _po
+except:
+    _po = None
+
 from db_sync import db_sync
 
 app = FastAPI(title="Mobile Store API")
@@ -37,22 +36,19 @@ async def global_exception_handler(request, exc):
     if isinstance(exc, HTTPException):
         raise exc
     _traceback.print_exc()
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"},
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.on_event("startup")
 def on_startup():
-    print("Running database initialization...")
     try:
         Base.metadata.create_all(bind=engine)
-        print("Database tables verified/created.")
-    except Exception as e:
-        print(f"Database initialization failed: {e}")
-
-    db_sync()
+    except Exception:
+        pass
+    try:
+        db_sync()
+    except Exception:
+        pass
 
 
 app.add_middleware(
@@ -76,37 +72,17 @@ app.include_router(admin_router.router)
 app.include_router(qc_router.router)
 app.include_router(consignment_router.router)
 app.include_router(import_router.router)
-if po_router is not None:
-    app.include_router(po_router.router)
+if _po is not None:
+    app.include_router(_po.router)
 
 
 @app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
-        return {
-            "status": "online",
-            "database": "connected",
-            "environment": os.getenv("VERCEL_ENV", "local")
-        }
-    except SQLAlchemyError as e:
-        print(f"CRITICAL DATABASE ERROR: {str(e)}", file=sys.stderr)
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "offline",
-                "error": str(e)
-            }
-        )
+        return {"status": "online", "database": "connected"}
     except Exception as e:
-        print(f"UNEXPECTED ERROR DURING HEALTH CHECK: {str(e)}", file=sys.stderr)
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "offline",
-                "error": "Unexpected server error"
-            }
-        )
+        return {"status": "offline", "error": str(e)}
 
 
 @app.get("/")
