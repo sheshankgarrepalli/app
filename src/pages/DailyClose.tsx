@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle, DollarSign, FileText, Printer } from 'lucide-react';
 import api from '../api/api';
+import MetricCard from '../components/MetricCard';
 
 interface DailyClose {
   date: string;
@@ -51,21 +52,16 @@ export default function DailyClose() {
       </div>
 
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-        {[
-          { label: 'Total Revenue', value: data.total_revenue, accent: true },
-          { label: 'Total Paid', value: data.total_paid, color: 'var(--success)' },
-          { label: 'Outstanding', value: data.total_outstanding, color: data.total_outstanding > 0 ? 'var(--destructive)' : 'var(--success)' },
-          { label: 'Tax Collected', value: data.total_tax },
-          { label: 'Discounts Given', value: data.total_discounts },
-          { label: 'Invoices', value: data.total_invoices, isNumber: true },
-        ].map(kpi => (
-          <div key={kpi.label} className={`kpi-card ${kpi.accent ? 'border-l-4' : ''}`} style={kpi.accent ? { borderLeftColor: 'var(--accent)' } : undefined}>
-            <div className="kpi-label">{kpi.label}</div>
-            <div className="kpi-value" style={kpi.color ? { color: kpi.color } : undefined}>
-              {kpi.isNumber ? kpi.value.toLocaleString() : fmt(kpi.value)}
-            </div>
-          </div>
-        ))}
+        <MetricCard label="Total Revenue" value={fmt(data.total_revenue)} accent="accent" emphasis />
+        <MetricCard label="Total Paid" value={fmt(data.total_paid)} accent="success" />
+        <MetricCard
+          label="Outstanding"
+          value={fmt(data.total_outstanding)}
+          accent={data.total_outstanding > 0 ? 'destructive' : 'success'}
+        />
+        <MetricCard label="Tax Collected" value={fmt(data.total_tax)} />
+        <MetricCard label="Discounts Given" value={fmt(data.total_discounts)} />
+        <MetricCard label="Invoices" value={data.total_invoices.toLocaleString()} />
       </div>
 
       <div className="card max-w-lg">

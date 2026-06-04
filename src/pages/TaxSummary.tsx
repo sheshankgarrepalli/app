@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, AlertCircle, Download } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import api from '../api/api';
+import MetricCard from '../components/MetricCard';
+import DateRangeSelector from '../components/DateRangeSelector';
 
 interface StoreTaxData {
   store_name: string;
@@ -24,13 +26,7 @@ interface TaxSummaryResponse {
   date_range: string;
 }
 
-const DATE_PRESETS = [
-  { value: 'This Month', label: 'This Month' },
-  { value: 'Today', label: 'Today' },
-  { value: 'This Week', label: 'This Week' },
-  { value: '3 Months', label: 'Last 3 Months' },
-  { value: '6 Months', label: 'Last 6 Months' },
-];
+const TAX_PRESETS = ['This Month', 'Today', 'This Week', '3 Months', '6 Months'] as const;
 
 const formatCurrency = (n: number) => `$${n.toFixed(2)}`;
 
@@ -98,40 +94,20 @@ export default function TaxSummary() {
           <h1 className="text-xl font-bold text-[var(--text)]">Tax Summary</h1>
           <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Sales tax collected by store — filing-ready</p>
         </div>
-        <button onClick={exportCsv} className="btn-secondary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium">
-          <Download size={16} />
-          Export CSV
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {DATE_PRESETS.map(p => (
-          <button
-            key={p.value}
-            onClick={() => setDateRange(p.value)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateRange === p.value ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text)]'}`}
-          >
-            {p.label}
-          </button>
-        ))}
+        <DateRangeSelector value={dateRange} onChange={setDateRange} onExport={exportCsv} presets={TAX_PRESETS} />
       </div>
 
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-        {[
-          { label: 'Total Sales', value: data.totals.total_sales },
-          { label: 'Taxable Sales', value: data.totals.taxable_sales },
-          { label: 'Exempt Sales', value: data.totals.exempt_sales },
-          { label: 'Tax Collected', value: data.totals.tax_collected, emphasis: true },
-          { label: 'Invoices', value: data.totals.total_invoices, isNumber: true },
-        ].map(kpi => (
-          <div key={kpi.label} className={`kpi-card ${kpi.emphasis ? 'border-l-4' : ''}`}
-            style={kpi.emphasis ? { borderLeftColor: 'var(--accent)' } : undefined}>
-            <div className="kpi-label">{kpi.label}</div>
-            <div className="kpi-value" style={kpi.emphasis ? { color: 'var(--accent)' } : undefined}>
-              {kpi.isNumber ? kpi.value.toLocaleString() : formatCurrency(kpi.value)}
-            </div>
-          </div>
-        ))}
+        <MetricCard label="Total Sales" value={formatCurrency(data.totals.total_sales)} />
+        <MetricCard label="Taxable Sales" value={formatCurrency(data.totals.taxable_sales)} />
+        <MetricCard label="Exempt Sales" value={formatCurrency(data.totals.exempt_sales)} />
+        <MetricCard
+          label="Tax Collected"
+          value={formatCurrency(data.totals.tax_collected)}
+          accent="accent"
+          emphasis
+        />
+        <MetricCard label="Invoices" value={data.totals.total_invoices.toLocaleString()} />
       </div>
 
       {data.stores.length === 0 ? (

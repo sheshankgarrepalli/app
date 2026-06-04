@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -6,13 +6,32 @@ import { useLocationFilter } from '../context/LocationContext';
 import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { theme, toggle } = useTheme();
   const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchQuery('');
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  useEffect(() => { setSearchQuery(''); }, [location.pathname]);
   const { organization, isLoaded } = useOrganization();
   const { selectedLocationId, setSelectedLocationId, availableLocations } = useLocationFilter();
 
@@ -113,16 +132,50 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
 
+        {/* Search */}
+        <div className="px-3 py-2 border-b border-[var(--border)]">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search pages..."
+              className="w-full pl-8 pr-12 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-md outline-none focus:border-[var(--accent)] transition-colors text-[var(--text)] placeholder:text-[var(--text-tertiary)]"
+            />
+            <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono px-1.5 py-0.5 bg-[var(--bg-muted)] text-[var(--text-tertiary)] rounded border border-[var(--border)] pointer-events-none">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
+
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto sidebar-scroll flex flex-col gap-[18px]">
-          {menuSections.map(section => (
-            <div key={section.label}>
-              <div className="px-[10px] pb-1 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.12em]">
-                {section.label}
-              </div>
-              {section.items
-                .filter(item => item.roles.includes(user?.role || ''))
-                .map(item => (
+          {(() => {
+            const filtered = menuSections.map(section => ({
+              ...section,
+              items: section.items.filter(item => {
+                if (!item.roles.includes(user?.role || '')) return false;
+                if (!searchQuery.trim()) return true;
+                return item.label.toLowerCase().includes(searchQuery.toLowerCase());
+              }),
+            })).filter(section => section.items.length > 0);
+
+            if (filtered.length === 0 && searchQuery.trim()) {
+              return (
+                <div className="px-3 py-8 text-center text-xs text-[var(--text-tertiary)]">
+                  No pages match "{searchQuery}"
+                </div>
+              );
+            }
+
+            return filtered.map(section => (
+              <div key={section.label}>
+                <div className="px-[10px] pb-1 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.12em]">
+                  {section.label}
+                </div>
+                {section.items.map(item => (
                   <Link
                     key={item.id}
                     to={item.path}
@@ -132,21 +185,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <span className="flex-1">{item.label}</span>
                   </Link>
                 ))}
-            </div>
-          ))}
+              </div>
+            ));
+          })()}
         </nav>
 
         {/* Footer */}
         <div className="border-t border-[var(--border)] p-[14px] flex flex-col gap-[10px]">
-          <button
-            onClick={toggle}
-            className="w-full flex items-center gap-2 py-2 px-3 border border-[var(--border)] rounded-md bg-[var(--bg)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors text-xs font-semibold"
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-          </button>
-
           <OrganizationSwitcher
             hidePersonal={true}
             appearance={{
@@ -215,6 +260,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Notification Bell */}
           <button className="topbar-btn" title="Notifications">
             <Bell size={18} />
+          </button>
+
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggle}
+            className="topbar-btn"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </header>
 

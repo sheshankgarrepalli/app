@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle, Save, PaintBucket, Mail, DollarSign } from 'lucide-react';
 import api from '../api/api';
+import { useToast } from '../components/Toast';
 
 interface OrgSettings {
   org_id: string;
@@ -46,6 +47,7 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [tab, setTab] = useState('branding');
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,9 +90,12 @@ export default function Settings() {
       setSettings(data);
       setInitialSettings({ ...data });
       setSuccess('Settings saved');
+      toast.success('Settings saved');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save settings');
+      const msg = err.response?.data?.detail || 'Failed to save settings';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

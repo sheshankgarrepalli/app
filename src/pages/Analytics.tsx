@@ -93,9 +93,11 @@ export default function Analytics() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'overview' && <OverviewTab data={snapshot} timeSeries={timeSeries} loading={loading} />}
-      {activeTab === 'sales' && <SalesTab data={snapshot} timeSeries={timeSeries} loading={loading} />}
-      {activeTab === 'inventory' && <InventoryTab data={snapshot} timeSeries={timeSeries} loading={loading} />}
+      <div key={activeTab} className="tab-content">
+        {activeTab === 'overview' && <OverviewTab data={snapshot} timeSeries={timeSeries} loading={loading} />}
+        {activeTab === 'sales' && <SalesTab data={snapshot} timeSeries={timeSeries} loading={loading} />}
+        {activeTab === 'inventory' && <InventoryTab data={snapshot} timeSeries={timeSeries} loading={loading} />}
+      </div>
     </div>
   );
 }

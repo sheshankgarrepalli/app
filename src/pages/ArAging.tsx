@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../api/api';
+import MetricCard from '../components/MetricCard';
 
 interface AgingInvoice {
   invoice_number: string;
@@ -147,22 +148,12 @@ export default function ArAging() {
 
       {/* Summary KPIs */}
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-        {[
-          { label: 'Total Outstanding', value: data.totals.total_outstanding, color: 'var(--text)', emphasis: true },
-          { label: 'Current', value: data.totals.current, color: 'var(--success)' },
-          { label: '1-30 Days', value: data.totals['1_30'], color: 'var(--warning)' },
-          { label: '31-60 Days', value: data.totals['31_60'], color: '#f59e0b' },
-          { label: '61-90 Days', value: data.totals['61_90'], color: '#ea580c' },
-          { label: '90+ Days', value: data.totals['90_plus'], color: 'var(--destructive)' },
-        ].map(kpi => (
-          <div key={kpi.label} className={`kpi-card ${kpi.emphasis ? 'border-l-4' : ''}`}
-            style={kpi.emphasis ? { borderLeftColor: 'var(--accent)' } : undefined}>
-            <div className="kpi-label">{kpi.label}</div>
-            <div className="kpi-value" style={{ color: kpi.color }}>
-              {formatCurrency(kpi.value)}
-            </div>
-          </div>
-        ))}
+        <MetricCard label="Total Outstanding" value={formatCurrency(data.totals.total_outstanding)} accent="accent" emphasis />
+        <MetricCard label="Current" value={formatCurrency(data.totals.current)} accent="success" />
+        <MetricCard label="1-30 Days" value={formatCurrency(data.totals['1_30'])} accent="warning" />
+        <MetricCard label="31-60 Days" value={formatCurrency(data.totals['31_60'])} accent="orange" />
+        <MetricCard label="61-90 Days" value={formatCurrency(data.totals['61_90'])} accent="orange" />
+        <MetricCard label="90+ Days" value={formatCurrency(data.totals['90_plus'])} accent="destructive" />
       </div>
 
       {/* Search */}

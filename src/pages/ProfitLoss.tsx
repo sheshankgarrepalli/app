@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import api from '../api/api';
+import MetricCard from '../components/MetricCard';
+import DateRangeSelector from '../components/DateRangeSelector';
 
 interface PLResponse {
   revenue: number;
@@ -16,15 +18,6 @@ interface PLResponse {
   net_profit: number;
   date_range: string;
 }
-
-const DATE_PRESETS = [
-  { value: 'This Month', label: 'This Month' },
-  { value: 'Today', label: 'Today' },
-  { value: 'This Week', label: 'This Week' },
-  { value: '3 Months', label: 'Last 3 Months' },
-  { value: '6 Months', label: 'Last 6 Months' },
-  { value: 'All Time', label: 'All Time' },
-];
 
 export default function ProfitLoss() {
   const [data, setData] = useState<PLResponse | null>(null);
@@ -95,39 +88,22 @@ export default function ProfitLoss() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        {DATE_PRESETS.map(p => (
-          <button
-            key={p.value}
-            onClick={() => setDateRange(p.value)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateRange === p.value ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text)]'}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <DateRangeSelector value={dateRange} onChange={setDateRange} />
 
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="kpi-card">
-          <div className="kpi-label">Total Revenue</div>
-          <div className="kpi-value" style={{ color: 'var(--accent)' }}>{fmt(data.revenue)}</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Gross Profit</div>
-          <div className="kpi-value" style={{ color: data.gross_profit >= 0 ? 'var(--success)' : 'var(--destructive)' }}>
-            {fmt(data.gross_profit)}
-          </div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Gross Margin</div>
-          <div className="kpi-value">{data.gross_margin_pct}%</div>
-        </div>
-        <div className={`kpi-card border-l-4 ${isProfitable ? '' : ''}`} style={{ borderLeftColor: isProfitable ? 'var(--success)' : 'var(--destructive)' }}>
-          <div className="kpi-label">Net Profit</div>
-          <div className="kpi-value" style={{ color: isProfitable ? 'var(--success)' : 'var(--destructive)' }}>
-            {fmt(data.net_profit)}
-          </div>
-        </div>
+        <MetricCard label="Total Revenue" value={fmt(data.revenue)} accent="accent" />
+        <MetricCard
+          label="Gross Profit"
+          value={fmt(data.gross_profit)}
+          accent={data.gross_profit >= 0 ? 'success' : 'destructive'}
+        />
+        <MetricCard label="Gross Margin" value={`${data.gross_margin_pct}%`} />
+        <MetricCard
+          label="Net Profit"
+          value={fmt(data.net_profit)}
+          accent={isProfitable ? 'success' : 'destructive'}
+          emphasis
+        />
       </div>
 
       <div className="card max-w-2xl">

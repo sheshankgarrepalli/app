@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, AlertCircle, AlertTriangle, Package } from 'lucide-react';
 import api from '../api/api';
+import MetricCard from '../components/MetricCard';
 
 interface LowStockItem {
   sku: string;
@@ -60,16 +61,10 @@ export default function LowStockAlerts() {
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           {data.out_of_stock_count > 0 && (
-            <div className="kpi-card border-l-4" style={{ borderLeftColor: 'var(--destructive)' }}>
-              <div className="kpi-label">Out of Stock</div>
-              <div className="kpi-value" style={{ color: 'var(--destructive)' }}>{data.out_of_stock_count}</div>
-            </div>
+            <MetricCard label="Out of Stock" value={data.out_of_stock_count} accent="destructive" emphasis />
           )}
           {data.low_stock_count > 0 && (
-            <div className="kpi-card border-l-4" style={{ borderLeftColor: 'var(--warning)' }}>
-              <div className="kpi-label">Low Stock</div>
-              <div className="kpi-value" style={{ color: 'var(--warning)' }}>{data.low_stock_count}</div>
-            </div>
+            <MetricCard label="Low Stock" value={data.low_stock_count} accent="warning" emphasis />
           )}
         </div>
       )}

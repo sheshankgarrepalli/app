@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import api from '../api/api';
+import MetricCard from '../components/MetricCard';
+import DateRangeSelector from '../components/DateRangeSelector';
 
 interface EmployeeSales {
   email: string;
@@ -15,12 +17,7 @@ interface SalesResponse {
   total_sales: number;
 }
 
-const DATE_PRESETS = [
-  { value: 'Today', label: 'Today' },
-  { value: 'This Week', label: 'This Week' },
-  { value: 'This Month', label: 'This Month' },
-  { value: '3 Months', label: 'Last 3 Months' },
-];
+const EMPLOYEE_PRESETS = ['Today', 'This Week', 'This Month', '3 Months'] as const;
 
 export default function EmployeeSales() {
   const [data, setData] = useState<SalesResponse | null>(null);
@@ -56,19 +53,9 @@ export default function EmployeeSales() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        {DATE_PRESETS.map(p => (
-          <button key={p.value} onClick={() => setDateRange(p.value)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateRange === p.value ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text)]'}`}>
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <DateRangeSelector value={dateRange} onChange={setDateRange} presets={EMPLOYEE_PRESETS} />
 
-      <div className="kpi-card inline-block" style={{ borderLeft: '4px solid var(--accent)' }}>
-        <div className="kpi-label">Total Sales</div>
-        <div className="kpi-value" style={{ color: 'var(--accent)' }}>{fmt(data.total_sales)}</div>
-      </div>
+      <MetricCard label="Total Sales" value={fmt(data.total_sales)} accent="accent" emphasis />
 
       {data.employees.length === 0 ? (
         <div className="text-center py-10 text-[var(--text-tertiary)] text-sm">No sales data for {dateRange.toLowerCase()}</div>

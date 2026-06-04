@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Plus, Printer, X, Loader2, AlertCircle, QrCode, Package, Check } from 'lucide-react';
 import api from '../api/api';
+import { useToast } from '../components/Toast';
 
 interface SkuRow {
   sku: string;
@@ -34,6 +35,7 @@ export default function SkuGenerator() {
   const [submitting, setSubmitting] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generatedSku, setGeneratedSku] = useState<{ sku: string; name: string } | null>(null);
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,8 +86,11 @@ export default function SkuGenerator() {
       setGeneratedSku({ sku: data.sku, name: data.part_name });
       resetForm();
       setShowModal(false);
+      toast.success(`Created SKU ${data.sku}`);
     } catch (err: any) {
-      setGenerateError(err.response?.data?.detail || 'Failed to create SKU');
+      const msg = err.response?.data?.detail || 'Failed to create SKU';
+      setGenerateError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

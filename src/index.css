@@ -144,6 +144,21 @@
     font-family: var(--font-heading);
   }
 
+.kpi-sublabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+@keyframes tab-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tab-content {
+  animation: tab-fade-in 180ms ease-out;
+}
+
   .kpi-change {
     @apply text-xs text-[var(--success)];
   }
@@ -162,7 +177,7 @@
   .badge-error, .badge-scrapped { @apply bg-[#FEE2E2] text-[var(--destructive)]; }
   .badge-info, .badge-sold { @apply bg-[#DBEAFE] text-[var(--info)]; }
   .badge-purple, .badge-awaiting-parts { @apply bg-[#EDE9FE] text-[var(--purple)]; }
-  .badge-teal, .badge-in-transit { @apply bg-[#EDE9FE] text-[var(--purple)]; }
+  .badge-teal, .badge-in-transit { @apply bg-[#CCFBF1] text-[#0F766E]; }
   .badge-orange, .badge-layaway { @apply bg-[#FFF7ED] text-[var(--orange)]; }
   .badge-neutral { @apply bg-[var(--bg-muted)] text-[var(--text-secondary)]; }
 
@@ -174,8 +189,12 @@
   }
 
   .sidebar-link.active {
-    @apply text-[var(--primary)] bg-[var(--bg-muted)];
+    @apply text-[var(--accent)] font-bold;
+    background-color: color-mix(in srgb, var(--accent) 8%, transparent);
     border-left-color: var(--accent);
+  }
+  .sidebar-link.active:hover {
+    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
   }
 
   /* Top bar */

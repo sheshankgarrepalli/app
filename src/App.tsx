@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { LocationProvider } from './context/LocationContext';
 import { AxiosInterceptor } from './api/AxiosInterceptor';
+import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -103,7 +104,9 @@ function App() {
         <AuthProvider>
           <LocationProvider>
             <AxiosInterceptor>
-              <AuthRoutes />
+              <ToastProvider>
+                <AuthRoutes />
+              </ToastProvider>
             </AxiosInterceptor>
           </LocationProvider>
         </AuthProvider>
