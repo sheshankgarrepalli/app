@@ -35,58 +35,85 @@ def on_startup():
     except Exception as e: sys.stderr.write(f"seed_admin: {e}\n")
 
 def seed_initial_admin():
-    """Ensure at least one admin user exists with a password set. If none, create admin@amafahelectronics.com with a random password printed to logs."""
+    """Ensure one canonical admin (admin@amafahelectronics.com) exists with a known password.
+    Migrates legacy Clerk-ID users and removes duplicates."""
     from database import SessionLocal
     db = SessionLocal()
     try:
-        existing = db.query(models.User).filter(models.User.role == models.RoleEnum.admin).first()
-        if existing and existing.password_hash:
-            admin_email = os.getenv("INITIAL_ADMIN_EMAIL", "admin@amafahelectronics.com")
-            if existing.email and "@" not in existing.email:
-                existing.email = admin_email
-                db.commit()
-                sys.stderr.write(f"\nADMIN EMAIL FIXED: {existing.email}\n\n")
-            return
-
         admin_email = os.getenv("INITIAL_ADMIN_EMAIL", "admin@amafahelectronics.com")
-        existing_email = db.query(models.User).filter(models.User.email == admin_email).first()
-        if existing_email:
-            existing_email.role = models.RoleEnum.admin
-            existing_email.is_active = True
-            if not existing_email.password_hash:
-                admin_password = os.getenv("INITIAL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
-                existing_email.password_hash = hash_password(admin_password)
-                db.commit()
-                sys.stderr.write(
-                    f"\n{'='*60}\n"
-                    f"ADMIN PASSWORD SET (existing user)\n"
-                    f"  Email: {admin_email}\n"
-                    f"  Password: {admin_password}\n"
-                    f"  (Set INITIAL_ADMIN_PASSWORD env var to override)\n"
-                    f"{'='*60}\n\n"
-                )
-            else:
-                db.commit()
+        admin_password = os.getenv("INITIAL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
+        password_printed = bool(os.getenv("INITIAL_ADMIN_PASSWORD"))
+
+        # Find all existing admins
+        all_admins = db.query(models.User).filter(models.User.role == models.RoleEnum.admin).order_by(models.User.id).all()
+
+        # Case 1: No admin at all
+        if not all_admins:
+            user = models.User(
+                email=admin_email,
+                role=models.RoleEnum.admin,
+                store_id="warehouse",
+                password_hash=hash_password(admin_password),
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+            sys.stderr.write(
+                f"\n{'='*60}\n"
+                f"INITIAL ADMIN CREATED\n"
+                f"  Email: {admin_email}\n"
+                f"  Password: {admin_password}\n"
+                f"  (Set INITIAL_ADMIN_PASSWORD env var to override)\n"
+                f"{'='*60}\n\n"
+            )
             return
 
-        admin_password = os.getenv("INITIAL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
-        user = models.User(
-            email=admin_email,
-            role=models.RoleEnum.admin,
-            store_id="warehouse",
-            password_hash=hash_password(admin_password),
-            is_active=True,
-        )
-        db.add(user)
+        # Case 2: Find the canonical admin (the one with admin_email, or the first admin)
+        canonical = None
+        for admin in all_admins:
+            if admin.email == admin_email:
+                canonical = admin
+                break
+        if not canonical:
+            canonical = all_admins[0]
+
+        # If canonical has a Clerk-ID email, rename it
+        if canonical.email and "@" not in canonical.email:
+            # Check if another user already has the target email
+            other = db.query(models.User).filter(models.User.email == admin_email, models.User.id != canonical.id).first()
+            if other:
+                db.delete(other)
+                db.flush()
+            canonical.email = admin_email
+
+        # Set password if none, or if INITIAL_ADMIN_PASSWORD is explicitly set
+        if not canonical.password_hash or password_printed:
+            canonical.password_hash = hash_password(admin_password)
+
+        canonical.is_active = True
+        canonical.store_id = canonical.store_id or "warehouse"
         db.commit()
-        sys.stderr.write(
-            f"\n{'='*60}\n"
-            f"INITIAL ADMIN CREATED\n"
-            f"  Email: {admin_email}\n"
-            f"  Password: {admin_password}\n"
-            f"  (Set INITIAL_ADMIN_PASSWORD env var to override)\n"
-            f"{'='*60}\n\n"
-        )
+
+        if not password_printed:
+            sys.stderr.write(
+                f"\n{'='*60}\n"
+                f"ADMIN READY\n"
+                f"  Email: {canonical.email}\n"
+                f"  Password: {admin_password}\n"
+                f"  (Set INITIAL_ADMIN_PASSWORD env var to override)\n"
+                f"{'='*60}\n\n"
+            )
+
+        # Case 3: Delete duplicate admins (other than canonical)
+        duplicate_count = 0
+        for admin in all_admins:
+            if admin.id != canonical.id:
+                db.delete(admin)
+                duplicate_count += 1
+        if duplicate_count:
+            db.commit()
+            sys.stderr.write(f"Cleaned up {duplicate_count} duplicate admin users\n")
+
     finally:
         db.close()
 
