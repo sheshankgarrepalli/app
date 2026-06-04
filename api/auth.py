@@ -14,7 +14,7 @@ import models
 from config import settings
 
 security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "amafah-dev-secret-change-in-production-please")
 JWT_ALGORITHM = "HS256"

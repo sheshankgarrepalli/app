@@ -35,12 +35,12 @@ def on_startup():
     except Exception as e: sys.stderr.write(f"seed_admin: {e}\n")
 
 def seed_initial_admin():
-    """Ensure at least one admin user exists. If none, create admin@amafahelectronics.com with a random password printed to logs."""
+    """Ensure at least one admin user exists with a password set. If none, create admin@amafahelectronics.com with a random password printed to logs."""
     from database import SessionLocal
     db = SessionLocal()
     try:
         existing = db.query(models.User).filter(models.User.role == models.RoleEnum.admin).first()
-        if existing:
+        if existing and existing.password_hash:
             return
 
         admin_email = os.getenv("INITIAL_ADMIN_EMAIL", "admin@amafahelectronics.com")
@@ -48,7 +48,20 @@ def seed_initial_admin():
         if existing_email:
             existing_email.role = models.RoleEnum.admin
             existing_email.is_active = True
-            db.commit()
+            if not existing_email.password_hash:
+                admin_password = os.getenv("INITIAL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
+                existing_email.password_hash = hash_password(admin_password)
+                db.commit()
+                sys.stderr.write(
+                    f"\n{'='*60}\n"
+                    f"ADMIN PASSWORD SET (existing user)\n"
+                    f"  Email: {admin_email}\n"
+                    f"  Password: {admin_password}\n"
+                    f"  (Set INITIAL_ADMIN_PASSWORD env var to override)\n"
+                    f"{'='*60}\n\n"
+                )
+            else:
+                db.commit()
             return
 
         admin_password = os.getenv("INITIAL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
