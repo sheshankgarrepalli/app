@@ -154,6 +154,25 @@ def db_sync():
         _safe_add_enum_value(db, "repairstatus", "Awaiting_Parts")
         _safe_add_enum_value(db, "roleenum", "warehouse")
 
+        # ── Normalize legacy user roles ──
+        role_remap = {
+            "owner": "admin",
+            "store_a": "store",
+            "store_b": "store",
+            "store_c": "store",
+        }
+        for legacy, canonical in role_remap.items():
+            try:
+                result = db.execute(
+                    text(f"UPDATE users SET role = :canonical WHERE role = :legacy"),
+                    {"canonical": canonical, "legacy": legacy}
+                )
+                if result.rowcount > 0:
+                    print(f"Normalized {result.rowcount} users from role '{legacy}' → '{canonical}'")
+                db.commit()
+            except Exception:
+                db.rollback()
+
         # ── Ensure Default Store exists ──
         default_store_id = "warehouse"
         default_org_id = "org_3Com6Msekl6q0o4KuRxiKybuhTU"

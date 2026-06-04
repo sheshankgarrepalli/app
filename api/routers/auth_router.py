@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 import models
 from auth import (
