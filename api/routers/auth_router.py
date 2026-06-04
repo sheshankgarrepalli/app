@@ -47,6 +47,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
     role: Optional[str] = None
     store_id: Optional[str] = None
     is_active: Optional[bool] = None
@@ -133,6 +134,8 @@ def update_user(
         if req.role not in models.RoleEnum.__members__:
             raise HTTPException(status_code=400, detail="Invalid role")
         user.role = models.RoleEnum(req.role)
+    if req.email is not None:
+        user.email = req.email
     if req.store_id is not None:
         user.store_id = req.store_id
     if req.is_active is not None:
