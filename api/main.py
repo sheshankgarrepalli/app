@@ -114,6 +114,17 @@ def seed_initial_admin():
             db.commit()
             sys.stderr.write(f"Cleaned up {duplicate_count} duplicate admin users\n")
 
+        # Case 4: Delete legacy Clerk-ID users (no @ in email, no password)
+        clerk_users = db.query(models.User).filter(
+            models.User.email.contains("user_"),
+            models.User.id != canonical.id,
+        ).all()
+        if clerk_users:
+            for u in clerk_users:
+                db.delete(u)
+            db.commit()
+            sys.stderr.write(f"Cleaned up {len(clerk_users)} legacy Clerk-ID users\n")
+
     finally:
         db.close()
 
