@@ -13,6 +13,22 @@
     <script>
       (function(){var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.add('light')}else if(t==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.add('light')}})()
     </script>
+    <script>
+      (function(){
+        if (!('serviceWorker' in navigator)) return;
+        if (sessionStorage.getItem('sw2-active') === '1') return;
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          if (regs.length === 0) {
+            sessionStorage.setItem('sw2-active', '1');
+            return;
+          }
+          Promise.all(regs.map(function(reg){ return reg.unregister(); })).then(function(){
+            sessionStorage.setItem('sw2-active', '1');
+            window.location.reload();
+          });
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
