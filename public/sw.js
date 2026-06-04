@@ -1,5 +1,6 @@
-const CACHE_NAME = 'amafah-v1';
-const SHELL_FILES = ['/','/index.html','/manifest.json'];
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `amafah-${CACHE_VERSION}`;
+const SHELL_FILES = ['/manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -19,19 +20,29 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  var url = new URL(event.request.url);
-  if (url.pathname.includes('/api/')) return;
-  event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      return cached || fetch(event.request).then(function(response) {
-        if (response.ok) {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) { cache.put(event.request, clone); });
-        }
-        return response;
-      }).catch(function() {
-        return cached || new Response('Offline', { status: 503 });
-      });
-    })
-  );
+  const url = new URL(event.request.url);
+
+  if (url.pathname.startsWith('/api/')) return;
+
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  if (/\.(?:js|css|woff2?|ttf|svg|png|jpg|jpeg|gif|ico)$/.test(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        const network = fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        }).catch(() => cached);
+        return cached || network;
+      })
+    );
+  }
 });
