@@ -41,6 +41,11 @@ def seed_initial_admin():
     try:
         existing = db.query(models.User).filter(models.User.role == models.RoleEnum.admin).first()
         if existing and existing.password_hash:
+            admin_email = os.getenv("INITIAL_ADMIN_EMAIL", "admin@amafahelectronics.com")
+            if existing.email and "@" not in existing.email:
+                existing.email = admin_email
+                db.commit()
+                sys.stderr.write(f"\nADMIN EMAIL FIXED: {existing.email}\n\n")
             return
 
         admin_email = os.getenv("INITIAL_ADMIN_EMAIL", "admin@amafahelectronics.com")
