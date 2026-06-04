@@ -152,6 +152,8 @@ def db_sync():
         _safe_add_enum_value(db, "devicestatus", "Awaiting_Parts")
         _safe_add_enum_value(db, "devicestatus", "On_Consignment")
         _safe_add_enum_value(db, "repairstatus", "Awaiting_Parts")
+        _safe_add_enum_value(db, "roleenum", "store")
+        _safe_add_enum_value(db, "roleenum", "technician")
         _safe_add_enum_value(db, "roleenum", "warehouse")
 
         # ── Normalize legacy user roles ──

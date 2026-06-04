@@ -91,7 +91,21 @@ def list_users(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role(["admin"])),
 ):
-    return db.query(models.User).order_by(models.User.created_at.desc()).all()
+    try:
+        rows = db.execute(text(
+            "SELECT id, email, role::text, store_id, is_active, created_at, last_login_at FROM users ORDER BY created_at DESC"
+        )).fetchall()
+        return [
+            {
+                "id": r[0], "email": r[1], "role": r[2], "store_id": r[3],
+                "is_active": r[4], "created_at": r[5], "last_login_at": r[6],
+            }
+            for r in rows
+        ]
+    except Exception:
+        import traceback
+        sys.stderr.write(f"LIST_USERS ERROR: {traceback.format_exc()}\n")
+        raise
 
 
 @router.post("/users", response_model=UserOut)
