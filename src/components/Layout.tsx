@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationFilter } from '../context/LocationContext';
-import { UserButton, OrganizationSwitcher, CreateOrganization, useOrganization } from '@clerk/react';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search, LogOut, ChevronDown
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,8 +34,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => { setSearchQuery(''); }, [location.pathname]);
-  const { organization, isLoaded } = useOrganization();
   const { selectedLocationId, setSelectedLocationId, availableLocations } = useLocationFilter();
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   const menuSections = [
     {
@@ -105,18 +121,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     last: i === pathParts.length - 1,
   }));
 
-  if (!isLoaded) {
+  if (!user) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--bg-primary)]">
         <div className="animate-pulse text-[var(--text-tertiary)] text-xs font-semibold uppercase tracking-widest">Loading Workspace...</div>
-      </div>
-    );
-  }
-
-  if (!organization && !window.location.hostname.includes('vercel.app')) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[var(--bg-primary)]">
-        <CreateOrganization />
       </div>
     );
   }
@@ -192,28 +200,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Footer */}
         <div className="border-t border-[var(--border)] p-[14px] flex flex-col gap-[10px]">
-          <OrganizationSwitcher
-            hidePersonal={true}
-            appearance={{
-              elements: {
-                organizationSwitcherTrigger:
-                  "w-full flex justify-between items-center py-2 px-3 border border-[var(--border)] rounded-md bg-[var(--bg)] hover:bg-[var(--bg-muted)] transition-colors text-[var(--text)] text-xs",
-                organizationPreviewTextContainer: "truncate text-[var(--text)]",
-                organizationSwitcherTriggerIcon: "text-[var(--text-secondary)]",
-              },
-            }}
-          />
-          <div className="flex items-center gap-[10px] p-2 rounded-md bg-[var(--bg-muted)]">
-            <div className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-              {(user?.email || 'U')[0].toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-[var(--text)] truncate">
-                {user?.email?.split('@')[0]}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="w-full flex items-center gap-[10px] p-2 rounded-md bg-[var(--bg-muted)] hover:bg-[var(--bg)] transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                {(user?.email || 'U')[0].toUpperCase()}
               </div>
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-wider">{roleLabel(user?.role || '')}</div>
-            </div>
-            <UserButton />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-[var(--text)] truncate">
+                  {user?.email?.split('@')[0]}
+                </div>
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-wider">{roleLabel(user?.role || '')}</div>
+              </div>
+              <ChevronDown size={14} className={`text-[var(--text-tertiary)] transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {menuOpen && (
+              <div className="absolute bottom-full left-0 right-0 mb-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg overflow-hidden z-50">
+                <div className="px-3 py-2 border-b border-[var(--border)]">
+                  <div className="text-xs font-semibold text-[var(--text)] truncate">{user?.email}</div>
+                  <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold tracking-wider mt-0.5">{roleLabel(user?.role || '')}</div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--bg-muted)] transition-colors"
+                >
+                  <LogOut size={14} />
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </aside>

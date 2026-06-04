@@ -1,6 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ClerkLoading, useUser, useOrganization, OrganizationList, RedirectToSignIn } from '@clerk/react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { LocationProvider } from './context/LocationContext';
@@ -42,64 +41,34 @@ import LowStockAlerts from './pages/LowStockAlerts';
 const isDevEnv = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
-  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
-  const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { user, isLoading } = useAuth();
-  
-  // Preview mode: skip all Clerk checks, use fake admin user from AuthContext
-  if (isDevEnv) {
-    if (isLoading) return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-zinc-400 text-sm font-semibold">Loading Preview...</div>
-      </div>
-    );
-    return <Layout><ErrorBoundary>{children}</ErrorBoundary></Layout>;
-  }
-  
-  if (!isUserLoaded || !isOrgLoaded || isLoading) {
+  const location = useLocation();
+
+  if (isLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-medium text-gray-500 animate-pulse">Loading Security...</p>
+          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-gray-500 animate-pulse">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Tier 1: Not Authenticated
-  if (!isSignedIn) {
-    return <RedirectToSignIn />;
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Tier 2: Authenticated, but No Org
-  if (!organization) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <OrganizationList hidePersonal={true} />
-      </div>
-    );
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
   }
 
-  // Tier 3: Fully Authenticated & Org Active
-  if (!user) return <Navigate to="/login" replace />;
-  if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
-  
   return <Layout><ErrorBoundary>{children}</ErrorBoundary></Layout>;
 };
 
 function App() {
   return (
     <Router>
-      <ClerkLoading>
-        <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm font-medium text-gray-500 animate-pulse">Initializing System...</p>
-          </div>
-        </div>
-      </ClerkLoading>
-      
       <ThemeProvider>
         <AuthProvider>
           <LocationProvider>
@@ -116,7 +85,7 @@ function App() {
 }
 
 function AuthRoutes() {
-  const { isSignedIn, isLoaded } = useUser();
+  const { user, isLoading } = useAuth();
 
   if (isDevEnv) {
     return (
@@ -129,19 +98,24 @@ function AuthRoutes() {
     );
   }
 
-  if (!isLoaded) return null; // ClerkLoading handled above
+  if (isLoading && !user) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-gray-500 animate-pulse">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
-      {/* Public Login Route */}
-      <Route path="/login/*" element={
-        !isSignedIn ? <Login /> : <Navigate to="/" replace />
+      <Route path="/login" element={
+        user ? <Navigate to="/" replace /> : <Login />
       } />
 
-      {/* Root Redirector */}
-      <Route path="/" element={
-        isSignedIn ? <AuthWrapper /> : <Navigate to="/login" replace />
-      } />
+      <Route path="/" element={<AuthWrapper />} />
 
       {/* Core Operations Routes */}
       <Route path="/admin/manual-intake" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><ManualIntake /></ProtectedRoute>} />
@@ -196,7 +170,7 @@ function AuthRoutes() {
 function PreviewRoutes() {
   const { isLoading } = useAuth();
   if (isLoading) return <div className="flex h-screen items-center justify-center"><div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Loading Preview...</div></div>;
-  
+
   return (
     <Layout><ErrorBoundary>
       <Routes>
@@ -236,38 +210,20 @@ function PreviewRoutes() {
 }
 
 function AuthWrapper() {
-  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
-  const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { user, isLoading } = useAuth();
-  
+
   if (isDevEnv) {
-    if (isLoading) return <div className="flex h-screen items-center justify-center"><div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Loading Preview...</div></div>;
     return <Navigate to="/admin/inventory" replace />;
   }
-  
-  if (!isUserLoaded || !isOrgLoaded || isLoading) {
+
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Synchronizing Identity...</div>
+        <div className="animate-pulse text-zinc-400 text-xs font-black uppercase tracking-widest">Loading...</div>
       </div>
     );
   }
 
-  // Tier 1: Not Authenticated
-  if (!isSignedIn) {
-    return <RedirectToSignIn />;
-  }
-
-  // Tier 2: Authenticated, but No Org
-  if (!organization) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <OrganizationList hidePersonal={true} />
-      </div>
-    );
-  }
-
-  // Tier 3: Fully Authenticated & Org Active
   if (!user) return <Navigate to="/login" replace />;
 
   if (user.role === 'admin') return <Navigate to="/admin/inventory" replace />;

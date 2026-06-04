@@ -1,86 +1,123 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useUser, useAuth as useClerkAuth } from '@clerk/react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import api from '../api/api';
 
-interface User {
-  id: string;
+const TOKEN_KEY = 'amafah_token';
+const USER_KEY = 'amafah_user';
+
+export interface AppUser {
+  id: number;
   email: string;
-  role: string;
+  role: 'admin' | 'warehouse' | 'store' | 'technician';
   store_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   token: string | null;
   isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const IS_PREVIEW = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+const isPreviewEnv = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+
+function loadStored(): { token: string | null; user: AppUser | null } {
+  if (typeof window === 'undefined') return { token: null, user: null };
+  if (isPreviewEnv) {
+    return {
+      token: 'preview-bypass-token',
+      user: {
+        id: 0,
+        email: 'admin@preview.dev',
+        role: 'admin',
+        store_id: 'warehouse',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        last_login_at: null,
+      },
+    };
+  }
+  try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userStr = localStorage.getItem(USER_KEY);
+    const user = userStr ? (JSON.parse(userStr) as AppUser) : null;
+    return { token, user };
+  } catch {
+    return { token: null, user: null };
+  }
+}
+
+function persist(token: string | null, user: AppUser | null) {
+  if (isPreviewEnv) return;
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  else localStorage.removeItem(USER_KEY);
+}
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
-  const { getToken, isLoaded: isAuthLoaded } = useClerkAuth();
+  const initial = loadStored();
+  const [user, setUser] = useState<AppUser | null>(initial.user);
+  const [token, setToken] = useState<string | null>(initial.token);
+  const [isLoading, setIsLoading] = useState(!isPreviewEnv && !!initial.token);
 
-  const [user, setUser] = useState<User | null>(() => {
-    if (IS_PREVIEW) return { id: 'preview', email: 'admin@preview.dev', role: 'admin', store_id: 'warehouse' };
-    return null;
-  });
-  const [token, setToken] = useState<string | null>(() => {
-    if (IS_PREVIEW) return 'preview-bypass-token';
-    return null;
-  });
-  const [isLoading, setIsLoading] = useState(!IS_PREVIEW);
+  const refreshUser = useCallback(async () => {
+    if (!token || isPreviewEnv) return;
+    try {
+      const { data } = await api.get('/api/auth/me');
+      setUser(data);
+      persist(token, data);
+    } catch (err) {
+      console.error('Failed to refresh user', err);
+      setUser(null);
+      setToken(null);
+      persist(null, null);
+    }
+  }, [token]);
 
   useEffect(() => {
-    if (IS_PREVIEW) return;
-    const syncAuth = async () => {
-      if (!isUserLoaded || !isAuthLoaded) return;
-
-      if (clerkUser) {
-        try {
-          const jwt = await getToken();
-          setToken(jwt);
-
-          const rawRole = (clerkUser.publicMetadata.role as string) || 'store';
-          const legacyMap: Record<string, string> = {
-            store_a: 'store', store_b: 'store', store_c: 'store',
-            owner: 'admin'
-          };
-          const role = legacyMap[rawRole] || rawRole;
-          const store_id = (clerkUser.publicMetadata.store_id as string) || null;
-          const email = clerkUser.primaryEmailAddress?.emailAddress || '';
-
-          setUser({
-            id: clerkUser.id,
-            email,
-            role,
-            store_id
-          });
-        } catch (error) {
-          console.error("Failed to sync Clerk auth:", error);
-          setToken(null);
-          setUser(null);
-        }
-      } else {
-        setToken(null);
-        setUser(null);
-      }
+    if (isPreviewEnv) {
       setIsLoading(false);
-    };
+      return;
+    }
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+    refreshUser().finally(() => setIsLoading(false));
+  }, [token, refreshUser]);
 
-    syncAuth();
-  }, [clerkUser, isUserLoaded, isAuthLoaded, getToken]);
+  const login = useCallback(async (email: string, password: string) => {
+    const { data } = await api.post('/api/auth/login', { email, password });
+    setToken(data.access_token);
+    setUser(data.user);
+    persist(data.access_token, data.user);
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (!isPreviewEnv && token) {
+      try { await api.post('/api/auth/logout'); } catch { /* ignore */ }
+    }
+    setToken(null);
+    setUser(null);
+    persist(null, null);
+  }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 };

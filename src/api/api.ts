@@ -12,62 +12,48 @@ const api = axios.create({
     },
 });
 
-api.interceptors.request.use(async (config) => {
+function attachAuthHeader(config: any) {
+    if (isPreviewMode) {
+        config.headers.Authorization = 'Bearer preview-bypass-token';
+        return config;
+    }
+    try {
+        const token = localStorage.getItem('amafah_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    } catch (error) {
+        console.error("Error attaching auth token:", error);
+    }
+    return config;
+}
+
+api.interceptors.request.use((config) => {
     if (config.url) {
         config.url = config.url.replace(/([^:]\/)\/+/g, "$1");
         if (config.url.startsWith('//api')) {
             config.url = config.url.replace('//api', '/api');
         }
     }
-
-    if (isPreviewMode) {
-        config.headers.Authorization = 'Bearer preview-bypass-token';
-        return config;
-    }
-
-    try {
-        if (typeof window !== 'undefined' && window.Clerk && window.Clerk.session) {
-            const token = await window.Clerk.session.getToken();
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-        }
-    } catch (error) {
-        console.error("Error attaching Clerk token to request:", error);
-    }
-    return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+    return attachAuthHeader(config);
+}, (error) => Promise.reject(error));
 
 axios.defaults.baseURL = api.defaults.baseURL;
 
-axios.interceptors.request.use(async (config) => {
-    if (config.url) {
-        config.url = config.url.replace(/([^:]\/)\/+/g, "$1");
-        if (config.url.startsWith('//api')) {
-            config.url = config.url.replace('//api', '/api');
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && !isPreviewMode) {
+            try {
+                localStorage.removeItem('amafah_token');
+                localStorage.removeItem('amafah_user');
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+            } catch { /* ignore */ }
         }
+        return Promise.reject(error);
     }
-
-    if (isPreviewMode) {
-        config.headers.Authorization = 'Bearer preview-bypass-token';
-        return config;
-    }
-
-    try {
-        if (typeof window !== 'undefined' && window.Clerk && window.Clerk.session) {
-            const token = await window.Clerk.session.getToken();
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-        }
-    } catch (error) {
-        console.error("Error attaching Clerk token to global request:", error);
-    }
-    return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+);
 
 export default api;

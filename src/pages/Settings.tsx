@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, AlertCircle, Save, PaintBucket, Mail, DollarSign } from 'lucide-react';
-import api from '../api/api';
+import { Loader2, AlertCircle, Save, PaintBucket, Mail, DollarSign, Users } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import UsersTab from '../components/settings/UsersTab';
+import api from '../api/api';
 
 interface OrgSettings {
   org_id: string;
@@ -14,6 +15,7 @@ interface OrgSettings {
   primary_color: string;
   email_template_body?: string | null;
   reminder_template_body?: string | null;
+  reminder_template_subject?: string | null;
 }
 
 const TEMPLATES = [
@@ -37,6 +39,7 @@ const TABS = [
   { key: 'branding', label: 'Branding', icon: PaintBucket },
   { key: 'financial', label: 'Financial', icon: DollarSign },
   { key: 'communication', label: 'Communication', icon: Mail },
+  { key: 'users', label: 'Users', icon: Users },
 ];
 
 export default function Settings() {
@@ -270,24 +273,21 @@ export default function Settings() {
 
       {/* Communication Tab */}
       {tab === 'communication' && (
-        <div className="card space-y-4 p-5">
-          <div className="form-group">
-            <label className="form-label">Invoice Email Body</label>
-            <textarea
-              className="form-input"
-              rows={4}
-              value={settings.email_template_body || ''}
-              onChange={e => update('email_template_body', e.target.value || null)}
-              placeholder="Dear {customer_name},&#10;&#10;Your invoice {invoice_number} is attached. Total due: ${total}.&#10;&#10;Thank you for your business!"
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">Email Subject Template</label>
+            <input
+              type="text"
+              className="input"
+              value={settings.reminder_template_subject || ''}
+              onChange={e => update('reminder_template_subject', e.target.value || null)}
+              placeholder="Reminder: Invoice {invoice_number} from AMAFAH Electronics"
             />
-            <p className="text-[10px] text-[var(--text-tertiary)] mt-1">Use {"{customer_name}"}, {"{invoice_number}"}, {"{total}"}, {"{due_date}"} as placeholders.</p>
           </div>
-
-          <div className="form-group">
-            <label className="form-label">Reminder Email Body</label>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">Email Body Template</label>
             <textarea
-              className="form-input"
-              rows={4}
+              className="input min-h-[140px] font-mono text-[12px]"
               value={settings.reminder_template_body || ''}
               onChange={e => update('reminder_template_body', e.target.value || null)}
               placeholder="Dear {customer_name},&#10;&#10;This is a reminder that invoice {invoice_number} for ${total} is due on {due_date}.&#10;&#10;Please remit payment at your earliest convenience."
@@ -297,15 +297,18 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Save Footer */}
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 w-full justify-center"
-      >
-        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        Save All Settings
-      </button>
+      {tab === 'users' && <UsersTab />}
+
+      {tab !== 'users' && (
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 w-full justify-center"
+        >
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          Save All Settings
+        </button>
+      )}
     </div>
   );
 }

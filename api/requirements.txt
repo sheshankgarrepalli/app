@@ -6,7 +6,6 @@ pydantic-settings
 pydantic[email]
 reportlab
 PyJWT
-cryptography
 httpx
 pytest
 psycopg2-binary
@@ -14,5 +13,6 @@ email-validator
 jinja2
 python-multipart
 alembic
-clerk-backend-api
 python-jose[cryptography]
+passlib[bcrypt]
+bcrypt

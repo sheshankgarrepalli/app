@@ -35,10 +35,14 @@ def db_sync():
         # store_locations: org_id
         _safe_add_column(db, "store_locations", "org_id", "TEXT")
 
-        # users: org_id, clerk_id
+        # users: org_id, clerk_id, password_hash, is_active, created_at, last_login_at
         _safe_add_column(db, "users", "org_id", "TEXT")
         _safe_add_column(db, "users", "clerk_id", "TEXT")
         _safe_add_column(db, "users", "store_id", "TEXT")
+        _safe_add_column(db, "users", "password_hash", "TEXT")
+        _safe_add_column(db, "users", "is_active", "BOOLEAN DEFAULT TRUE")
+        _safe_add_column(db, "users", "created_at", "TIMESTAMP DEFAULT NOW()")
+        _safe_add_column(db, "users", "last_login_at", "TIMESTAMP")
 
         # phone_models: org_id
         _safe_add_column(db, "phone_models", "org_id", "TEXT")

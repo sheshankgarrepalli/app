@@ -97,7 +97,11 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     role = Column(Enum(RoleEnum))
     store_id = Column(String, ForeignKey("store_locations.id"), nullable=True)
-    
+    password_hash = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    last_login_at = Column(DateTime, nullable=True)
+
     store = relationship("StoreLocation")
 
 class PhoneModel(Base):
