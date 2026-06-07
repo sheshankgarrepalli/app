@@ -2146,7 +2146,7 @@ def download_invoice_pdf(
 @router.get("/invoices/public/{invoice_id}/pdf")
 def download_invoice_pdf_public(
     invoice_id: str,
-    token: str = None,
+    token: str = Query(None),
     db: Session = Depends(get_db),
 ):
     """Public PDF access via share token."""
