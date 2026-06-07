@@ -2141,10 +2141,32 @@ def download_invoice_pdf(
     current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
     org_id = getattr(current_user, 'current_org_id', None)
+    return _generate_invoice_pdf(invoice_id, db, org_id)
+
+@router.get("/invoices/public/{invoice_id}/pdf")
+def download_invoice_pdf_public(
+    invoice_id: str,
+    token: str = None,
+    db: Session = Depends(get_db),
+):
+    """Public PDF access via share token."""
     invoice = db.query(models.Invoice).filter(
-        models.Invoice.invoice_number == invoice_id,
-        models.Invoice.org_id == org_id
+        models.Invoice.invoice_number == invoice_id
     ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if not token or token != invoice.share_token:
+        raise HTTPException(status_code=404, detail="Not found")
+    return _generate_invoice_pdf(invoice_id, db)
+
+
+def _generate_invoice_pdf(invoice_id: str, db: Session, org_id: str = None):
+    query = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number == invoice_id,
+    )
+    if org_id:
+        query = query.filter(models.Invoice.org_id == org_id)
+    invoice = query.first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
 

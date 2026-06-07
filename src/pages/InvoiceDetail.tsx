@@ -158,7 +158,15 @@ export default function InvoiceDetail() {
             <Pencil size={14} /> Edit
           </Link>
           <button
-            onClick={() => window.open(`/api/pos/invoices/${invoice.invoice_number}/pdf`, '_blank')}
+            onClick={async () => {
+              let token = shareToken;
+              if (!token) {
+                const res = await generateShareLink(invoice.invoice_number);
+                token = res.share_token;
+                setShareToken(token);
+              }
+              window.open(`/api/pos/invoices/public/${invoice.invoice_number}/pdf?token=${token}`, '_blank');
+            }}
             className="btn-secondary flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
           >
             <Printer size={14} /> Print

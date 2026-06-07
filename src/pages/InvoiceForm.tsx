@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   createInvoice, updateInvoice, fetchInvoice, fetchAutocomplete,
-  InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice,
+  InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice, generateShareLink
 } from '../api/invoices';
 import api from '../api/api';
 import { fetchCustomers, createCustomer, Customer, CustomerCreate } from '../api/crm';
@@ -459,9 +459,10 @@ export default function InvoiceForm() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (invoiceNumber) {
-      window.open(`/api/pos/invoices/${invoiceNumber}/pdf`, '_blank');
+      const res = await generateShareLink(invoiceNumber);
+      window.open(`/api/pos/invoices/public/${invoiceNumber}/pdf?token=${res.share_token}`, '_blank');
     }
   };
 

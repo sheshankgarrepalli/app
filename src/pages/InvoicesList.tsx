@@ -219,10 +219,13 @@ export default function InvoicesList() {
                       >
                         {copied === inv.invoice_number ? <CheckCircle2 size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
                       </button>
-                      <a
-                          href={`/api/pos/invoices/${inv.invoice_number}/pdf`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <a
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const res = await generateShareLink(inv.invoice_number);
+                            window.open(`/api/pos/invoices/public/${inv.invoice_number}/pdf?token=${res.share_token}`, '_blank');
+                          }}
+                          href="#"
                           className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
                           title="Print PDF"
                         >
