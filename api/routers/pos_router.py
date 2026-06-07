@@ -136,12 +136,6 @@ def retail_checkout(
     total_payments = sum(p.amount for p in req.payments)
     if total_payments > total + 0.01:
         raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
-
-    # CVE-007: Enforce minimum 10% deposit for layaway reservations
-    if total_payments < total - 0.01:
-        min_deposit = total * 0.10
-        if total_payments < min_deposit:
-            raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f}). Current payments: ${total_payments:.2f}")
     
     db_invoice = models.Invoice(
         customer_id=customer_id,
@@ -1112,12 +1106,6 @@ def create_invoice_from_form(
 
     if total_payments > total + 0.01:
         raise HTTPException(status_code=400, detail=f"Payment sum ({total_payments}) exceeds invoice total ({total})")
-
-    # If user is making a partial payment, enforce 10% layaway minimum
-    if has_payments and total_payments < total - 0.01:
-        min_deposit = total * 0.10
-        if total_payments < min_deposit:
-            raise HTTPException(status_code=400, detail=f"Minimum 10% deposit required for layaway (${min_deposit:.2f}). Current payments: ${total_payments:.2f}")
 
     is_paid_in_full = has_payments and total_payments >= total - 0.01
     is_layaway = has_payments and not is_paid_in_full
