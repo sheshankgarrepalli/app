@@ -44,7 +44,7 @@ export default function ExcelImport() {
 
   const defaultLocationId = useMemo(() => {
     if (user?.store_id) return user.store_id;
-    return availableLocations[0]?.id || 'Warehouse A';
+    return availableLocations[0]?.id || 'warehouse';
   }, [user?.store_id, availableLocations]);
 
   // Admin can pick any location; non-admin are locked to their store
@@ -292,7 +292,7 @@ export default function ExcelImport() {
               {isAdmin ? (
                 <select className="form-select" value={locationId} onChange={e => setAdminLocationId(e.target.value)}>
                   {availableLocations.map(l => (
-                    <option key={l.id} value={l.id}>{l.name} ({l.location_type})</option>
+                    <option key={l.id} value={l.id}>{l.name}</option>
                   ))}
                 </select>
               ) : (

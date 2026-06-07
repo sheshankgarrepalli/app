@@ -72,7 +72,7 @@ def import_auction_devices(req: DeviceImportRequest, db: Session = Depends(get_d
             imei=row.imei,
             model_number=row.model_number,
             device_status="In_QC",
-            location_id="Warehouse",
+            location_id="warehouse",
             cost_basis=row.cost,
             org_id=getattr(current_user, 'current_org_id', None)
         )
@@ -189,7 +189,7 @@ def excel_import(
     employee_id = current_user.email
     # Admin can import anywhere; non-admin are locked to their assigned store
     if current_user.role.value == "admin":
-        effective_location_id = req.location_id or current_user.store_id or "Warehouse A"
+        effective_location_id = req.location_id or current_user.store_id or "warehouse"
     else:
         effective_location_id = current_user.store_id or req.location_id
 
