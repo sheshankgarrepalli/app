@@ -91,7 +91,7 @@ export default function PublicInvoice() {
         <div className="card p-5 space-y-4">
           <div className="flex justify-between">
             <div>
-              <p className="font-bold text-[var(--text)]">AMAFAH Electronics</p>
+              <p className="font-bold text-[var(--text)]">Amafah Electronics Inc.</p>
               <p className="text-sm text-[var(--text-tertiary)]">Wholesale Electronics — Inventory & POS</p>
             </div>
             <div className="text-right text-sm text-[var(--text-tertiary)]">
@@ -190,7 +190,7 @@ export default function PublicInvoice() {
         )}
 
         <div className="text-center text-xs text-[var(--text-tertiary)] pb-8">
-          Powered by AMAFAH Electronics
+          Powered by Amafah Electronics Inc.
         </div>
       </div>
     </div>

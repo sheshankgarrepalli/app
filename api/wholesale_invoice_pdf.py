@@ -25,11 +25,11 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # ── Company branding – edit as needed ───────────────────────────────────────
 COMPANY = {
-    "name":    "Amafah Mobile Solutions",
-    "address": "1234 Commerce Blvd, Suite 5, Dallas, TX 75201",
-    "email":   "sales@amafah.com",
-    "phone":   "(214) 555-0198",
-    "website": "www.amafah.com",
+    "name":    "Amafah Electronics Inc.",
+    "address": "Dallas, TX",
+    "email":   "info@amafahelectronics.com",
+    "phone":   "",
+    "website": "www.amafahelectronics.com",
 }
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
