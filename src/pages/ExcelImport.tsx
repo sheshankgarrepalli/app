@@ -51,16 +51,6 @@ export default function ExcelImport() {
   // Admin can pick any location; non-admin are locked to their store
   const locationId = isAdmin ? (adminLocationId || defaultLocationId) : defaultLocationId;
 
-  // Sync admin dropdown default on first load
-  const adminDropdownReady = useRef(false);
-  if (isAdmin && !adminDropdownReady.current && availableLocations.length > 0) {
-    adminDropdownReady.current = true;
-    if (!adminLocationId) {
-      // defer state update to avoid render-phase side effect
-      setTimeout(() => setAdminLocationId(defaultLocationId), 0);
-    }
-  }
-
   const locationName = useMemo(() => {
     const loc = availableLocations.find(l => l.id === locationId);
     return loc?.name || locationId;
