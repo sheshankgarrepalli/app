@@ -42,7 +42,7 @@ function useStoreLocations() {
     const { availableLocations } = useLocationFilter();
     if (availableLocations.length === 0) {
         return [
-            { id: 'warehouse', label: 'Warehouse' },
+            { id: 'warehouse', label: 'Dallas Office' },
             { id: 'grand-prairie', label: 'Grand Prairie' },
             { id: 'foodland', label: 'Foodland' },
             { id: 'fiesta', label: 'Fiesta' },

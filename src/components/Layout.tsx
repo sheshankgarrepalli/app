@@ -269,7 +269,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <option value="all">All Locations</option>
             {availableLocations.map(loc => (
               <option key={loc.id} value={loc.id}>
-                {loc.name} ({loc.location_type})
+                {loc.name}
               </option>
             ))}
           </select>

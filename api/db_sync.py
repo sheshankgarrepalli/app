@@ -185,7 +185,7 @@ def db_sync():
             print(f"Creating default store: {default_store_id}")
             default_store = models.StoreLocation(
                 id=default_store_id,
-                name="Warehouse",
+                name="Dallas Office",
                 org_id=default_org_id,
                 location_type=models.LocationType.warehouse
             )
@@ -246,8 +246,8 @@ def db_sync():
                 else:
                     # Rename the store location
                     existing.id = new_id
-                    if existing.name in ("Main Warehouse", "Warehouse Alpha", "Warehouse"):
-                        existing.name = "Warehouse"
+                    if existing.name in ("Main Warehouse", "Warehouse Alpha", "Warehouse", "Dallas Office"):
+                        existing.name = "Dallas Office"
                     elif existing.name in ("Store A", "Downtown Store", "Store A -- Downtown"):
                         existing.name = "Grand Prairie"
                     elif existing.name in ("Store B", "Eastside Store", "Store B -- Eastside"):
@@ -286,7 +286,7 @@ def db_sync():
 
         # ── Seed missing store locations ──
         seed_stores = [
-            {"id": "warehouse", "name": "Warehouse", "type": models.LocationType.warehouse, "prefix": "WH"},
+            {"id": "warehouse", "name": "Dallas Office", "type": models.LocationType.warehouse, "prefix": "WH"},
             {"id": "grand-prairie", "name": "Grand Prairie", "type": models.LocationType.retail, "prefix": "GP"},
             {"id": "foodland", "name": "Foodland", "type": models.LocationType.retail, "prefix": "FL"},
             {"id": "fiesta", "name": "Fiesta", "type": models.LocationType.retail, "prefix": "FS"},
