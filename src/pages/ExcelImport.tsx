@@ -37,7 +37,7 @@ export default function ExcelImport() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
-  const [deviceStatus, setDeviceStatus] = useState('In_QC');
+  const [deviceStatus, setDeviceStatus] = useState('Sellable');
   const [error, setError] = useState<string | null>(null);
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
   const [adminLocationId, setAdminLocationId] = useState<string>('');
