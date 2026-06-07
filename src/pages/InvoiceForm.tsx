@@ -439,7 +439,7 @@ export default function InvoiceForm() {
         if (desiredStatus === 'Draft') {
           navigate(`/admin/invoices/${created.invoice_number}`, { replace: true });
         } else {
-          navigate('/admin/invoices', { replace: true });
+          navigate(`/admin/invoices/${created.invoice_number}`, { replace: true });
         }
       }
     } catch (err: any) {
@@ -460,8 +460,9 @@ export default function InvoiceForm() {
   };
 
   const handlePrint = () => {
-    // Print preview — open PDF in new tab
-    window.open('/api/pos/invoices/latest/pdf', '_blank');
+    if (invoiceNumber) {
+      window.open(`/api/pos/invoices/${invoiceNumber}/pdf`, '_blank');
+    }
   };
 
   if (loadingEdit) {

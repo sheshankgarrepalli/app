@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
-import { Loader2, AlertCircle, ArrowLeft, Copy, ExternalLink, CheckCircle2, Ban, Clock, Pencil } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Copy, ExternalLink, CheckCircle2, Ban, Clock, Pencil, Printer } from 'lucide-react';
 import { fetchInvoice, fetchInvoiceTimeline, generateShareLink, voidInvoice, Invoice, InvoiceTimeline, extractError } from '../api/invoices';
 
 function statusBadge(s: string) {
@@ -157,6 +157,12 @@ export default function InvoiceDetail() {
           >
             <Pencil size={14} /> Edit
           </Link>
+          <button
+            onClick={() => window.open(`/api/pos/invoices/${invoice.invoice_number}/pdf`, '_blank')}
+            className="btn-secondary flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
+          >
+            <Printer size={14} /> Print
+          </button>
           <button
             onClick={handleShare}
             className="btn-secondary flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"

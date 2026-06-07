@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Loader2, AlertCircle, Search, FileText, Copy, ExternalLink, CheckCircle2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Loader2, AlertCircle, Search, FileText, Copy, ExternalLink, CheckCircle2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import { fetchInvoices, generateShareLink, Invoice, extractError } from '../api/invoices';
 
 const PER_PAGE = 25;
@@ -210,28 +210,37 @@ export default function InvoicesList() {
                     <td className="px-[14px] py-[10px] text-[13px] text-right text-[var(--text-secondary)]">
                       {new Date(inv.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-[14px] py-[10px] text-[13px] text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleShare(inv)}
+                  <td className="px-[14px] py-[10px] text-[13px] text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleShare(inv)}
+                        className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                        title="Copy share link"
+                      >
+                        {copied === inv.invoice_number ? <CheckCircle2 size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                      </button>
+                      <a
+                          href={`/api/pos/invoices/${inv.invoice_number}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
-                          title="Copy share link"
+                          title="Print PDF"
                         >
-                          {copied === inv.invoice_number ? <CheckCircle2 size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-                        </button>
+                          <Printer size={14} />
+                        </a>
                         {inv.share_token && (
                           <a
-                            href={`/invoice/${inv.share_token}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
-                            title="Open public view"
-                          >
-                            <ExternalLink size={14} />
-                          </a>
-                        )}
-                      </div>
-                    </td>
+                          href={`/invoice/${inv.share_token}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                          title="Open public view"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                    </div>
+                  </td>
                   </tr>
                 ))}
               </tbody>
