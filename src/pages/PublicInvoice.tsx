@@ -40,6 +40,14 @@ export default function PublicInvoice() {
     })();
   }, [shareToken]);
 
+  // Auto-trigger browser print when opened with ?print=1
+  useEffect(() => {
+    if (loading) return;
+    if (invoice && typeof window !== 'undefined' && window.location.search.includes('print=1')) {
+      setTimeout(() => window.print(), 600);
+    }
+  }, [loading, invoice]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">

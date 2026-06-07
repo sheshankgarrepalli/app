@@ -462,7 +462,7 @@ export default function InvoiceForm() {
   const handlePrint = async () => {
     if (invoiceNumber) {
       const res = await generateShareLink(invoiceNumber);
-      window.open(`/api/pos/invoices/public/${invoiceNumber}/pdf?token=${res.share_token}`, '_blank');
+      window.open(`/invoice/${res.share_token}?print=1`, '_blank');
     }
   };
 

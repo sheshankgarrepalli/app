@@ -223,7 +223,7 @@ export default function InvoicesList() {
                           onClick={async (e) => {
                             e.preventDefault();
                             const res = await generateShareLink(inv.invoice_number);
-                            window.open(`/api/pos/invoices/public/${inv.invoice_number}/pdf?token=${res.share_token}`, '_blank');
+                            window.open(`/invoice/${res.share_token}?print=1`, '_blank');
                           }}
                           href="#"
                           className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"

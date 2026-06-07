@@ -165,7 +165,7 @@ export default function InvoiceDetail() {
                 token = res.share_token;
                 setShareToken(token);
               }
-              window.open(`/api/pos/invoices/public/${invoice.invoice_number}/pdf?token=${token}`, '_blank');
+              window.open(`/invoice/${token}?print=1`, '_blank');
             }}
             className="btn-secondary flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
           >

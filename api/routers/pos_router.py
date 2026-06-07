@@ -8,6 +8,8 @@ from database import get_db
 import io
 import uuid
 import json
+import sys
+import traceback
 from datetime import timedelta
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -2150,14 +2152,21 @@ def download_invoice_pdf_public(
     db: Session = Depends(get_db),
 ):
     """Public PDF access via share token."""
-    invoice = db.query(models.Invoice).filter(
-        models.Invoice.invoice_number == invoice_id
-    ).first()
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    if not token or token != invoice.share_token:
-        raise HTTPException(status_code=404, detail="Not found")
-    return _generate_invoice_pdf(invoice_id, db)
+    try:
+        invoice = db.query(models.Invoice).filter(
+            models.Invoice.invoice_number == invoice_id
+        ).first()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        if not token or token != invoice.share_token:
+            raise HTTPException(status_code=404, detail="Not found")
+        return _generate_invoice_pdf(invoice_id, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        sys.stderr.write(f"PUBLIC PDF ERROR: {e}\n{traceback.format_exc()}\n")
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 
 def _generate_invoice_pdf(invoice_id: str, db: Session, org_id: str = None):
