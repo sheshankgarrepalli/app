@@ -124,7 +124,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          AMAFAH Electronics Internal Tool
+          Amafah Electronics Inc. — ERP
         </p>
       </div>
     </div>

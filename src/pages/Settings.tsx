@@ -295,7 +295,7 @@ export default function Settings() {
               className="input"
               value={settings.reminder_template_subject || ''}
               onChange={e => update('reminder_template_subject', e.target.value || null)}
-              placeholder="Reminder: Invoice {invoice_number} from AMAFAH Electronics"
+              placeholder="Reminder: Invoice {invoice_number} from Amafah Electronics Inc."
             />
           </div>
           <div>
