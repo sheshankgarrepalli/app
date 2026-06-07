@@ -112,7 +112,21 @@ export default function Settings() {
     );
   }
 
-  if (!settings) return null;
+  if (!settings) {
+    return (
+      <div className="space-y-5 max-w-2xl">
+        <h1 className="text-xl font-bold text-[var(--text)]">Organization Settings</h1>
+        {error ? (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+            <AlertCircle size={16} />{error}
+          </div>
+        ) : (
+          <div className="text-sm text-[var(--text-tertiary)]">Could not load settings.</div>
+        )}
+        <button onClick={() => { setError(null); load(); }} className="text-sm text-[var(--accent)] hover:underline">Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 max-w-2xl">

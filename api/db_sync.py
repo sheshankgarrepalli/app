@@ -129,6 +129,7 @@ def db_sync():
         _safe_add_column(db, "organization_settings", "primary_color", "TEXT", "'#e94560'")
         _safe_add_column(db, "organization_settings", "email_template_body", "TEXT")
         _safe_add_column(db, "organization_settings", "reminder_template_body", "TEXT")
+        _safe_add_column(db, "organization_settings", "reminder_template_subject", "TEXT")
 
         _safe_add_column(db, "invoice_items", "org_id", "TEXT")
         _safe_add_column(db, "invoice_items", "description", "TEXT")

@@ -675,6 +675,7 @@ class OrgSettingsRequest(BaseModel):
     primary_color: Optional[str] = None
     email_template_body: Optional[str] = None
     reminder_template_body: Optional[str] = None
+    reminder_template_subject: Optional[str] = None
 
 class OrgSettingsOut(BaseModel):
     org_id: str
@@ -687,6 +688,7 @@ class OrgSettingsOut(BaseModel):
     primary_color: str = "#e94560"
     email_template_body: Optional[str] = None
     reminder_template_body: Optional[str] = None
+    reminder_template_subject: Optional[str] = None
     class Config: from_attributes = True
 
 # ── Phase 2: Invoice Form Schemas ──────────────────────────────────────────

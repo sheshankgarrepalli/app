@@ -88,6 +88,7 @@ class OrganizationSettings(Base):
     primary_color = Column(String, default="#e94560")
     email_template_body = Column(String, nullable=True)
     reminder_template_body = Column(String, nullable=True)
+    reminder_template_subject = Column(String, nullable=True)
 
 class User(Base):
     __tablename__ = "users"
