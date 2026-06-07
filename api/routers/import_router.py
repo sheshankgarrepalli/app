@@ -7,6 +7,8 @@ from schemas import DeviceImportRequest, ExcelPreviewRequest, ExcelPreviewRespon
 from auth import get_current_user, require_role
 from datetime import datetime
 import re
+import sys
+import traceback
 
 router = APIRouter(prefix="/api/import", tags=["Import"])
 
@@ -227,107 +229,115 @@ def excel_import(
     current_user: User = Depends(require_role(["admin", "store"]))
 ):
     """Import validated rows: create PhoneModels + DeviceInventory + history logs in one transaction."""
-    org_id = getattr(current_user, 'current_org_id', None) or getattr(current_user, 'org_id', None)
-    employee_id = current_user.email
-    device_type_value = getattr(req, 'device_type', 'Phone') or 'Phone'
-    # Admin can import anywhere; non-admin are locked to their assigned store
-    if current_user.role.value == "admin":
-        effective_location_id = req.location_id or current_user.store_id or "warehouse"
-    else:
-        effective_location_id = current_user.store_id or req.location_id
+    try:
+        org_id = getattr(current_user, 'current_org_id', None) or getattr(current_user, 'org_id', None)
+        employee_id = current_user.email
+        device_type_value = getattr(req, 'device_type', 'Phone') or 'Phone'
+        # Admin can import anywhere; non-admin are locked to their assigned store
+        if current_user.role.value == "admin":
+            effective_location_id = req.location_id or current_user.store_id or "warehouse"
+        else:
+            effective_location_id = current_user.store_id or req.location_id
 
-    # Detect device type per row + double-check for duplicate identifiers
-    all_identifiers = [r.imei.strip() for r in req.rows]
-    row_device_types = [detect_device_type(r.model_name) for r in req.rows]
-    existing_ids = set()
-    if all_identifiers:
-        existing_ids = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_identifiers)).all()}
-    if existing_ids:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Identifiers already exist: {', '.join(sorted(existing_ids)[:5])}"
-        )
-
-    # Collect unique models to create
-    models_to_create: dict[str, dict] = {}
-    for row in req.rows:
-        storage_gb = parse_storage_gb(row.storage)
-        brand, display_name = detect_brand_and_name(row.model_name)
-        mn = generate_model_number(display_name, storage_gb)
-        if mn not in models_to_create:
-            models_to_create[mn] = {"brand": brand, "name": display_name, "storage_gb": storage_gb}
-
-    # Check which models already exist (idempotent)
-    from_db = db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(list(models_to_create.keys()))).all()
-    existing_model_numbers = {m[0] for m in from_db}
-
-    new_models_count = 0
-    new_phone_models = []
-    for mn, data in models_to_create.items():
-        if mn not in existing_model_numbers:
-            pm = PhoneModel(
-                model_number=mn,
-                brand=data["brand"],
-                name=data["name"],
-                color=None,
-                storage_gb=data["storage_gb"],
-                org_id=org_id,
+        # Detect device type per row + double-check for duplicate identifiers
+        all_identifiers = [r.imei.strip() for r in req.rows]
+        row_device_types = [detect_device_type(r.model_name) for r in req.rows]
+        existing_ids = set()
+        if all_identifiers:
+            existing_ids = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_identifiers)).all()}
+        if existing_ids:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Identifiers already exist: {', '.join(sorted(existing_ids)[:5])}"
             )
-            new_phone_models.append(pm)
-            new_models_count += 1
 
-    if new_phone_models:
-        db.add_all(new_phone_models)
-        db.flush()
+        # Collect unique models to create
+        models_to_create: dict[str, dict] = {}
+        for row in req.rows:
+            storage_gb = parse_storage_gb(row.storage)
+            brand, display_name = detect_brand_and_name(row.model_name)
+            mn = generate_model_number(display_name, storage_gb)
+            if mn not in models_to_create:
+                models_to_create[mn] = {"brand": brand, "name": display_name, "storage_gb": storage_gb}
 
-    # Create device inventory entries
-    now = datetime.utcnow()
-    devices = []
-    history_logs = []
-    for i, row in enumerate(req.rows):
-        storage_gb = parse_storage_gb(row.storage)
-        _, display_name = detect_brand_and_name(row.model_name)
-        mn = generate_model_number(display_name, storage_gb)
-        dt = row_device_types[i]
+        # Check which models already exist (idempotent)
+        from_db = db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(list(models_to_create.keys()))).all()
+        existing_model_numbers = {m[0] for m in from_db}
 
-        devices.append(DeviceInventory(
-            imei=row.imei.strip(),
-            serial_number=row.imei.strip() if dt != "Phone" else None,
-            model_number=mn,
-            location_id=effective_location_id,
-            device_status=req.device_status,
-            store_id=effective_location_id,
-            device_type=dt,
-            cost_basis=0.0,
-            is_hydrated=True,
-            received_date=now,
-            org_id=org_id,
-        ))
+        new_models_count = 0
+        new_phone_models = []
+        for mn, data in models_to_create.items():
+            if mn not in existing_model_numbers:
+                pm = PhoneModel(
+                    model_number=mn,
+                    brand=data["brand"],
+                    name=data["name"],
+                    color=None,
+                    storage_gb=data["storage_gb"],
+                    org_id=org_id,
+                )
+                new_phone_models.append(pm)
+                new_models_count += 1
 
-        history_logs.append(DeviceHistoryLog(
-            imei=row.imei.strip(),
-            timestamp=now,
-            action_type="Excel Import",
-            employee_id=employee_id,
-            previous_status=None,
-            new_status=req.device_status,
-            notes=f"Imported as {row.model_name} ({storage_gb}GB) [{dt}]",
-            org_id=org_id,
-        ))
+        if new_phone_models:
+            db.add_all(new_phone_models)
+            db.flush()
 
-    if devices:
-        db.add_all(devices)
-        db.flush()
+        # Create device inventory entries
+        now = datetime.utcnow()
+        devices = []
+        history_logs = []
+        for i, row in enumerate(req.rows):
+            storage_gb = parse_storage_gb(row.storage)
+            _, display_name = detect_brand_and_name(row.model_name)
+            mn = generate_model_number(display_name, storage_gb)
+            dt = row_device_types[i]
 
-    if history_logs:
-        db.add_all(history_logs)
+            devices.append(DeviceInventory(
+                imei=row.imei.strip(),
+                serial_number=row.imei.strip() if dt != "Phone" else None,
+                model_number=mn,
+                location_id=effective_location_id,
+                device_status=req.device_status,
+                store_id=effective_location_id,
+                device_type=dt,
+                cost_basis=0.0,
+                is_hydrated=True,
+                received_date=now,
+                org_id=org_id,
+            ))
 
-    db.commit()
+            history_logs.append(DeviceHistoryLog(
+                imei=row.imei.strip(),
+                timestamp=now,
+                action_type="Excel Import",
+                employee_id=employee_id,
+                previous_status=None,
+                new_status=req.device_status,
+                notes=f"Imported as {row.model_name} ({storage_gb}GB) [{dt}]",
+                org_id=org_id,
+            ))
 
-    return ExcelImportResponse(
-        devices_imported=len(devices),
-        new_models_created=new_models_count,
-    )
+        if devices:
+            db.add_all(devices)
+            db.flush()
+
+        if history_logs:
+            db.add_all(history_logs)
+
+        db.commit()
+
+        return ExcelImportResponse(
+            devices_imported=len(devices),
+            new_models_created=new_models_count,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        sys.stderr.write(f"IMPORT ERROR: {e}\n{traceback.format_exc()}\n")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
 
 
 @router.post("/seed-catalog")
