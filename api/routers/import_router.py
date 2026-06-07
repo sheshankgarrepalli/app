@@ -29,8 +29,10 @@ def parse_storage_gb(raw: str) -> int:
 
 
 def generate_model_number(display_name: str, storage_gb: int) -> str:
-    """Generate human-readable model_number: 'iPhone 11 - 64GB'."""
-    return f"{display_name} - {storage_gb}GB"
+    """Generate human-readable model_number. No storage suffix for devices with 0 GB."""
+    if storage_gb > 0:
+        return f"{display_name} - {storage_gb}GB"
+    return display_name
 
 KNOWN_BRANDS = ["Apple", "Samsung", "Motorola", "Google", "OnePlus", "Nokia", "Xiaomi", "Oppo", "Huawei", "LG", "Sony"]
 
@@ -45,6 +47,38 @@ def detect_brand_and_name(raw_name: str) -> tuple:
     if len(parts) == 2:
         return parts[0], parts[1]
     return name, name
+
+def detect_device_type(model_name: str) -> str:
+    """Detect device type from model name. Returns DeviceType value string."""
+    mn = model_name.lower()
+    for keyword in ["watch", "airpods", "airtag", "homepod", "pencil", "magic keyboard",
+                    "magic mouse", "trackpad", "airpods max", "beats"]:
+        if keyword in mn:
+            return "Watch" if "watch" in keyword else "Accessory"
+    for keyword in ["ipad", "tab ", "tablet", "galaxy tab"]:
+        if keyword in mn:
+            return "Tablet"
+    for keyword in ["macbook", "mac book", "imac", "mac mini", "mac pro"]:
+        if keyword in mn:
+            return "Laptop"
+    for keyword in ["ps5", "playstation", "xbox", "nintendo", "switch", "steam deck"]:
+        if keyword in mn:
+            return "Console"
+    for keyword in ["case", "screen protector", "charger", "cable", "adapter", "dock", "stand"]:
+        if keyword in mn:
+            return "Accessory"
+    for keyword in ["pixel", "iphone", "galaxy", "oneplus", "xiaomi", "motorola", "nokia", "phone"]:
+        if keyword in mn:
+            return "Phone"
+    return "Other"
+
+def is_imei_valid(identifier: str, device_type: str) -> bool:
+    """Validate identifier based on device type. IMEI must be 15 digits for phones."""
+    if not identifier or not identifier.strip():
+        return False
+    if device_type == "Phone":
+        return bool(re.match(r'^\d{15}$', identifier.strip()))
+    return len(identifier.strip()) >= 4
 
 # ── endpoints ────────────────────────────────────────────────────────────────
 
@@ -108,18 +142,19 @@ def import_auction_devices(req: DeviceImportRequest, db: Session = Depends(get_d
 @router.post("/excel-preview", response_model=ExcelPreviewResponse)
 def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Validate Excel rows and show what will be imported. Read-only, no side effects."""
-    # Bulk fetch existing IMEIs and model_numbers for fast validation
-    all_imeis = [r.imei.strip() for r in req.rows if r.imei and r.imei.strip()]
-    existing_imeis = set()
-    if all_imeis:
-        existing_imeis = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_imeis)).all()}
+    # Bulk fetch existing identifiers for fast validation
+    all_identifiers = [r.imei.strip() for r in req.rows if r.imei and r.imei.strip()]
+    existing_identifiers = set()
+    if all_identifiers:
+        all_rows = db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_identifiers)).all()
+        existing_identifiers = {d[0] for d in all_rows}
 
     results: List[PreviewRowResult] = []
-    seen_imeis_in_batch = set()
-    duplicate_imeis = 0
+    seen_in_batch = set()
+    duplicate_count = 0
     new_models_set = set()
 
-    # Pre-compute model numbers using display names
+    # Pre-compute model numbers
     row_model_numbers = []
     for row in req.rows:
         storage_gb = parse_storage_gb(row.storage)
@@ -132,20 +167,26 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
         existing_models = {m[0] for m in db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(row_model_numbers)).all()}
 
     for i, row in enumerate(req.rows):
-        imei = (row.imei or "").strip()
+        identifier = (row.imei or "").strip()
         storage_gb = parse_storage_gb(row.storage)
         mn = row_model_numbers[i]
         errors = []
+        device_type = row.device_type or detect_device_type(row.model_name)
 
-        if not imei:
-            errors.append("IMEI is required")
-        elif not re.match(r'^\d{15}$', imei):
-            errors.append("IMEI must be exactly 15 digits")
-        elif imei in existing_imeis or imei in seen_imeis_in_batch:
-            errors.append("Duplicate IMEI")
-            duplicate_imeis += 1
+        if not identifier:
+            errors.append("IMEI or Serial number is required")
+        elif not is_imei_valid(identifier, device_type):
+            if device_type == "Phone":
+                errors.append("IMEI must be exactly 15 digits")
+            else:
+                errors.append("Serial number must be at least 4 characters")
+        elif identifier in existing_identifiers or identifier in seen_in_batch:
+            errors.append("Duplicate identifier")
+            duplicate_count += 1
 
-        if storage_gb == 0:
+        # Storage is optional for Watches and Accessories
+        no_storage_types = ("Watch", "Accessory")
+        if device_type not in no_storage_types and storage_gb == 0:
             errors.append("Could not parse storage")
 
         is_valid = len(errors) == 0
@@ -154,24 +195,25 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
         if is_valid and not model_exists:
             new_models_set.add(mn)
 
-        if imei:
-            seen_imeis_in_batch.add(imei)
+        if identifier:
+            seen_in_batch.add(identifier)
 
         results.append(PreviewRowResult(
             row_number=i + 1,
             model_name=row.model_name,
             storage_gb=storage_gb,
-            imei=imei,
+            imei=identifier,
             is_valid=is_valid,
             error="; ".join(errors) if errors else None,
             model_exists=model_exists,
             generated_model_number=mn,
+            detected_device_type=device_type,
         ))
 
     summary = PreviewSummary(
         total=len(req.rows),
         valid=sum(1 for r in results if r.is_valid),
-        duplicate_imeis=duplicate_imeis,
+        duplicate_imeis=duplicate_count,
         new_models=len(new_models_set),
     )
 
@@ -187,21 +229,23 @@ def excel_import(
     """Import validated rows: create PhoneModels + DeviceInventory + history logs in one transaction."""
     org_id = getattr(current_user, 'current_org_id', None) or getattr(current_user, 'org_id', None)
     employee_id = current_user.email
+    device_type_value = getattr(req, 'device_type', 'Phone') or 'Phone'
     # Admin can import anywhere; non-admin are locked to their assigned store
     if current_user.role.value == "admin":
         effective_location_id = req.location_id or current_user.store_id or "warehouse"
     else:
         effective_location_id = current_user.store_id or req.location_id
 
-    # Double-check for duplicate IMEIs (race condition guard)
-    all_imeis = [r.imei.strip() for r in req.rows]
-    existing_imeis = set()
-    if all_imeis:
-        existing_imeis = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_imeis)).all()}
-    if existing_imeis:
+    # Detect device type per row + double-check for duplicate identifiers
+    all_identifiers = [r.imei.strip() for r in req.rows]
+    row_device_types = [detect_device_type(r.model_name) for r in req.rows]
+    existing_ids = set()
+    if all_identifiers:
+        existing_ids = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_identifiers)).all()}
+    if existing_ids:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"IMEIs already exist: {', '.join(sorted(existing_imeis)[:5])}"
+            detail=f"Identifiers already exist: {', '.join(sorted(existing_ids)[:5])}"
         )
 
     # Collect unique models to create
@@ -240,17 +284,20 @@ def excel_import(
     now = datetime.utcnow()
     devices = []
     history_logs = []
-    for row in req.rows:
+    for i, row in enumerate(req.rows):
         storage_gb = parse_storage_gb(row.storage)
         _, display_name = detect_brand_and_name(row.model_name)
         mn = generate_model_number(display_name, storage_gb)
+        dt = row_device_types[i]
 
         devices.append(DeviceInventory(
             imei=row.imei.strip(),
+            serial_number=row.imei.strip() if dt != "Phone" else None,
             model_number=mn,
             location_id=effective_location_id,
             device_status=req.device_status,
             store_id=effective_location_id,
+            device_type=dt,
             cost_basis=0.0,
             is_hydrated=True,
             received_date=now,
@@ -264,7 +311,7 @@ def excel_import(
             employee_id=employee_id,
             previous_status=None,
             new_status=req.device_status,
-            notes=f"Imported as {row.model_name} ({storage_gb}GB)",
+            notes=f"Imported as {row.model_name} ({storage_gb}GB) [{dt}]",
             org_id=org_id,
         ))
 

@@ -13,6 +13,7 @@ interface PreviewRow {
   error: string | null;
   model_exists: boolean;
   generated_model_number: string;
+  detected_device_type: string;
 }
 
 interface PreviewResponse {
@@ -86,12 +87,12 @@ export default function ExcelImport() {
       const firstRow = jsonData[0];
       const keys = Object.keys(firstRow);
       const findKey = (patterns: string[]) => keys.find(k => patterns.some(p => k.toLowerCase().includes(p.toLowerCase())));
-      const imeiKey = findKey(['imei']);
+      const imeiKey = findKey(['imei', 'serial']);
       const modelKey = findKey(['model']);
       const storageKey = findKey(['storage']);
 
       if (!imeiKey || !modelKey || !storageKey) {
-        setError(`Could not identify required columns. Found: ${keys.join(', ')}. Expected columns with "IMEI", "model", and "storage" in headers.`);
+        setError(`Could not identify required columns. Found: ${keys.join(', ')}. Expected columns with "IMEI"/"Serial", "model", and "storage" in headers.`);
         return;
       }
 
@@ -257,8 +258,9 @@ export default function ExcelImport() {
                 <tr>
                   <th>#</th>
                   <th>Model Name</th>
+                  <th>Type</th>
                   <th>Storage</th>
-                  <th>IMEI</th>
+                  <th>Identifier</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -267,7 +269,8 @@ export default function ExcelImport() {
                   <tr key={r.row_number} className={!r.is_valid ? 'bg-red-50' : ''}>
                     <td className="text-xs text-[var(--text-secondary)]">{r.row_number}</td>
                     <td className="text-sm font-medium text-[var(--text)]">{r.model_name}</td>
-                    <td className="text-sm text-[var(--text)]">{r.storage_gb}GB</td>
+                    <td><span className="badge badge-neutral text-[11px]">{r.detected_device_type}</span></td>
+                    <td className="text-sm text-[var(--text)]">{r.storage_gb > 0 ? `${r.storage_gb}GB` : '—'}</td>
                     <td className="font-mono text-xs text-[var(--text)]">{r.imei}</td>
                     <td>
                       {r.is_valid ? (

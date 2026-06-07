@@ -948,6 +948,7 @@ class ExcelImportRow(BaseModel):
     model_name: str
     storage: str
     imei: str
+    device_type: Optional[str] = None
 
 class ExcelPreviewRequest(BaseModel):
     rows: List[ExcelImportRow]
@@ -961,6 +962,7 @@ class PreviewRowResult(BaseModel):
     error: Optional[str] = None
     model_exists: bool = False
     generated_model_number: str = ""
+    detected_device_type: str = "Phone"
 
 class PreviewSummary(BaseModel):
     total: int
@@ -976,6 +978,7 @@ class ExcelImportRequest(BaseModel):
     rows: List[ExcelImportRow]
     location_id: str
     device_status: str
+    device_type: str = "Phone"
 
 class ExcelImportResponse(BaseModel):
     devices_imported: int
