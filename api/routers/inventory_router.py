@@ -381,14 +381,19 @@ def bulk_blind_intake(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(auth.require_role(["admin", "store"]))
 ):
-    """
-    IMEI-Centric Blind Scan: Accepts only a list of IMEIs and creates raw records.
-    Metadata binding happens later via Auction/Invoice sheets.
-    """
+    """Bulk intake with optional per-device model numbers."""
     from sqlalchemy.exc import IntegrityError
-    results = []
+    org_id = getattr(current_user, 'current_org_id', None)
+    location_id = getattr(request, 'location_id', None) or current_user.store_id or 'warehouse'
+    device_status = getattr(request, 'device_status', None) or 'Sellable'
     
-    # Filter out IMEIs that already exist to allow idempotent "re-scans"
+    # Build a lookup of IMEI → model info if devices list was provided
+    model_map = {}
+    if request.devices:
+        for d in request.devices:
+            model_map[d.imei] = d
+
+    results = []
     existing_imeis = {d.imei for d in db.query(models.DeviceInventory.imei).filter(models.DeviceInventory.imei.in_(request.imeis)).all()}
     new_imeis = [i for i in request.imeis if i not in existing_imeis]
     
@@ -397,16 +402,22 @@ def bulk_blind_intake(
 
     try:
         for imei in new_imeis:
+            info = model_map.get(imei)
+            mn = info.model_number if info and info.model_number else None
+            dt = info.device_type if info and info.device_type else None
+
             db_device = models.DeviceInventory(
                 imei=imei,
-                location_id=current_user.store_id or "Warehouse_Alpha",
-                store_id=current_user.store_id,
-                device_status=None, # Raw state
-                is_hydrated=False,
+                model_number=mn,
+                serial_number=imei if dt and dt != 'Phone' else None,
+                location_id=location_id,
+                store_id=location_id,
+                device_status=device_status,
+                device_type=dt,
+                is_hydrated=True,
                 cost_basis=0.0,
-                org_id=getattr(current_user, 'current_org_id', None)
+                org_id=org_id,
             )
-            db_device.org_id = getattr(current_user, 'current_org_id', None)
             db.add(db_device)
             results.append(db_device)
 

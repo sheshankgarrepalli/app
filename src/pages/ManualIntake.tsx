@@ -3,6 +3,8 @@ import api from '../api/api';
 import { CheckCircle2, AlertCircle, Lock, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocationFilter } from '../context/LocationContext';
+import ModelSelector from '../components/ModelSelector';
+import { fetchModels } from '../api/models';
 
 const DEVICE_TYPES = [
   { value: 'Phone', label: 'Phone' },
@@ -13,6 +15,13 @@ const DEVICE_TYPES = [
   { value: 'Accessory', label: 'Accessory' },
   { value: 'Other', label: 'Other' },
 ];
+
+interface Device {
+  id: string;
+  device_type: string;
+  model_number: string;
+  model_label: string;
+}
 
 export default function ManualIntake() {
     const { user } = useAuth();
@@ -25,8 +34,10 @@ export default function ManualIntake() {
     }, [availableLocations, userStoreId]);
 
     const [identifier, setIdentifier] = useState('');
-    const [devices, setDevices] = useState<{ id: string; device_type: string }[]>([]);
+    const [devices, setDevices] = useState<Device[]>([]);
     const [deviceType, setDeviceType] = useState('Phone');
+    const [modelNumber, setModelNumber] = useState('');
+    const [modelLabel, setModelLabel] = useState('');
     const [destination, setDestination] = useState(isAdmin ? 'warehouse' : userStoreId);
     const [defaultStatus, setDefaultStatus] = useState(isAdmin ? 'In_QC' : 'Sellable');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +64,7 @@ export default function ManualIntake() {
             idRef.current?.focus();
             return;
         }
-        setDevices([{ id: trimmed, device_type: deviceType }, ...devices]);
+        setDevices([{ id: trimmed, device_type: deviceType, model_number: modelNumber, model_label: modelLabel }, ...devices]);
         setIdentifier('');
         setError(null);
     };
@@ -64,15 +75,46 @@ export default function ManualIntake() {
 
     const removeDevice = (id: string) => setDevices(devices.filter(d => d.id !== id));
 
+    const handleModelSelect = (mn: string) => {
+        setModelNumber(mn);
+        if (mn) {
+            fetchModels(mn).then(models => {
+                const m = models.find(o => o.model_number === mn);
+                if (m) {
+                    setModelLabel(`${m.brand} ${m.name}`);
+                    // Auto-detect device type
+                    const name = m.name.toLowerCase();
+                    if (name.includes('iphone') || name.includes('galaxy') || name.includes('pixel') || name.includes('moto') || name.includes('oneplus') || name.includes('nokia')) {
+                        setDeviceType('Phone');
+                    } else if (name.includes('ipad') || name.includes('tab')) {
+                        setDeviceType('Tablet');
+                    } else if (name.includes('macbook') || name.includes('imac') || name.includes('mac')) {
+                        setDeviceType('Laptop');
+                    } else if (name.includes('watch')) {
+                        setDeviceType('Watch');
+                    } else if (name.includes('nintendo') || name.includes('playstation') || name.includes('xbox')) {
+                        setDeviceType('Console');
+                    } else if (name.includes('airpods') || name.includes('pencil') || name.includes('keyboard') || name.includes('mouse') || name.includes('homepod') || name.includes('airtag')) {
+                        setDeviceType('Accessory');
+                    }
+                }
+            }).catch(() => {});
+        } else {
+            setModelLabel('');
+        }
+    };
+
     const onSubmit = async () => {
         if (devices.length === 0) return;
-        if (!window.confirm(`Register ${devices.length} device${devices.length !== 1 ? 's' : ''} with status "${defaultStatus.replace(/_/g, ' ')}" at "${destination}"?`)) return;
+        const statusLabel = isAdmin ? defaultStatus.replace(/_/g, ' ') : 'Sellable';
+        if (!window.confirm(`Register ${devices.length} device${devices.length !== 1 ? 's' : ''} with status "${statusLabel}" at "${userStoreName}"?`)) return;
         setIsSubmitting(true);
         setError(null);
         setSuccess(false);
         try {
             await api.post('/api/inventory/bulk-intake', {
                 imeis: devices.map(d => d.id),
+                devices: devices.map(d => ({ imei: d.id, model_number: d.model_number || null, device_type: d.device_type })),
                 location_id: destination,
                 device_status: defaultStatus,
             });
@@ -140,6 +182,8 @@ export default function ManualIntake() {
 
           <div className="card">
             <div className="card-body flex flex-col gap-4">
+              <label className="form-label">Model</label>
+              <ModelSelector value={modelNumber} onChange={handleModelSelect} placeholder="Search & select device model..." />
               <label className="form-label">Device Type</label>
               <select className="form-select" value={deviceType} onChange={e => setDeviceType(e.target.value)}>
                 {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -201,7 +245,7 @@ export default function ManualIntake() {
                     <div className="scanned-list" style={{ maxHeight: 400, overflowY: 'auto', borderTop: '1px solid var(--border)' }}>
                         {devices.map((d, idx) => (
                             <div key={d.id} className="scanned-row">
-                                <span>{devices.length - idx}. {d.id} <span className="text-[10px] text-[var(--text-tertiary)] ml-2">{d.device_type}</span></span>
+                                <span>{devices.length - idx}. {d.id} <span className="text-[10px] text-[var(--text-tertiary)] ml-2">{d.device_type}{d.model_label ? ` — ${d.model_label}` : ''}</span></span>
                                 <button className="del-btn" onClick={() => removeDevice(d.id)}>&times;</button>
                             </div>
                         ))}

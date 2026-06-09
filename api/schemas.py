@@ -219,8 +219,16 @@ class BulkRouteRequest(BaseModel):
     notes: str = ""
     defects: List[str] = []
 
+class BulkIntakeItem(BaseModel):
+    imei: str
+    model_number: Optional[str] = None
+    device_type: Optional[str] = None
+
 class BulkReceiveRequest(BaseModel):
     imeis: List[str]
+    devices: Optional[List[BulkIntakeItem]] = None
+    location_id: Optional[str] = None
+    device_status: Optional[str] = "Sellable"
     notes: str = ""
 
 class DeviceBulkCreate(BaseModel):
@@ -282,11 +290,14 @@ class ManualDeviceIntakeRow(BaseModel):
     imei: str
     serial_number: Optional[str] = None
     model_number: Optional[str] = None
+    device_type: Optional[str] = None
     condition: Optional[str] = None
     acquisition_cost: Optional[float] = 0.0
 
 class BatchManualIntakeRequest(BaseModel):
     devices: List[ManualDeviceIntakeRow]
+    location_id: Optional[str] = None
+    device_status: Optional[str] = "Sellable"
 
 class DeviceInventoryOut(BaseModel):
     imei: str
