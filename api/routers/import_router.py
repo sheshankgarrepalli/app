@@ -44,10 +44,14 @@ def detect_brand_and_name(raw_name: str) -> tuple:
     for brand in KNOWN_BRANDS:
         prefix = brand + " "
         if name.lower().startswith(prefix.lower()):
-            return brand, name[len(prefix):].strip()
+            return brand, name  # keep full name, don't strip brand
     parts = name.split(" ", 1)
-    if len(parts) == 2:
-        return parts[0], parts[1]
+    if len(parts) == 2 and parts[0] in KNOWN_BRANDS:
+        return parts[0], name
+    # Unknown brand — use the full name as both brand and name
+    first_word = name.split(" ")[0]
+    if first_word in KNOWN_BRANDS:
+        return first_word, name
     return name, name
 
 def detect_device_type(model_name: str) -> str:

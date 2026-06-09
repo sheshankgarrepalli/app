@@ -129,3 +129,91 @@ def delete_model(
     db.delete(db_model)
     db.commit()
     return {"status": "deleted"}
+
+
+# ── Helper: reconstruct model_number from device column ─────────────────────
+
+KNOWN_BRANDS = ["Apple", "Samsung", "Motorola", "Google", "OnePlus", "Nokia", "Xiaomi", "Oppo", "Huawei", "LG", "Sony"]
+
+
+def detect_brand_and_name(raw_name: str):
+    name = raw_name.strip()
+    for brand in KNOWN_BRANDS:
+        prefix = brand + " "
+        if name.lower().startswith(prefix.lower()):
+            return brand, name
+    parts = name.split(" ", 1)
+    if len(parts) == 2 and parts[0] in KNOWN_BRANDS:
+        return parts[0], name
+    return name, name
+
+
+def infer_brand_from_model_number(mn: str) -> str:
+    mn_lower = mn.lower()
+    brand_keywords = {
+        "Apple": ["iphone", "ipad", "macbook", "imac", "mac mini", "mac pro", "watch", "airpods"],
+        "Samsung": ["galaxy", "z flip", "z fold"],
+        "Motorola": ["moto", "razr"],
+        "Google": ["pixel"],
+    }
+    for brand, keywords in brand_keywords.items():
+        for kw in keywords:
+            if kw in mn_lower:
+                return brand
+    return ""
+
+
+def generate_model_number(display_name: str, storage_gb: int) -> str:
+    if storage_gb > 0:
+        return f"{display_name} - {storage_gb}GB"
+    return display_name
+
+
+@router.post("/sync-from-inventory")
+def sync_catalog_from_inventory(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin"])),
+):
+    """Rebuild the catalog from existing device_inventory entries — fill in ANY missing or inconsistent model records."""
+    org_id = getattr(current_user, 'current_org_id', None)
+    devices = db.query(models.DeviceInventory).all()
+    created = 0
+    updated = 0
+
+    for device in devices:
+        if not device.model_number:
+            continue
+        mn = device.model_number
+
+        # Check if a model record exists
+        existing = db.query(models.PhoneModel).filter(
+            models.PhoneModel.model_number == mn,
+        ).first()
+
+        if existing:
+            # Update if brand/name is empty or looks wrong
+            needs_fix = False
+            if not existing.brand or not existing.name or existing.name != existing.model_number:
+                needs_fix = True
+            if needs_fix:
+                brand = infer_brand_from_model_number(mn) or existing.brand or "Unknown"
+                name = mn.split(" - ")[0] if " - " in mn else mn
+                existing.brand = brand
+                existing.name = name
+                existing.org_id = org_id
+                updated += 1
+        else:
+            brand = infer_brand_from_model_number(mn) or "Unknown"
+            name = mn.split(" - ")[0] if " - " in mn else mn
+            pm = models.PhoneModel(
+                model_number=mn,
+                brand=brand,
+                name=name,
+                storage_gb=0,
+                org_id=org_id,
+            )
+            db.add(pm)
+            created += 1
+
+    db.commit()
+    return {"created": created, "updated": updated, "message": f"Catalog synced: {created} created, {updated} updated"}
