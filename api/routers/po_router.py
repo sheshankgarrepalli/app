@@ -26,6 +26,7 @@ def _gen_po_number(db: Session, org_id: str) -> str:
 @router.get("/", response_model=List[PurchaseOrderOut])
 def list_pos(
     status_filter: str = "",
+    store_id: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -33,6 +34,8 @@ def list_pos(
     q = db.query(PurchaseOrder).filter(PurchaseOrder.org_id == org_id)
     if status_filter:
         q = q.filter(PurchaseOrder.status == status_filter)
+    if store_id:
+        q = q.filter(PurchaseOrder.store_id == store_id)
     pos = q.order_by(desc(PurchaseOrder.created_at)).all()
 
     result = []

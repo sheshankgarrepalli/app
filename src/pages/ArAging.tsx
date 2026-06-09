@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../api/api';
+import { useLocationFilter } from '../context/LocationContext';
 import MetricCard from '../components/MetricCard';
 
 interface AgingInvoice {
@@ -42,6 +43,7 @@ interface AgingResponse {
 const formatCurrency = (n: number) => `$${n.toFixed(2)}`;
 
 export default function ArAging() {
+  const { selectedLocationId } = useLocationFilter();
   const [data, setData] = useState<AgingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export default function ArAging() {
     setLoading(true);
     setError(null);
     try {
-      const { data: res } = await api.get('/api/reports/ar-aging');
+      const { data: res } = await api.get('/api/reports/ar-aging', { params: { store_id: selectedLocationId || undefined } });
       setData(res);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load AR aging report');

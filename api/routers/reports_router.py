@@ -7,6 +7,7 @@ from collections import defaultdict
 import models, auth
 from database import get_db
 import io, csv
+from typing import Optional
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -29,6 +30,7 @@ def _resolve_start(date_range: str) -> datetime:
 @router.get("/dashboard")
 def get_dashboard(
         date_range: str = Query("Today"),
+        store_id: Optional[str] = Query(None),
         db: Session = Depends(get_db),
         current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
@@ -36,43 +38,62 @@ def get_dashboard(
     try:
         org_id = getattr(current_user, 'current_org_id', None)
         start = _resolve_start(date_range)
+        
+        # Build a reusable invoice filter
+        def inv_filter(stmt):
+            stmt = stmt.filter(models.Invoice.created_at >= start, models.Invoice.org_id == org_id)
+            if store_id:
+                stmt = stmt.filter(models.Invoice.store_id == store_id)
+            return stmt
 
         # 1. Total sold
-        total_sold = db.query(models.InvoiceItem).join(models.Invoice).filter(
-            models.Invoice.created_at >= start, models.Invoice.org_id == org_id
-        ).count()
+        total_sold = inv_filter(db.query(models.InvoiceItem).join(models.Invoice)).count()
 
         # 2. Sales by location
-        loc_rows = db.query(
+        loc_q = db.query(
             models.Invoice.store_id, func.count(models.InvoiceItem.id)
         ).join(models.InvoiceItem).filter(
             models.Invoice.created_at >= start, models.Invoice.org_id == org_id
-        ).group_by(models.Invoice.store_id).all()
+        )
+        if store_id:
+            loc_q = loc_q.filter(models.Invoice.store_id == store_id)
+        loc_rows = loc_q.group_by(models.Invoice.store_id).all()
         sales_by_location = defaultdict(int)
         for sid, cnt in loc_rows:
             sales_by_location[sid] = cnt
 
         # 3. Warehouse outflow
-        warehouse_outflow = db.query(models.TransferOrder).filter(
+        transfer_q = db.query(models.TransferOrder).filter(
             models.TransferOrder.created_at >= start, models.TransferOrder.org_id == org_id
-        ).count()
+        )
+        if store_id:
+            transfer_q = transfer_q.filter(models.TransferOrder.source_location_id == store_id)
+        warehouse_outflow = transfer_q.count()
 
         # 4. Top models
-        top = db.query(
+        top_q = db.query(
             models.InvoiceItem.model_number, func.count(models.InvoiceItem.id)
         ).join(models.Invoice).filter(
             models.Invoice.created_at >= start, models.Invoice.org_id == org_id
-        ).group_by(models.InvoiceItem.model_number).order_by(func.count(models.InvoiceItem.id).desc()).limit(5).all()
+        )
+        if store_id:
+            top_q = top_q.filter(models.Invoice.store_id == store_id)
+        top = top_q.group_by(models.InvoiceItem.model_number).order_by(func.count(models.InvoiceItem.id).desc()).limit(5).all()
         top_models = [{"model_number": m[0], "count": m[1]} for m in top]
 
         # 5. Gross margin
-        total_cost = db.query(func.sum(models.DeviceInventory.cost_basis)).filter(
+        cost_q = db.query(func.sum(models.DeviceInventory.cost_basis)).filter(
             models.DeviceInventory.device_status == models.DeviceStatus.Sold,
             models.DeviceInventory.org_id == org_id
-        ).scalar() or 0
-        total_revenue = db.query(func.sum(models.Invoice.total)).filter(
+        )
+        revenue_q = db.query(func.sum(models.Invoice.total)).filter(
             models.Invoice.org_id == org_id
-        ).scalar() or 0
+        )
+        if store_id:
+            cost_q = cost_q.filter(models.DeviceInventory.store_id == store_id)
+            revenue_q = revenue_q.filter(models.Invoice.store_id == store_id)
+        total_cost = cost_q.scalar() or 0
+        total_revenue = revenue_q.scalar() or 0
         margin = total_revenue - total_cost
         margin_pct = (margin / total_revenue * 100) if total_revenue > 0 else 0
 
@@ -166,6 +187,7 @@ def get_dashboard(
 @router.get("/tax-summary")
 def get_tax_summary(
         date_range: str = Query("This Month"),
+        store_id: Optional[str] = Query(None),
         db: Session = Depends(get_db),
         current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
@@ -175,6 +197,7 @@ def get_tax_summary(
     invoices = db.query(models.Invoice).filter(
         models.Invoice.created_at >= start,
         models.Invoice.org_id == org_id,
+        *([models.Invoice.store_id == store_id] if store_id else []),
         models.Invoice.status.in_([
             models.InvoiceStatus.Paid,
             models.InvoiceStatus.Partially_Paid,
@@ -236,16 +259,21 @@ def get_tax_summary(
 @router.get("/profit-loss")
 def get_profit_loss(
         date_range: str = Query("This Month"),
+        store_id: Optional[str] = Query(None),
         db: Session = Depends(get_db),
         current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
-    org_id = getattr(current_user, 'current_org_id', None)
-    start = _resolve_start(date_range)
+    try:
+        org_id = getattr(current_user, 'current_org_id', None)
+        start = _resolve_start(date_range)
+        
+        def inv_filter(q):
+            q = q.filter(models.Invoice.org_id == org_id)
+            if store_id: q = q.filter(models.Invoice.store_id == store_id)
+            return q
 
     # Revenue: sum of all non-voided/non-draft invoice totals
-    revenue = db.query(func.sum(models.Invoice.total)).filter(
-        models.Invoice.created_at >= start,
-        models.Invoice.org_id == org_id,
+    revenue = inv_filter(db.query(func.sum(models.Invoice.total))).filter(
         models.Invoice.status.in_([
             models.InvoiceStatus.Paid,
             models.InvoiceStatus.Partially_Paid,
@@ -262,17 +290,16 @@ def get_profit_loss(
     ).filter(
         models.Invoice.created_at >= start,
         models.Invoice.org_id == org_id,
-        models.DeviceInventory.org_id == org_id
+        models.DeviceInventory.org_id == org_id,
+        *([models.Invoice.store_id == store_id] if store_id else [])
     ).scalar() or 0
 
     # Parts sold (non-device SKUs) — estimate cost from parts_inventory
-    parts_sold = db.query(
+    parts_sold = inv_filter(db.query(
         models.InvoiceItem.sku, func.sum(models.InvoiceItem.quantity)
     ).join(
         models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
-    ).filter(
-        models.Invoice.created_at >= start,
-        models.Invoice.org_id == org_id,
+    )).filter(
         models.InvoiceItem.sku != None,
         models.InvoiceItem.imei == None,
     ).group_by(models.InvoiceItem.sku).all()
@@ -287,11 +314,9 @@ def get_profit_loss(
             parts_cost += (part.moving_average_cost or 0) * (qty or 0)
 
     # Parts revenue from non-device items
-    parts_revenue = db.query(func.sum(models.InvoiceItem.amount)).join(
+    parts_revenue = inv_filter(db.query(func.sum(models.InvoiceItem.amount))).join(
         models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
     ).filter(
-        models.Invoice.created_at >= start,
-        models.Invoice.org_id == org_id,
         models.InvoiceItem.imei == None,
     ).scalar() or 0
 
@@ -551,6 +576,7 @@ def _date_trunc(granularity: str, col):
 @router.get("/dashboard/timeseries")
 def get_timeseries(
         date_range: str = Query("This Month"),
+        store_id: Optional[str] = Query(None),
         db: Session = Depends(get_db),
         current_user: models.User = Depends(auth.require_role(["admin"]))
 ):
@@ -633,6 +659,7 @@ def get_timeseries(
 
 @router.get("/ar-aging")
 def get_ar_aging(
+        store_id: Optional[str] = Query(None),
         db: Session = Depends(get_db),
         current_user: models.User = Depends(auth.require_role(["admin"]))
 ):

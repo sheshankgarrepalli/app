@@ -30,13 +30,17 @@ export interface TimeSeriesData {
   inventory_levels: TimeSeriesPoint[];
 }
 
-export async function fetchDashboard(dateRange: string): Promise<DashboardSnapshot> {
-  const { data } = await api.get('/api/reports/dashboard', { params: { date_range: dateRange } });
+export async function fetchDashboard(dateRange: string, storeId?: string): Promise<DashboardSnapshot> {
+  const params: Record<string, string> = { date_range: dateRange };
+  if (storeId) params.store_id = storeId;
+  const { data } = await api.get('/api/reports/dashboard', { params });
   return data;
 }
 
-export async function fetchTimeSeries(dateRange: string): Promise<TimeSeriesData> {
-  const { data } = await api.get('/api/reports/dashboard/timeseries', { params: { date_range: dateRange } });
+export async function fetchTimeSeries(dateRange: string, storeId?: string): Promise<TimeSeriesData> {
+  const params: Record<string, string> = { date_range: dateRange };
+  if (storeId) params.store_id = storeId;
+  const { data } = await api.get('/api/reports/dashboard/timeseries', { params });
   return data;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle, DollarSign, FileText, Printer } from 'lucide-react';
 import api from '../api/api';
+import { useLocationFilter } from '../context/LocationContext';
 import MetricCard from '../components/MetricCard';
 
 interface DailyClose {
@@ -17,6 +18,7 @@ interface DailyClose {
 const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Wire', 'Store Credit', 'On Terms', 'Zelle'];
 
 export default function DailyClose() {
+  const { selectedLocationId } = useLocationFilter();
   const [data, setData] = useState<DailyClose | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function DailyClose() {
     setLoading(true);
     setError(null);
     try {
-      const { data: res } = await api.get('/api/reports/daily-close');
+      const { data: res } = await api.get('/api/reports/daily-close', { params: { store_id: selectedLocationId || undefined } });
       setData(res);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load daily close');

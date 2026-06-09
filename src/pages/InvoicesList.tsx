@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Loader2, AlertCircle, Search, FileText, Copy, ExternalLink, CheckCircle2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import { fetchInvoices, generateShareLink, Invoice, extractError } from '../api/invoices';
+import { useLocationFilter } from '../context/LocationContext';
 
 const PER_PAGE = 25;
 
@@ -26,12 +27,13 @@ export default function InvoicesList() {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
+  const { selectedLocationId } = useLocationFilter();
 
-  const load = useCallback(async (q?: string) => {
+  const load = useCallback(async (q?: string, locId?: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchInvoices(q);
+      const data = await fetchInvoices(q, locId);
       setInvoices(data);
       setPage(0);
     } catch (err: any) {
@@ -41,7 +43,7 @@ export default function InvoicesList() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(search || undefined, selectedLocationId); }, [load, selectedLocationId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

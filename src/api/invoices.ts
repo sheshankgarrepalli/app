@@ -121,8 +121,10 @@ export function extractError(err: any): string {
   return 'An unexpected error occurred';
 }
 
-export async function fetchInvoices(query?: string): Promise<Invoice[]> {
-  const params = query ? { query } : {};
+export async function fetchInvoices(query?: string, storeId?: string | null): Promise<Invoice[]> {
+  const params: Record<string, string> = {};
+  if (query) params.query = query;
+  if (storeId) params.store_id = storeId;
   const { data } = await api.get('/api/pos/invoices', { params });
   return data;
 }

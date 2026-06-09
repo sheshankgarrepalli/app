@@ -4,6 +4,7 @@ import DateRangeSelector from '../components/analytics/DateRangeSelector';
 import OverviewTab from '../components/analytics/OverviewTab';
 import SalesTab from '../components/analytics/SalesTab';
 import InventoryTab from '../components/analytics/InventoryTab';
+import { useLocationFilter } from '../context/LocationContext';
 import { fetchDashboard, fetchTimeSeries, exportDashboardCSV } from '../api/reports';
 import type { DashboardSnapshot, TimeSeriesData } from '../api/reports';
 
@@ -17,6 +18,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const { selectedLocationId } = useLocationFilter();
   const [dateRange, setDateRange] = useState('This Month');
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [timeSeries, setTimeSeries] = useState<TimeSeriesData | null>(null);
@@ -28,8 +30,8 @@ export default function Analytics() {
     setError(null);
     try {
       const [snap, ts] = await Promise.all([
-        fetchDashboard(dateRange),
-        fetchTimeSeries(dateRange),
+        fetchDashboard(dateRange, selectedLocationId || undefined as any),
+        fetchTimeSeries(dateRange, selectedLocationId || undefined as any),
       ]);
       setSnapshot(snap);
       setTimeSeries(ts);

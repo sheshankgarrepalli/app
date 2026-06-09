@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import models, schemas, auth, state_machine
 import wms_core
 from database import get_db
@@ -220,12 +220,18 @@ def get_transfers(db: Session = Depends(get_db), current_user: models.User = Dep
 
 
 @router.get("/incoming")
-def get_incoming_transfers(db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))):
+def get_incoming_transfers(
+    location_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "warehouse", "store"]))
+):
     org_id = getattr(current_user, 'current_org_id', None)
     user_loc = current_user.store_id or "warehouse"
+    # Use location_id param if provided (admin filtering), otherwise user's store
+    dest = location_id if location_id and current_user.role == "admin" else user_loc
     query = db.query(models.TransferOrder).filter(
         models.TransferOrder.org_id == org_id,
-        models.TransferOrder.destination_location_id == user_loc,
+        models.TransferOrder.destination_location_id == dest,
         models.TransferOrder.status == "In_Transit",
     )
     return query.order_by(models.TransferOrder.created_at.desc()).all()

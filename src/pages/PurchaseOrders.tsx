@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Loader2, AlertCircle, Package, ChevronDown, Truck, Calendar, X } from 'lucide-react';
 import api from '../api/api';
+import { useLocationFilter } from '../context/LocationContext';
 
 interface POItem {
   id: number;
@@ -54,6 +55,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function PurchaseOrders() {
+  const { selectedLocationId } = useLocationFilter();
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function PurchaseOrders() {
     setError(null);
     try {
       const [{ data: poData }, { data: supData }] = await Promise.all([
-        api.get('/api/po/'),
+        api.get('/api/po/', { params: { store_id: selectedLocationId || undefined } }),
         api.get('/api/parts/suppliers'),
       ]);
       setPos(Array.isArray(poData) ? poData : []);

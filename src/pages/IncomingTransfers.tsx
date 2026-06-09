@@ -37,7 +37,7 @@ function getStatusBadge(status: string) {
 }
 
 export default function IncomingTransfers() {
-    const { availableLocations } = useLocationFilter();
+    const { availableLocations, selectedLocationId } = useLocationFilter();
     const [transfers, setTransfers] = useState<TransferOrder[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [detail, setDetail] = useState<TransferDetail | null>(null);
@@ -53,7 +53,8 @@ export default function IncomingTransfers() {
     const fetchTransfers = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/api/transfers/incoming`);
+            const params = selectedLocationId ? { location_id: selectedLocationId } : {};
+      const res = await api.get(`/api/transfers/incoming`, { params });
             setTransfers(res.data || []);
         } catch { setError('Failed to load incoming transfers'); } finally { setLoading(false); }
     };

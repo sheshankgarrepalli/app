@@ -686,6 +686,7 @@ def process_returns(
 @router.get("/invoices", response_model=List[schemas.InvoiceOut])
 def list_invoices(
     query: Optional[str] = None,
+    store_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -695,11 +696,13 @@ def list_invoices(
         if org_id:
             stmt = stmt.filter(models.Invoice.org_id == org_id)
 
-        # Admin bypasses the store filter
+        # Filter by store — admins can pass store_id param, non-admins are locked to their store
         if current_user.role != "admin":
             if not current_user.store_id:
                 return []
             stmt = stmt.filter(models.Invoice.store_id == current_user.store_id)
+        elif store_id:
+            stmt = stmt.filter(models.Invoice.store_id == store_id)
             
         if query:
             # Search by Invoice Number, Customer Name, or Device Identifier (IMEI/Serial)

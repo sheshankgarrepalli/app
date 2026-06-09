@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import api from '../api/api';
+import { useLocationFilter } from '../context/LocationContext';
 import MetricCard from '../components/MetricCard';
 import DateRangeSelector from '../components/DateRangeSelector';
 
@@ -20,6 +21,7 @@ interface PLResponse {
 }
 
 export default function ProfitLoss() {
+  const { selectedLocationId } = useLocationFilter();
   const [data, setData] = useState<PLResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +31,14 @@ export default function ProfitLoss() {
     setLoading(true);
     setError(null);
     try {
-      const { data: res } = await api.get('/api/reports/profit-loss', { params: { date_range: dateRange } });
+      const { data: res } = await api.get('/api/reports/profit-loss', { params: { date_range: dateRange, store_id: selectedLocationId || undefined } });
       setData(res);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load P&L');
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, selectedLocationId]);
 
   useEffect(() => { load(); }, [load]);
 
