@@ -258,6 +258,9 @@ export default function InvoiceDetail() {
                   <tr key={item.id}>
                     <td className="p-3">
                       <p className="text-xs text-[var(--text)]">{item.description || '—'}</p>
+                      {(item as any).device_name && (
+                        <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{(item as any).device_name}</p>
+                      )}
                       {(item.imei || item.model_number) && (
                         <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
                           {item.imei ? `IMEI: ${item.imei}` : ''}{item.imei && item.model_number ? ' · ' : ''}{item.model_number ? `Model: ${item.model_number}` : ''}

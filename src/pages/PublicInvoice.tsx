@@ -128,6 +128,7 @@ export default function PublicInvoice() {
                 <tr key={i} className="text-[var(--text)]">
                   <td className="p-3">
                     <div>{item.description || item.model_number || 'Item'}</div>
+                    {(item as any).device_name && <div className="text-xs text-[var(--text-secondary)]">{(item as any).device_name}</div>}
                     {item.imei && <div className="text-[10px] text-[var(--text-tertiary)] font-mono mt-0.5">IMEI: {item.imei}</div>}
                   </td>
                   <td className="p-3 text-center">{item.quantity}</td>

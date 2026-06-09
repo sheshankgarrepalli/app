@@ -87,7 +87,7 @@ export default function InvoiceForm() {
     if (!svc) return;
     setItems(prev => {
       const next = [...prev];
-      const emptyIdx = next.findIndex(i => !i.description && !i.imei && !i.sku && !i.device_name);
+      const emptyIdx = next.findIndex(i => !i.description && !i.imei && !i.sku);
       const newItem = { ...emptyItem, description: svc.name, rate: svc.default_price, device_name: serviceDevice.trim() || undefined };
       if (emptyIdx >= 0) {
         next[emptyIdx] = newItem;
@@ -676,7 +676,7 @@ export default function InvoiceForm() {
                 {/* Service Quick Add */}
                 <input
                   type="text"
-                  className="form-input text-xs py-1 px-2 w-28"
+                  className="form-input text-xs py-1 px-2 w-32"
                   placeholder="Device..."
                   value={serviceDevice}
                   onChange={e => setServiceDevice(e.target.value)}
@@ -758,13 +758,14 @@ export default function InvoiceForm() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border)]">
-                  <th className="text-left p-3 w-[22%]">Product / Service</th>
-                  <th className="text-left p-3 w-[12%]">SKU</th>
-                  <th className="text-left p-3 w-[12%]">Serial / IMEI</th>
+                  <th className="text-left p-3 w-[20%]">Product / Service</th>
+                  <th className="text-left p-3 w-[14%]">Device</th>
+                  <th className="text-left p-3 w-[10%]">SKU</th>
+                  <th className="text-left p-3 w-[10%]">Serial / IMEI</th>
                   <th className="text-center p-3 w-[7%]">Qty</th>
-                  <th className="text-right p-3 w-[10%]">Price</th>
-                  <th className="text-right p-3 w-[14%]">Discount</th>
-                  <th className="text-right p-3 w-[10%]">Amount</th>
+                  <th className="text-right p-3 w-[8%]">Price</th>
+                  <th className="text-right p-3 w-[12%]">Discount</th>
+                  <th className="text-right p-3 w-[9%]">Amount</th>
                   <th className="w-10"></th>
                 </tr>
               </thead>
@@ -795,6 +796,15 @@ export default function InvoiceForm() {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td className="p-2">
+                      <input
+                        type="text"
+                        className="form-input text-xs py-1.5"
+                        placeholder="Device model..."
+                        value={item.device_name || ''}
+                        onChange={e => updateItem(idx, 'device_name', e.target.value)}
+                      />
                     </td>
                     <td className="p-2">
                       <input
