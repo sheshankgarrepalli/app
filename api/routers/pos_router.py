@@ -90,9 +90,11 @@ def retail_checkout(
     for item in req.items:
         db_store_inv = db.query(models.DeviceInventory).filter(
             models.DeviceInventory.imei == item.imei,
-            models.DeviceInventory.location_id == current_user.store_id,
             models.DeviceInventory.org_id == org_id
-        ).with_for_update().first()
+        )
+        if current_user.role != "admin":
+            db_store_inv = db_store_inv.filter(models.DeviceInventory.location_id == current_user.store_id)
+        db_store_inv = db_store_inv.with_for_update().first()
 
         if not db_store_inv:
             raise HTTPException(status_code=400, detail=f"IMEI {item.imei} not found at your store")
@@ -106,14 +108,11 @@ def retail_checkout(
             ).first()
             if draft_inv:
                 cust_name = draft_inv.customer.company_name or f"{draft_inv.customer.first_name or ''} {draft_inv.customer.last_name or ''}".strip() or draft_inv.customer_id
-                raise HTTPException(status_code=400,
-                    detail=f"IMEI {item.imei} is reserved in Draft Invoice {draft_inv.invoice_number} for {cust_name}. Void that draft first.")
-
+                raise HTTPException(status_code=400, detail=f"IMEI {item.imei} is reserved in Draft Invoice {draft_inv.invoice_number} for {cust_name}. Void that draft first.")
+        
         if db_store_inv.device_status != models.DeviceStatus.Sellable:
-            raise HTTPException(status_code=400,
-                detail=f"IMEI {item.imei} is not Sellable (currently {db_store_inv.device_status.value})")
-
-        # device_status is set below based on total payments
+            raise HTTPException(status_code=400, detail=f"IMEI {item.imei} is not Sellable (currently {db_store_inv.device_status.value})")
+        
         db_store_inv.sold_to_crm_id = customer_id
         device_cache[item.imei] = db_store_inv
 
