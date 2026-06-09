@@ -56,6 +56,7 @@ export default function InvoiceForm() {
   const [poNumber, setPoNumber] = useState('');
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedService, setSelectedService] = useState('');
+  const [serviceDevice, setServiceDevice] = useState('');
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEdit);
   const [lockedCustomer, setLockedCustomer] = useState<Customer | null>(null);
@@ -84,11 +85,11 @@ export default function InvoiceForm() {
     if (!serviceId) return;
     const svc = services.find(s => s.id === parseInt(serviceId));
     if (!svc) return;
+    const desc = serviceDevice.trim() ? `${svc.name} — ${serviceDevice.trim()}` : svc.name;
     setItems(prev => {
       const next = [...prev];
-      // Replace first empty line item, or append
       const emptyIdx = next.findIndex(i => !i.description && !i.imei && !i.sku);
-      const newItem = { ...emptyItem, description: svc.name, rate: svc.default_price };
+      const newItem = { ...emptyItem, description: desc, rate: svc.default_price };
       if (emptyIdx >= 0) {
         next[emptyIdx] = newItem;
       } else {
@@ -97,6 +98,7 @@ export default function InvoiceForm() {
       return next;
     });
     setSelectedService('');
+    setServiceDevice('');
   };
 
   // Load existing invoice for edit mode
@@ -673,6 +675,13 @@ export default function InvoiceForm() {
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Invoice Items</p>
               <div className="flex items-center gap-3">
                 {/* Service Quick Add */}
+                <input
+                  type="text"
+                  className="form-input text-xs py-1 px-2 w-36"
+                  placeholder="Device model..."
+                  value={serviceDevice}
+                  onChange={e => setServiceDevice(e.target.value)}
+                />
                 <select
                   className="form-input text-xs py-1 px-2 w-44"
                   value={selectedService}
