@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import api from '../api/api';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Lock, MapPin } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useLocationFilter } from '../context/LocationContext';
 
 const DEVICE_TYPES = [
   { value: 'Phone', label: 'Phone' },
@@ -13,15 +15,31 @@ const DEVICE_TYPES = [
 ];
 
 export default function ManualIntake() {
+    const { user } = useAuth();
+    const { availableLocations } = useLocationFilter();
+    const isAdmin = user?.role === 'admin';
+    const userStoreId = user?.store_id || 'warehouse';
+    const userStoreName = useMemo(() => {
+        const loc = availableLocations.find(l => l.id === userStoreId);
+        return loc?.name || userStoreId;
+    }, [availableLocations, userStoreId]);
+
     const [identifier, setIdentifier] = useState('');
     const [devices, setDevices] = useState<{ id: string; device_type: string }[]>([]);
     const [deviceType, setDeviceType] = useState('Phone');
-    const [destination, setDestination] = useState('warehouse');
-    const [defaultStatus, setDefaultStatus] = useState('In_QC');
+    const [destination, setDestination] = useState(isAdmin ? 'warehouse' : userStoreId);
+    const [defaultStatus, setDefaultStatus] = useState(isAdmin ? 'In_QC' : 'Sellable');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const idRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!isAdmin) {
+            setDestination(userStoreId);
+            setDefaultStatus('Sellable');
+        }
+    }, [isAdmin, userStoreId]);
 
     useEffect(() => { idRef.current?.focus(); }, []);
     useEffect(() => { idRef.current?.focus(); }, [devices]);
@@ -127,18 +145,32 @@ export default function ManualIntake() {
                 {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
               <label className="form-label">Destination Location</label>
-              <select className="form-select" value={destination} onChange={e => setDestination(e.target.value)}>
-                <option value="warehouse">Warehouse</option>
-                <option value="grand-prairie">Grand Prairie</option>
-                <option value="foodland">Foodland</option>
-                <option value="fiesta">Fiesta</option>
-              </select>
-                        <label className="form-label">Default Status</label>
-                        <select className="form-select" value={defaultStatus} onChange={e => setDefaultStatus(e.target.value)}>
-                            <option value="Sellable">Sellable</option>
-                            <option value="In_QC">In QC</option>
-                            <option value="In_Repair">In Repair</option>
-                        </select>
+              {isAdmin ? (
+                <select className="form-select" value={destination} onChange={e => setDestination(e.target.value)}>
+                  {availableLocations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-muted)] text-sm text-[var(--text)]">
+                  <MapPin size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                  <span className="truncate">{userStoreName}</span>
+                  <Lock size={12} className="text-[var(--text-tertiary)] flex-shrink-0 ml-auto" />
+                </div>
+              )}
+              <label className="form-label">Default Status</label>
+              {isAdmin ? (
+                <select className="form-select" value={defaultStatus} onChange={e => setDefaultStatus(e.target.value)}>
+                  <option value="Sellable">Sellable</option>
+                  <option value="In_QC">In QC</option>
+                  <option value="In_Repair">In Repair</option>
+                </select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-muted)] text-sm text-[var(--text)]">
+                  <span className="truncate">Sellable</span>
+                  <Lock size={12} className="text-[var(--text-tertiary)] flex-shrink-0 ml-auto" />
+                </div>
+              )}
                         <button
                             onClick={onSubmit}
                             disabled={isSubmitting || devices.length === 0}
