@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/api';
+import { useAuth } from './AuthContext';
 
 interface StoreLocation {
     id: string;
@@ -23,11 +24,13 @@ const LocationContext = createContext<LocationContextType>({
 });
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
+    const { user } = useAuth();
     const [selectedLocationId, setSelectedLocationIdRaw] = useState<string | null>(() => {
         return localStorage.getItem('selectedLocationId') || null;
     });
     const [availableLocations, setAvailableLocations] = useState<StoreLocation[]>([]);
     const [loading, setLoading] = useState(false);
+    const [initialized, setInitialized] = useState(false);
 
     const setSelectedLocationId = useCallback((id: string | null) => {
         setSelectedLocationIdRaw(id);
@@ -38,10 +41,21 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
+    // Auto-select user's store on first load for non-admin users
+    useEffect(() => {
+        if (initialized || !user) return;
+        if (user.role !== 'admin' && user.store_id) {
+            const stored = localStorage.getItem('selectedLocationId');
+            if (!stored || stored === 'all') {
+                setSelectedLocationId(user.store_id);
+            }
+        }
+        setInitialized(true);
+    }, [user, initialized, setSelectedLocationId]);
+
     useEffect(() => {
         setLoading(true);
-        api.get(`/api/inventory/stores`, {
-        })
+        api.get(`/api/inventory/stores`, {})
             .then(res => setAvailableLocations(res.data || []))
             .catch(() => {})
             .finally(() => setLoading(false));

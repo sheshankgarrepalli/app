@@ -35,6 +35,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { setSearchQuery(''); }, [location.pathname]);
   const { selectedLocationId, setSelectedLocationId, availableLocations } = useLocationFilter();
+  const isAdmin = user?.role === 'admin';
+
+  // Non-admin users are locked to their store — don't show "All Locations"
+  useEffect(() => {
+    if (!isAdmin && user?.store_id && selectedLocationId !== user.store_id) {
+      setSelectedLocationId(user.store_id);
+    }
+  }, [isAdmin, user?.store_id, selectedLocationId, setSelectedLocationId]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -260,19 +268,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
 
           {/* Store Selector */}
-          <select
-            className="bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] text-xs px-[10px] py-1.5 rounded-md outline-none focus:border-[var(--accent)] transition-colors cursor-pointer"
-            style={{ fontFamily: 'var(--font-body)' }}
-            value={selectedLocationId ?? 'all'}
-            onChange={e => setSelectedLocationId(e.target.value === 'all' ? null : e.target.value)}
-          >
-            <option value="all">All Locations</option>
-            {availableLocations.map(loc => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          {isAdmin ? (
+            <select
+              className="bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] text-xs px-[10px] py-1.5 rounded-md outline-none focus:border-[var(--accent)] transition-colors cursor-pointer"
+              style={{ fontFamily: 'var(--font-body)' }}
+              value={selectedLocationId ?? 'all'}
+              onChange={e => setSelectedLocationId(e.target.value === 'all' ? null : e.target.value)}
+            >
+              <option value="all">All Locations</option>
+              {availableLocations.map(loc => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="text-xs font-medium text-[var(--text-secondary)] bg-[var(--bg)] border border-[var(--border)] px-[10px] py-1.5 rounded-md flex items-center gap-1.5">
+              <MapPin size={12} className="text-[var(--text-tertiary)]" />
+              {availableLocations.find(l => l.id === selectedLocationId)?.name || user?.store_id || 'Store'}
+            </div>
+          )}
 
           {/* Notification Bell */}
           <button className="topbar-btn" title="Notifications">
