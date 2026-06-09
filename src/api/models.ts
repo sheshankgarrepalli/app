@@ -9,10 +9,11 @@ export interface PhoneModel {
   storage_gb: number;
 }
 
-export async function fetchModels(search?: string, brand?: string): Promise<PhoneModel[]> {
+export async function fetchModels(search?: string, brand?: string, deviceType?: string): Promise<PhoneModel[]> {
   const params: Record<string, string> = {};
   if (search) params.search = search;
   if (brand) params.brand = brand;
+  if (deviceType) params.device_type = deviceType;
   const { data } = await api.get('/api/models/', { params });
   return data;
 }

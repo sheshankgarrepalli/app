@@ -8,9 +8,10 @@ interface Props {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  deviceType?: string;
 }
 
-export default function ModelSelector({ value, onChange, placeholder = 'Search models...', className = '', disabled }: Props) {
+export default function ModelSelector({ value, onChange, placeholder = 'Search models...', className = '', disabled, deviceType }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<PhoneModel[]>([]);
@@ -18,10 +19,10 @@ export default function ModelSelector({ value, onChange, placeholder = 'Search m
   const [selectedLabel, setSelectedLabel] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback(async (q: string, dt?: string) => {
     setLoading(true);
     try {
-      const models = await fetchModels(q);
+      const models = await fetchModels(q, undefined, dt);
       setOptions(models);
     } catch {
       setOptions([]);
@@ -32,9 +33,9 @@ export default function ModelSelector({ value, onChange, placeholder = 'Search m
 
   useEffect(() => {
     if (open) {
-      search(query);
+      search(query, deviceType);
     }
-  }, [open, query, search]);
+  }, [open, query, deviceType, search]);
 
   useEffect(() => {
     if (!value) {
@@ -43,9 +44,17 @@ export default function ModelSelector({ value, onChange, placeholder = 'Search m
     }
     fetchModels(value).then(models => {
       const m = models.find(o => o.model_number === value);
-      if (m) setSelectedLabel(`${m.brand} ${m.name} — ${m.storage_gb}GB`);
+      if (m) {
+        const storageLabel = m.storage_gb > 0 ? ` — ${m.storage_gb}GB` : '';
+        setSelectedLabel(`${m.brand} ${m.name}${storageLabel}`);
+      }
     }).catch(() => {});
   }, [value]);
+
+  // Clear selection when deviceType changes
+  useEffect(() => {
+    setSelectedLabel('');
+  }, [deviceType]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

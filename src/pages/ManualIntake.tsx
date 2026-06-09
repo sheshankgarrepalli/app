@@ -81,28 +81,20 @@ export default function ManualIntake() {
             fetchModels(mn).then(models => {
                 const m = models.find(o => o.model_number === mn);
                 if (m) {
-                    setModelLabel(`${m.brand} ${m.name}`);
-                    // Auto-detect device type
-                    const name = m.name.toLowerCase();
-                    if (name.includes('iphone') || name.includes('galaxy') || name.includes('pixel') || name.includes('moto') || name.includes('oneplus') || name.includes('nokia')) {
-                        setDeviceType('Phone');
-                    } else if (name.includes('ipad') || name.includes('tab')) {
-                        setDeviceType('Tablet');
-                    } else if (name.includes('macbook') || name.includes('imac') || name.includes('mac')) {
-                        setDeviceType('Laptop');
-                    } else if (name.includes('watch')) {
-                        setDeviceType('Watch');
-                    } else if (name.includes('nintendo') || name.includes('playstation') || name.includes('xbox')) {
-                        setDeviceType('Console');
-                    } else if (name.includes('airpods') || name.includes('pencil') || name.includes('keyboard') || name.includes('mouse') || name.includes('homepod') || name.includes('airtag')) {
-                        setDeviceType('Accessory');
-                    }
+                    const storageLabel = m.storage_gb > 0 ? ` — ${m.storage_gb}GB` : '';
+                    setModelLabel(`${m.brand} ${m.name}${storageLabel}`);
                 }
             }).catch(() => {});
         } else {
             setModelLabel('');
         }
     };
+
+    // Clear model when device type changes
+    useEffect(() => {
+        setModelNumber('');
+        setModelLabel('');
+    }, [deviceType]);
 
     const onSubmit = async () => {
         if (devices.length === 0) return;
@@ -182,12 +174,12 @@ export default function ManualIntake() {
 
           <div className="card">
             <div className="card-body flex flex-col gap-4">
-              <label className="form-label">Model</label>
-              <ModelSelector value={modelNumber} onChange={handleModelSelect} placeholder="Search & select device model..." />
               <label className="form-label">Device Type</label>
               <select className="form-select" value={deviceType} onChange={e => setDeviceType(e.target.value)}>
                 {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
+              <label className="form-label">Model</label>
+              <ModelSelector value={modelNumber} onChange={handleModelSelect} deviceType={deviceType} placeholder="Search & select device model..." />
               <label className="form-label">Destination Location</label>
               {isAdmin ? (
                 <select className="form-select" value={destination} onChange={e => setDestination(e.target.value)}>

@@ -3,8 +3,26 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import models, schemas, auth
 from database import get_db
+import re
 
 router = APIRouter(prefix="/api/models", tags=["models"])
+
+
+def infer_device_type(name: str) -> str:
+    n = name.lower()
+    for kw in ["iphone", "galaxy", "pixel", "oneplus", "xiaomi", "motorola", "nokia", "moto"]:
+        if kw in n: return "Phone"
+    for kw in ["ipad", "tablet", "tab"]:
+        if kw in n: return "Tablet"
+    for kw in ["macbook", "imac", "mac mini", "mac pro", "mac"]:
+        if kw in n: return "Laptop"
+    for kw in ["watch"]:
+        if kw in n: return "Watch"
+    for kw in ["nintendo", "playstation", "xbox", "ps5"]:
+        if kw in n: return "Console"
+    for kw in ["airpods", "pencil", "keyboard", "mouse", "trackpad", "homepod", "airtag", "beats", "case", "charger", "cable", "adapter"]:
+        if kw in n: return "Accessory"
+    return "Other"
 
 
 @router.get("", include_in_schema=False)
@@ -12,6 +30,7 @@ router = APIRouter(prefix="/api/models", tags=["models"])
 def get_models(
     search: Optional[str] = Query(None),
     brand: Optional[str] = Query(None),
+    device_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
@@ -26,6 +45,42 @@ def get_models(
         )
     if brand:
         q = q.filter(models.PhoneModel.brand.ilike(f"%{brand}%"))
+    if device_type:
+        # Filter by inferred device type from the model name
+        name_conditions = []
+        dt = device_type.lower()
+        if dt == "phone":
+            name_conditions.append(models.PhoneModel.name.ilike("%iphone%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%galaxy%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%pixel%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%moto%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%oneplus%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%nokia%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%xiaomi%"))
+        elif dt == "tablet":
+            name_conditions.append(models.PhoneModel.name.ilike("%ipad%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%tab%"))
+        elif dt == "laptop":
+            name_conditions.append(models.PhoneModel.name.ilike("%macbook%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%imac%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%mac%"))
+        elif dt == "watch":
+            name_conditions.append(models.PhoneModel.name.ilike("%watch%"))
+        elif dt == "console":
+            name_conditions.append(models.PhoneModel.name.ilike("%nintendo%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%playstation%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%xbox%"))
+        elif dt == "accessory":
+            name_conditions.append(models.PhoneModel.name.ilike("%airpods%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%pencil%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%keyboard%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%mouse%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%homepod%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%airtag%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%beats%"))
+        if name_conditions:
+            from sqlalchemy import or_
+            q = q.filter(or_(*name_conditions))
     return q.order_by(models.PhoneModel.brand, models.PhoneModel.name).all()
 
 
