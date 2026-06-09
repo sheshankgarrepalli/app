@@ -51,8 +51,13 @@ export default function Login() {
 
         <form
           onSubmit={handleSubmit}
+          autoComplete="off"
           className="bg-white dark:bg-[var(--bg-tertiary)] rounded-2xl shadow-xl border border-gray-100 dark:border-[var(--border-secondary)] p-7 space-y-5"
         >
+          {/* Decoy fields to trap browser autofill — real ones have no name/id */}
+          <input type="email" name="email" autoComplete="email" style={{ position: 'absolute', left: '-9999px', opacity: 0 }} tabIndex={-1} />
+          <input type="password" name="password" autoComplete="current-password" style={{ position: 'absolute', left: '-9999px', opacity: 0 }} tabIndex={-1} />
+
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
               <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
@@ -61,16 +66,15 @@ export default function Login() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
               Email
             </label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
-                id="email"
-                type="email"
+                type="text"
                 required
-                autoComplete="email"
+                autoComplete="off"
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -81,16 +85,15 @@ export default function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
               Password
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
-                id="password"
                 type={showPassword ? 'text' : 'password'}
                 required
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 dark:border-[var(--border)] rounded-lg bg-white dark:bg-[var(--bg-secondary)] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
