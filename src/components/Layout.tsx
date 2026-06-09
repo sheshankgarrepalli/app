@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLocationFilter } from '../context/LocationContext';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search, LogOut, ChevronDown
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search, LogOut, ChevronDown, Library
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -78,6 +78,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'import', label: 'Import Inventory', path: '/admin/import-inventory', icon: Upload, roles: ['admin', 'warehouse', 'store'] },
         { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store'] },
         { id: 'sku', label: 'SKU Generator', path: '/admin/sku-generator', icon: QrCode, roles: ['admin', 'warehouse', 'store'] },
+        { id: 'models', label: 'Device Catalog', path: '/admin/models', icon: Library, roles: ['admin'] },
         { id: 'po', label: 'Purchase Orders', path: '/admin/purchase-orders', icon: Package, roles: ['admin'] },
         { id: 'suppliers', label: 'Suppliers', path: '/admin/suppliers', icon: Building2, roles: ['admin'] },
       ]
