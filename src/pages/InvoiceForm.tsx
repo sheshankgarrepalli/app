@@ -9,6 +9,8 @@ import {
   InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice, generateShareLink
 } from '../api/invoices';
 import { fetchServices, ServiceItem } from '../api/services';
+
+const RETAIL_TAX_RATE = 8.25;
 import api from '../api/api';
 import { fetchCustomers, createCustomer, Customer, CustomerCreate } from '../api/crm';
 
@@ -41,7 +43,8 @@ export default function InvoiceForm() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountTotal, setDiscountTotal] = useState(0);
   const [taxPercent, setTaxPercent] = useState(0);
-  const [defaultTaxRate, setDefaultTaxRate] = useState(8.5); // fallback while loading
+  const [defaultTaxRate, setDefaultTaxRate] = useState(8.25); // retail default, overridden by org settings
+  const [customerTotal, setCustomerTotal] = useState('');
   const [fulfillmentMethod, setFulfillmentMethod] = useState('Walk-in');
   const [currency, setCurrency] = useState('USD');
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -74,9 +77,11 @@ export default function InvoiceForm() {
     api.get('/api/admin/org-settings').then(({ data }) => {
       if (data.default_tax_rate != null) {
         setDefaultTaxRate(data.default_tax_rate);
-        setTaxPercent(data.default_tax_rate);
+        if (!taxPercent) setTaxPercent(data.default_tax_rate);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      if (!taxPercent) setTaxPercent(RETAIL_TAX_RATE);
+    });
     // Load service catalog
     fetchServices().then(setServices).catch(() => {});
   }, []);
@@ -295,6 +300,37 @@ export default function InvoiceForm() {
   const total = discountedSubtotal + taxAmount;
   const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const balanceDue = total - totalPaid;
+
+  // Back-calculate prices from a bundled customer total
+  const applyCustomerTotal = (customerPays: string) => {
+    const amount = parseFloat(customerPays);
+    if (!amount || amount <= 0 || subtotal <= 0) {
+      setCustomerTotal(customerPays);
+      return;
+    }
+    // Total after tax = customerPays
+    // discountedSubtotal = customerPays / (1 + taxPercent/100)
+    // discount needed = subtotal - discountedSubtotal
+    const taxRatio = 1 + (taxPercent / 100);
+    const targetDiscounted = amount / taxRatio;
+    const totalDiscountNeeded = subtotal - targetDiscounted;
+    if (totalDiscountNeeded <= 0) {
+      setCustomerTotal(customerPays);
+      return;
+    }
+    // Distribute discount proportionally across items
+    const next = items.map(item => {
+      const itemSubtotal = item.rate * item.qty;
+      const share = subtotal > 0 ? itemSubtotal / subtotal : 0;
+      const itemDiscount = Math.round(share * totalDiscountNeeded * 100) / 100;
+      const newRate = item.qty > 0 ? (itemSubtotal - itemDiscount) / item.qty : 0;
+      return { ...item, rate: Math.max(0, Math.round(newRate * 100) / 100) };
+    });
+    setItems(next);
+    setDiscountTotal(0);
+    setDiscountPercent(0);
+    setCustomerTotal('');
+  };
   const selectedCustomer = customers.find(c => c.crm_id === customerId);
   const hasUnsavedChanges = items.some(i => i.description || i.imei || i.sku) || customerId || isWalkIn;
 
@@ -1122,6 +1158,36 @@ export default function InvoiceForm() {
                 <div className="flex justify-between text-[10px] font-bold">
                   <span className="text-[var(--destructive)]">Balance Due</span>
                   <span className="text-[var(--destructive)] font-mono">${balanceDue.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Customer Total — back-calculate prices */}
+              <div className="pt-2 border-t border-[var(--border)]">
+                <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block mb-1">
+                  Customer pays (incl. tax)
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input text-xs py-1.5 flex-1"
+                    placeholder="$ total..."
+                    value={customerTotal}
+                    onChange={e => setCustomerTotal(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyCustomerTotal(customerTotal);
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => applyCustomerTotal(customerTotal)}
+                    disabled={!customerTotal || parseFloat(customerTotal) <= 0 || subtotal <= 0}
+                    className="text-[10px] text-accent hover:text-accent/80 font-medium px-2 disabled:opacity-30"
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
 
