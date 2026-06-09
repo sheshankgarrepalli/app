@@ -104,6 +104,12 @@ def db_sync():
         _safe_add_column(db, "device_inventory", "device_type", "TEXT")
         _safe_add_column(db, "invoices", "created_by_email", "TEXT")
 
+        # service_catalog table
+        try:
+            models.ServiceCatalog.__table__.create(bind=engine, checkfirst=True)
+        except Exception:
+            pass
+
         # labor_rate_config: org_id
         _safe_add_column(db, "labor_rate_config", "org_id", "TEXT")
 

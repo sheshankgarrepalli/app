@@ -1056,3 +1056,25 @@ class PurchaseOrderOut(BaseModel):
 class POReceiveItem(BaseModel):
     item_id: int
     qty: int
+
+
+# ── Service Catalog ──────────────────────────────────────────────────────────
+
+class ServiceCatalogCreate(BaseModel):
+    name: str
+    category: Optional[str] = None
+    default_price: float = 0.0
+
+class ServiceCatalogUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    default_price: Optional[float] = None
+    is_active: Optional[bool] = None
+
+class ServiceCatalogOut(BaseModel):
+    id: int
+    name: str
+    category: Optional[str] = None
+    default_price: float
+    is_active: bool
+    class Config: from_attributes = True

@@ -79,6 +79,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'incoming', label: 'Incoming Transfers', path: '/admin/incoming-transfers', icon: Truck, roles: ['admin', 'warehouse', 'store'] },
         { id: 'sku', label: 'SKU Generator', path: '/admin/sku-generator', icon: QrCode, roles: ['admin', 'warehouse', 'store'] },
         { id: 'models', label: 'Device Catalog', path: '/admin/models', icon: Library, roles: ['admin'] },
+        { id: 'services', label: 'Service Catalog', path: '/admin/services', icon: Wrench, roles: ['admin'] },
         { id: 'po', label: 'Purchase Orders', path: '/admin/purchase-orders', icon: Package, roles: ['admin'] },
         { id: 'suppliers', label: 'Suppliers', path: '/admin/suppliers', icon: Building2, roles: ['admin'] },
       ]

@@ -135,7 +135,7 @@ failed = []
 for mod_name in [
     "models_router","inventory_router","transfers_router","track_router",
     "pos_router","reports_router","crm_router","parts_router",
-    "repair_router","import_router","admin_router","qc_router","consignment_router","po_router","auth_router"
+    "repair_router","import_router","admin_router","qc_router","consignment_router","po_router","auth_router","services_router"
 ]:
     try:
         mod = __import__(f"routers.{mod_name}", fromlist=[mod_name])

@@ -617,3 +617,13 @@ class POItem(Base):
     total_cost = Column(Float, default=0.0)
 
     purchase_order = relationship("PurchaseOrder", back_populates="items")
+
+
+class ServiceCatalog(Base):
+    __tablename__ = "service_catalog"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=True)
+    default_price = Column(Float, default=0.0)
+    is_active = Column(Boolean, default=True)

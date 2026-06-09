@@ -8,6 +8,7 @@ import {
   createInvoice, updateInvoice, fetchInvoice, fetchAutocomplete,
   InvoiceFormItem, AutocompleteResult, extractError, PAYMENT_METHODS, emailInvoice, generateShareLink
 } from '../api/invoices';
+import { fetchServices, ServiceItem } from '../api/services';
 import api from '../api/api';
 import { fetchCustomers, createCustomer, Customer, CustomerCreate } from '../api/crm';
 
@@ -53,6 +54,8 @@ export default function InvoiceForm() {
   const [showBulkScan, setShowBulkScan] = useState(false);
   const [scanError, setScanError] = useState('');
   const [poNumber, setPoNumber] = useState('');
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [selectedService, setSelectedService] = useState('');
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEdit);
   const [lockedCustomer, setLockedCustomer] = useState<Customer | null>(null);
@@ -73,7 +76,28 @@ export default function InvoiceForm() {
         setTaxPercent(data.default_tax_rate);
       }
     }).catch(() => {});
+    // Load service catalog
+    fetchServices().then(setServices).catch(() => {});
   }, []);
+
+  const handleAddService = (serviceId: string) => {
+    if (!serviceId) return;
+    const svc = services.find(s => s.id === parseInt(serviceId));
+    if (!svc) return;
+    setItems(prev => {
+      const next = [...prev];
+      // Replace first empty line item, or append
+      const emptyIdx = next.findIndex(i => !i.description && !i.imei && !i.sku);
+      const newItem = { ...emptyItem, description: svc.name, rate: svc.default_price };
+      if (emptyIdx >= 0) {
+        next[emptyIdx] = newItem;
+      } else {
+        next.push(newItem);
+      }
+      return next;
+    });
+    setSelectedService('');
+  };
 
   // Load existing invoice for edit mode
   useEffect(() => {
@@ -648,6 +672,17 @@ export default function InvoiceForm() {
             <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-muted)]">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Invoice Items</p>
               <div className="flex items-center gap-3">
+                {/* Service Quick Add */}
+                <select
+                  className="form-input text-xs py-1 px-2 w-44"
+                  value={selectedService}
+                  onChange={e => handleAddService(e.target.value)}
+                >
+                  <option value="">+ Add Service...</option>
+                  {services.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} (${s.default_price.toFixed(0)})</option>
+                  ))}
+                </select>
                 {!showBulkScan ? (
                   <div className="flex items-center gap-1.5">
                     <input
