@@ -709,6 +709,7 @@ class InvoiceFormItemCreate(BaseModel):
     model_number: Optional[str] = None
     imei: Optional[str] = None
     description: Optional[str] = None
+    device_name: Optional[str] = None
     qty: int = 1
     rate: float = 0.0
     taxable: bool = True

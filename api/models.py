@@ -354,6 +354,7 @@ class InvoiceItem(Base):
     product_source = Column(String, nullable=True)  # "device_inventory", "device_catalog", "parts_inventory", "manual"
     sku = Column(String, nullable=True)
     batch_serial = Column(String, nullable=True)
+    device_name = Column(String, nullable=True)
     item_discount_amount = Column(Float, default=0.0)
     item_discount_percent = Column(Float, default=0.0)
     unit_price = Column(Float)

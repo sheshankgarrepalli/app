@@ -19,7 +19,7 @@ interface PaymentRow {
 }
 
 const emptyItem: InvoiceFormItem = {
-  description: '', qty: 1, rate: 0, taxable: true,
+  description: '', device_name: '', qty: 1, rate: 0, taxable: true,
   sku: '', batch_serial: '', item_discount_amount: 0, item_discount_percent: 0,
 };
 
@@ -56,6 +56,7 @@ export default function InvoiceForm() {
   const [poNumber, setPoNumber] = useState('');
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedService, setSelectedService] = useState('');
+  const [serviceDevice, setServiceDevice] = useState('');
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEdit);
   const [lockedCustomer, setLockedCustomer] = useState<Customer | null>(null);
@@ -86,8 +87,8 @@ export default function InvoiceForm() {
     if (!svc) return;
     setItems(prev => {
       const next = [...prev];
-      const emptyIdx = next.findIndex(i => !i.description && !i.imei && !i.sku);
-      const newItem = { ...emptyItem, description: svc.name, rate: svc.default_price };
+      const emptyIdx = next.findIndex(i => !i.description && !i.imei && !i.sku && !i.device_name);
+      const newItem = { ...emptyItem, description: svc.name, rate: svc.default_price, device_name: serviceDevice.trim() || undefined };
       if (emptyIdx >= 0) {
         next[emptyIdx] = newItem;
       } else {
@@ -96,6 +97,7 @@ export default function InvoiceForm() {
       return next;
     });
     setSelectedService('');
+    setServiceDevice('');
   };
 
   // Load existing invoice for edit mode
@@ -672,14 +674,21 @@ export default function InvoiceForm() {
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Invoice Items</p>
               <div className="flex items-center gap-3">
                 {/* Service Quick Add */}
+                <input
+                  type="text"
+                  className="form-input text-xs py-1 px-2 w-28"
+                  placeholder="Device..."
+                  value={serviceDevice}
+                  onChange={e => setServiceDevice(e.target.value)}
+                />
                 <select
-                  className="form-input text-xs py-1 px-2 w-44"
+                  className="form-input text-xs py-1 px-2 w-40"
                   value={selectedService}
                   onChange={e => handleAddService(e.target.value)}
                 >
-                  <option value="">+ Add Service...</option>
+                  <option value="">+ Service...</option>
                   {services.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} (${s.default_price.toFixed(0)})</option>
+                    <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
                 {!showBulkScan ? (

@@ -64,6 +64,7 @@ export interface InvoiceFormItem {
   model_number?: string;
   imei?: string;
   description?: string;
+  device_name?: string;
   qty: number;
   rate: number;
   taxable: boolean;

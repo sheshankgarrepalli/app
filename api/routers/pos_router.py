@@ -1196,6 +1196,7 @@ def create_invoice_from_form(
             imei=item.imei or None,
             model_number=item.model_number,
             description=item.description or (f"{item.model_number} - IMEI: {item.imei}" if item.imei else item.model_number),
+            device_name=getattr(item, 'device_name', None),
             quantity=item.qty,
             rate=item.rate,
             amount=line_total,

@@ -146,6 +146,7 @@ def db_sync():
         _safe_add_column(db, "invoice_items", "product_source", "TEXT")
         _safe_add_column(db, "invoice_items", "sku", "TEXT")
         _safe_add_column(db, "invoice_items", "batch_serial", "TEXT")
+        _safe_add_column(db, "invoice_items", "device_name", "TEXT")
         _safe_add_column(db, "invoice_items", "item_discount_amount", "FLOAT", "0.0")
         _safe_add_column(db, "invoice_items", "item_discount_percent", "FLOAT", "0.0")
         _safe_add_column(db, "store_locations", "invoice_prefix", "TEXT")
