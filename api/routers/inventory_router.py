@@ -394,13 +394,28 @@ def bulk_blind_intake(
             model_map[d.imei] = d
 
     results = []
-    existing_imeis = {d.imei for d in db.query(models.DeviceInventory.imei).filter(models.DeviceInventory.imei.in_(request.imeis)).all()}
-    new_imeis = [i for i in request.imeis if i not in existing_imeis]
-    
-    if not new_imeis:
-        return []
+    existing_devices = {
+        d.imei: d
+        for d in db.query(models.DeviceInventory).filter(models.DeviceInventory.imei.in_(request.imeis)).all()
+    }
+    new_imeis = [i for i in request.imeis if i not in existing_devices]
 
     try:
+        updated_existing = 0
+        for imei, existing in existing_devices.items():
+            info = model_map.get(imei)
+            if not info:
+                continue
+            mn = info.model_number if info.model_number else None
+            dt = info.device_type if info.device_type else None
+            if mn and not existing.model_number:
+                existing.model_number = mn
+                existing.device_type = dt or existing.device_type
+                existing.device_status = device_status if existing.device_status is None else existing.device_status
+                existing.is_hydrated = True
+                results.append(existing)
+                updated_existing += 1
+
         for imei in new_imeis:
             info = model_map.get(imei)
             mn = info.model_number if info and info.model_number else None
