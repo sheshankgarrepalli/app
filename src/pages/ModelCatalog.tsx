@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Loader2, AlertCircle, Package, Search } from 'lucide-react';
-import useModels, { createModel, updateModel, deleteModel, PhoneModel } from '../api/models';
+import { fetchModels, fetchBrands, createModel, updateModel, deleteModel, PhoneModel } from '../api/models';
 import { useAuth } from '../context/AuthContext';
 import { useLocationFilter } from '../context/LocationContext';
 
@@ -17,7 +17,10 @@ export default function ModelCatalog() {
   const { user } = useAuth();
   const { selectedLocationId } = useLocationFilter();
   const effectiveStoreId = user?.role !== 'admin' ? (user?.store_id || null) : selectedLocationId;
-  const { models, brands, loading, reload } = useModels(effectiveStoreId);
+
+  const [models, setModels] = useState<PhoneModel[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -27,6 +30,24 @@ export default function ModelCatalog() {
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [m, b] = await Promise.all([
+        fetchModels(undefined, undefined, undefined, effectiveStoreId),
+        fetchBrands(),
+      ]);
+      setModels(m);
+      setBrands(b);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [effectiveStoreId]);
+
+  useEffect(() => { load(); }, [load]);
 
   const filtered = models.filter(m => {
     if (search && !`${m.brand} ${m.name} ${m.model_number}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -62,7 +83,7 @@ export default function ModelCatalog() {
         await createModel(form);
       }
       setShowModal(false);
-      reload(search, brandFilter);
+      load();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to save model');
     } finally {
@@ -74,7 +95,7 @@ export default function ModelCatalog() {
     try {
       await deleteModel(modelNumber);
       setDeleteTarget(null);
-      reload(search, brandFilter);
+      load();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete');
     }
