@@ -102,11 +102,12 @@ def get_model_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """Returns per-model inventory stats: counts by status, by store, and history summary."""
-    from sqlalchemy import func
+    """Returns per-model inventory stats with aggregated timeline events."""
+    from sqlalchemy import func, cast, Date
 
     org_id = getattr(current_user, 'current_org_id', None)
 
+    # ── Status breakdown ──
     status_counts = {s.value: 0 for s in models.DeviceStatus}
     rows = db.query(
         models.DeviceInventory.device_status,
@@ -121,7 +122,10 @@ def get_model_analytics(
 
     total_in_stock = sum(c for s, c in status_counts.items() if s not in ("Sold", "Scrapped") and c > 0)
     available = status_counts.get("Sellable", 0)
+    sold = status_counts.get("Sold", 0)
+    scrapped = status_counts.get("Scrapped", 0)
 
+    # ── Store breakdown ──
     store_breakdown = []
     store_rows = db.query(
         models.DeviceInventory.location_id,
@@ -147,62 +151,161 @@ def get_model_analytics(
                 loc_name = sl.name
         store_breakdown.append({"location_id": loc_id, "location_name": loc_name, "count": count})
 
-    history_summary = {}
-    history_rows = db.query(
-        models.DeviceHistoryLog.action_type,
-        func.count(models.DeviceHistoryLog.log_id)
+    # ── Aggregated timeline ──
+    timeline = []
+
+    # --- Imports: group by date ---
+    import_dates = db.query(
+        cast(models.DeviceHistoryLog.timestamp, Date),
+        func.count(func.distinct(models.DeviceHistoryLog.imei))
     ).join(
         models.DeviceInventory,
         models.DeviceHistoryLog.imei == models.DeviceInventory.imei
     ).filter(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
-    ).group_by(models.DeviceHistoryLog.action_type).all()
-    for action, count in history_rows:
-        history_summary[action] = count
+        models.DeviceHistoryLog.action_type.in_(["Excel Import", "Blind Scan"])
+    ).group_by(
+        cast(models.DeviceHistoryLog.timestamp, Date)
+    ).order_by(
+        cast(models.DeviceHistoryLog.timestamp, Date).desc()
+    ).all()
+    for date_val, count in import_dates:
+        timeline.append({
+            "type": "import",
+            "label": f"Imported {count} unit{'s' if count != 1 else ''}",
+            "date": date_val.isoformat() if date_val else None,
+            "count": count,
+        })
 
-    total_ever = db.query(func.count(func.distinct(models.DeviceHistoryLog.imei))).join(
+    # --- Sales: get invoice items with customer info ---
+    sales = db.query(
+        models.Invoice.invoice_number,
+        models.Invoice.created_at,
+        models.UnifiedCustomer.company_name,
+        models.UnifiedCustomer.first_name,
+        models.UnifiedCustomer.last_name,
+        func.count(models.InvoiceItem.id)
+    ).join(
+        models.InvoiceItem,
+        models.Invoice.id == models.InvoiceItem.invoice_id
+    ).join(
+        models.DeviceInventory,
+        models.DeviceInventory.imei == models.InvoiceItem.imei
+    ).outerjoin(
+        models.UnifiedCustomer,
+        models.Invoice.customer_id == models.UnifiedCustomer.crm_id
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+        models.Invoice.status.in_([
+            models.InvoiceStatus.Paid,
+            models.InvoiceStatus.Partially_Paid,
+        ])
+    ).group_by(
+        models.Invoice.invoice_number,
+        models.Invoice.created_at,
+        models.UnifiedCustomer.company_name,
+        models.UnifiedCustomer.first_name,
+        models.UnifiedCustomer.last_name,
+    ).order_by(models.Invoice.created_at.desc()).limit(20).all()
+
+    for inv_num, created_at, company, fname, lname, count in sales:
+        cust_name = company or f"{fname or ''} {lname or ''}".strip() or "Walk-in"
+        timeline.append({
+            "type": "sale",
+            "label": f"Sold {count} unit{'s' if count != 1 else ''}",
+            "date": created_at.isoformat() if created_at else None,
+            "detail": f"Invoice {inv_num} — {cust_name}",
+            "count": count,
+        })
+
+    # --- Transfers: aggregate by transfer order ---
+    transfers = db.query(
+        models.TransferOrder.id,
+        models.TransferOrder.created_at,
+        models.TransferOrder.source_location_id,
+        models.TransferOrder.destination_location_id,
+        models.TransferOrder.status,
+        func.count(models.DeviceInventory.imei)
+    ).join(
+        models.DeviceInventory,
+        models.DeviceInventory.assigned_transfer_order_id == models.TransferOrder.id
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+        models.TransferOrder.status.in_(["In_Transit", "Received", "Draft"])
+    ).group_by(
+        models.TransferOrder.id,
+        models.TransferOrder.created_at,
+        models.TransferOrder.source_location_id,
+        models.TransferOrder.destination_location_id,
+        models.TransferOrder.status,
+    ).order_by(models.TransferOrder.created_at.desc()).limit(15).all()
+
+    src_names = {}
+    dst_names = {}
+    for to_id, created_at, src, dst, status, count in transfers:
+        if src and src not in src_names:
+            sl = db.query(models.StoreLocation).filter(models.StoreLocation.id == src).first()
+            src_names[src] = sl.name if sl else src
+        if dst and dst not in dst_names:
+            sl = db.query(models.StoreLocation).filter(models.StoreLocation.id == dst).first()
+            dst_names[dst] = sl.name if sl else dst
+        from_name = src_names.get(src, src) if src else "—"
+        to_name = dst_names.get(dst, dst) if dst else "—"
+        status_label = status.replace("_", " ").title() if status else ""
+        timeline.append({
+            "type": "transfer",
+            "label": f"Transfer {to_id}",
+            "date": created_at.isoformat() if created_at else None,
+            "detail": f"{from_name} → {to_name} · {count} unit{'s' if count != 1 else ''} · {status_label}",
+            "count": count,
+        })
+
+    # --- Notes updates: aggregate by date ---
+    notes_dates = db.query(
+        cast(models.DeviceHistoryLog.timestamp, Date),
+        func.count(func.distinct(models.DeviceHistoryLog.imei))
+    ).join(
         models.DeviceInventory,
         models.DeviceHistoryLog.imei == models.DeviceInventory.imei
     ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceHistoryLog.action_type == "Notes Updated"
+    ).group_by(
+        cast(models.DeviceHistoryLog.timestamp, Date)
+    ).order_by(
+        cast(models.DeviceHistoryLog.timestamp, Date).desc()
+    ).limit(5).all()
+    for date_val, count in notes_dates:
+        timeline.append({
+            "type": "notes",
+            "label": f"Notes updated on {count} device{'s' if count != 1 else ''}",
+            "date": date_val.isoformat() if date_val else None,
+            "count": count,
+        })
+
+    # Sort timeline by date descending
+    timeline.sort(key=lambda e: e.get("date") or "", reverse=True)
+
+    # Total ever registered
+    total_ever = db.query(func.count(func.distinct(models.DeviceInventory.imei))).filter(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
     ).scalar() or 0
-
-    recent = db.query(
-        models.DeviceHistoryLog.imei,
-        models.DeviceHistoryLog.action_type,
-        models.DeviceHistoryLog.timestamp,
-        models.DeviceHistoryLog.notes,
-        models.DeviceHistoryLog.employee_id,
-    ).join(
-        models.DeviceInventory,
-        models.DeviceHistoryLog.imei == models.DeviceInventory.imei
-    ).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
-    ).order_by(models.DeviceHistoryLog.timestamp.desc()).limit(10).all()
-
-    recent_activity = [
-        {
-            "imei": r[0],
-            "action": r[1],
-            "timestamp": r[2].isoformat() if r[2] else None,
-            "notes": r[3],
-            "employee": r[4],
-        }
-        for r in recent
-    ]
 
     return {
         "model_number": model_number,
         "total_ever_registered": total_ever,
         "currently_in_stock": total_in_stock,
         "available_sellable": available,
+        "sold": sold,
+        "scrapped": scrapped,
         "status_breakdown": status_counts,
         "store_breakdown": store_breakdown,
-        "history_summary": history_summary,
-        "recent_activity": recent_activity,
+        "timeline": timeline,
     }
 
 
