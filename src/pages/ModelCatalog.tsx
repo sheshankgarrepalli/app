@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Loader2, AlertCircle, Package, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, AlertCircle, Package, Search, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react';
 import useModels, { createModel, updateModel, deleteModel, PhoneModel } from '../api/models';
+import api from '../api/api';
 
 const emptyModel: PhoneModel = {
   model_number: '',
@@ -8,6 +9,38 @@ const emptyModel: PhoneModel = {
   name: '',
   color: '',
   storage_gb: 0,
+};
+
+interface ModelAnalytics {
+  model_number: string;
+  total_ever_registered: number;
+  currently_in_stock: number;
+  available_sellable: number;
+  status_breakdown: Record<string, number>;
+  store_breakdown: { location_id: string; location_name: string; count: number }[];
+  history_summary: Record<string, number>;
+  recent_activity: { imei: string; action: string; timestamp: string; notes: string | null; employee: string }[];
+}
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  Sellable: { label: 'Sellable', color: '#10b981' },
+  In_QC: { label: 'In QC', color: '#00f0ff' },
+  In_Repair: { label: 'In Repair', color: '#f59e0b' },
+  In_Transit: { label: 'In Transit', color: '#14b8a6' },
+  Reserved_Layaway: { label: 'Layaway', color: '#f97316' },
+  Sold: { label: 'Sold', color: '#3b82f6' },
+  Scrapped: { label: 'Scrapped', color: '#ef4444' },
+  Awaiting_Parts: { label: 'Awaiting Parts', color: '#a855f7' },
+  On_Consignment: { label: 'Consignment', color: '#8b5cf6' },
+};
+
+const HISTORY_ACTION_LABELS: Record<string, { label: string; icon: string }> = {
+  'Excel Import': { label: 'Imported', icon: '📥' },
+  'Blind Scan': { label: 'Scanned', icon: '📱' },
+  'Notes Updated': { label: 'Notes Updated', icon: '📝' },
+  'Transfer_Draft': { label: 'Transfer Draft', icon: '📋' },
+  'Transfer_Dispatched': { label: 'Dispatched', icon: '🚚' },
+  'Transfer_Received': { label: 'Received', icon: '📦' },
 };
 
 export default function ModelCatalog() {
@@ -20,6 +53,11 @@ export default function ModelCatalog() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  // Analytics state
+  const [expandedModel, setExpandedModel] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<ModelAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const filtered = models.filter(m => {
     if (search && !`${m.brand} ${m.name} ${m.model_number}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -70,6 +108,26 @@ export default function ModelCatalog() {
       reload(search, brandFilter);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete');
+    }
+  };
+
+  const toggleAnalytics = async (modelNumber: string) => {
+    if (expandedModel === modelNumber) {
+      setExpandedModel(null);
+      setAnalytics(null);
+      return;
+    }
+    setExpandedModel(modelNumber);
+    setAnalyticsLoading(true);
+    setAnalytics(null);
+    try {
+      const { data } = await api.get(`/api/models/${encodeURIComponent(modelNumber)}/analytics`);
+      setAnalytics(data);
+    } catch {
+      setError('Failed to load analytics');
+      setExpandedModel(null);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -131,6 +189,7 @@ export default function ModelCatalog() {
           <table className="table-standard">
             <thead>
               <tr>
+                <th className="w-8"></th>
                 <th>Model Number</th>
                 <th>Brand</th>
                 <th>Name</th>
@@ -141,31 +200,151 @@ export default function ModelCatalog() {
             </thead>
             <tbody>
               {filtered.map(m => (
-                <tr key={m.model_number}>
-                  <td className="font-mono text-xs">{m.model_number}</td>
-                  <td className="text-sm">{m.brand}</td>
-                  <td className="text-sm font-medium text-[var(--text)]">{m.name}</td>
-                  <td className="text-sm">{m.storage_gb > 0 ? `${m.storage_gb}GB` : '—'}</td>
-                  <td className="text-sm text-[var(--text-tertiary)]">{m.color || '—'}</td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openEdit(m)}
-                        className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(m.model_number)}
-                        className="p-1.5 rounded hover:bg-red-500/10 text-[var(--text-tertiary)] hover:text-red-400 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <>
+                  <tr
+                    key={m.model_number}
+                    className={`cursor-pointer hover:bg-[var(--bg-muted)] transition-colors ${expandedModel === m.model_number ? 'bg-[var(--bg-muted)]' : ''}`}
+                    onClick={() => toggleAnalytics(m.model_number)}
+                  >
+                    <td className="w-8">
+                      {expandedModel === m.model_number ? (
+                        <ChevronDown size={14} className="text-accent" />
+                      ) : (
+                        <ChevronRight size={14} className="text-[var(--text-tertiary)]" />
+                      )}
+                    </td>
+                    <td className="font-mono text-xs">{m.model_number}</td>
+                    <td className="text-sm">{m.brand}</td>
+                    <td className="text-sm font-medium text-[var(--text)]">{m.name}</td>
+                    <td className="text-sm">{m.storage_gb > 0 ? `${m.storage_gb}GB` : '—'}</td>
+                    <td className="text-sm text-[var(--text-tertiary)]">{m.color || '—'}</td>
+                    <td>
+                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => openEdit(m)}
+                          className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(m.model_number)}
+                          className="p-1.5 rounded hover:bg-red-500/10 text-[var(--text-tertiary)] hover:text-red-400 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {/* Analytics Panel */}
+                  {expandedModel === m.model_number && (
+                    <tr key={`${m.model_number}-analytics`}>
+                      <td colSpan={7} className="p-0">
+                        {analyticsLoading ? (
+                          <div className="flex justify-center py-8">
+                            <Loader2 size={20} className="animate-spin text-[var(--text-tertiary)]" />
+                          </div>
+                        ) : analytics ? (
+                          <div className="px-6 py-5 bg-[var(--bg)] border-t border-[var(--border)]">
+                            {/* KPI Row */}
+                            <div className="grid grid-cols-4 gap-4 mb-5">
+                              <div className="bg-[var(--bg-card)] rounded-lg p-3 border border-[var(--border)]">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">Total Registered</div>
+                                <div className="text-2xl font-bold text-[var(--text)]">{analytics.total_ever_registered}</div>
+                              </div>
+                              <div className="bg-[var(--bg-card)] rounded-lg p-3 border border-[var(--border)]">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">In Stock</div>
+                                <div className="text-2xl font-bold text-[var(--text)]">{analytics.currently_in_stock}</div>
+                              </div>
+                              <div className="bg-[var(--bg-card)] rounded-lg p-3 border border-emerald-500/20">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1">Available (Sellable)</div>
+                                <div className="text-2xl font-bold text-emerald-400">{analytics.available_sellable}</div>
+                              </div>
+                              <div className="bg-[var(--bg-card)] rounded-lg p-3 border border-blue-500/20">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-1">Sold</div>
+                                <div className="text-2xl font-bold text-blue-400">{analytics.status_breakdown.Sold || 0}</div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-5">
+                              {/* Status Breakdown */}
+                              <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+                                  <BarChart3 size={12} /> Status Breakdown
+                                </h4>
+                                <div className="space-y-1.5">
+                                  {Object.entries(analytics.status_breakdown)
+                                    .filter(([, count]) => count > 0)
+                                    .map(([status, count]) => {
+                                      const info = STATUS_LABELS[status] || { label: status.replace(/_/g, ' '), color: '#6b7280' };
+                                      return (
+                                        <div key={status} className="flex items-center justify-between text-sm">
+                                          <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: info.color }} />
+                                            <span className="text-[var(--text-secondary)]">{info.label}</span>
+                                          </div>
+                                          <span className="font-mono font-bold text-[var(--text)]">{count}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  {Object.values(analytics.status_breakdown).every(c => c === 0) && (
+                                    <p className="text-xs text-[var(--text-tertiary)] italic">No devices registered</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Store Breakdown */}
+                              <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">By Store</h4>
+                                <div className="space-y-1.5">
+                                  {analytics.store_breakdown.length > 0 ? (
+                                    analytics.store_breakdown.map(s => (
+                                      <div key={s.location_id} className="flex items-center justify-between text-sm">
+                                        <span className="text-[var(--text-secondary)]">{s.location_name}</span>
+                                        <span className="font-mono font-bold text-[var(--text)]">{s.count}</span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-xs text-[var(--text-tertiary)] italic">None in stock</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* History Summary + Recent Activity */}
+                              <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Recent Activity</h4>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                  {analytics.recent_activity.length > 0 ? (
+                                    analytics.recent_activity.map((a, i) => {
+                                      const info = HISTORY_ACTION_LABELS[a.action] || { label: a.action.replace(/_/g, ' '), icon: '•' };
+                                      return (
+                                        <div key={i} className="text-xs">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-[var(--text-tertiary)]">{info.icon}</span>
+                                            <span className="text-[var(--text-secondary)] font-medium">{info.label}</span>
+                                            <span className="font-mono text-[10px] text-[var(--text-tertiary)] ml-auto">
+                                              {a.timestamp ? new Date(a.timestamp).toLocaleDateString() : ''}
+                                            </span>
+                                          </div>
+                                          {a.notes && (
+                                            <p className="text-[10px] text-[var(--text-tertiary)] ml-5 truncate">{a.notes}</p>
+                                          )}
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <p className="text-xs text-[var(--text-tertiary)] italic">No activity yet</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>

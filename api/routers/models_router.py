@@ -95,6 +95,117 @@ def get_brands(
     return [r[0] for r in rows if r[0]]
 
 
+@router.get("/analytics", include_in_schema=False)
+@router.get("/{model_number}/analytics")
+def get_model_analytics(
+    model_number: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Returns per-model inventory stats: counts by status, by store, and history summary."""
+    from sqlalchemy import func
+
+    org_id = getattr(current_user, 'current_org_id', None)
+
+    status_counts = {s.value: 0 for s in models.DeviceStatus}
+    rows = db.query(
+        models.DeviceInventory.device_status,
+        func.count(models.DeviceInventory.imei)
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+    ).group_by(models.DeviceInventory.device_status).all()
+    for status_val, count in rows:
+        if status_val:
+            status_counts[status_val.value] = count
+
+    total_in_stock = sum(c for s, c in status_counts.items() if s not in ("Sold", "Scrapped") and c > 0)
+    available = status_counts.get("Sellable", 0)
+
+    store_breakdown = []
+    store_rows = db.query(
+        models.DeviceInventory.location_id,
+        func.count(models.DeviceInventory.imei)
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceInventory.device_status.in_([
+            models.DeviceStatus.Sellable,
+            models.DeviceStatus.In_QC,
+            models.DeviceStatus.In_Repair,
+            models.DeviceStatus.In_Transit,
+            models.DeviceStatus.Reserved_Layaway,
+            models.DeviceStatus.Awaiting_Parts,
+            models.DeviceStatus.On_Consignment,
+        ])
+    ).group_by(models.DeviceInventory.location_id).all()
+    for loc_id, count in store_rows:
+        loc_name = loc_id
+        if loc_id:
+            sl = db.query(models.StoreLocation).filter(models.StoreLocation.id == loc_id).first()
+            if sl:
+                loc_name = sl.name
+        store_breakdown.append({"location_id": loc_id, "location_name": loc_name, "count": count})
+
+    history_summary = {}
+    history_rows = db.query(
+        models.DeviceHistoryLog.action_type,
+        func.count(models.DeviceHistoryLog.log_id)
+    ).join(
+        models.DeviceInventory,
+        models.DeviceHistoryLog.imei == models.DeviceInventory.imei
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+    ).group_by(models.DeviceHistoryLog.action_type).all()
+    for action, count in history_rows:
+        history_summary[action] = count
+
+    total_ever = db.query(func.count(func.distinct(models.DeviceHistoryLog.imei))).join(
+        models.DeviceInventory,
+        models.DeviceHistoryLog.imei == models.DeviceInventory.imei
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+    ).scalar() or 0
+
+    recent = db.query(
+        models.DeviceHistoryLog.imei,
+        models.DeviceHistoryLog.action_type,
+        models.DeviceHistoryLog.timestamp,
+        models.DeviceHistoryLog.notes,
+        models.DeviceHistoryLog.employee_id,
+    ).join(
+        models.DeviceInventory,
+        models.DeviceHistoryLog.imei == models.DeviceInventory.imei
+    ).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+    ).order_by(models.DeviceHistoryLog.timestamp.desc()).limit(10).all()
+
+    recent_activity = [
+        {
+            "imei": r[0],
+            "action": r[1],
+            "timestamp": r[2].isoformat() if r[2] else None,
+            "notes": r[3],
+            "employee": r[4],
+        }
+        for r in recent
+    ]
+
+    return {
+        "model_number": model_number,
+        "total_ever_registered": total_ever,
+        "currently_in_stock": total_in_stock,
+        "available_sellable": available,
+        "status_breakdown": status_counts,
+        "store_breakdown": store_breakdown,
+        "history_summary": history_summary,
+        "recent_activity": recent_activity,
+    }
+
+
 @router.get("/{model_number}", response_model=schemas.PhoneModelOut)
 def get_model(
     model_number: str,
