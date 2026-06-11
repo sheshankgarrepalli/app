@@ -29,6 +29,7 @@ import ExcelImport from './pages/ExcelImport';
 import Analytics from './pages/Analytics';
 import SkuGenerator from './pages/SkuGenerator';
 import ModelCatalog from './pages/ModelCatalog';
+import ModelAnalytics from './pages/ModelAnalytics';
 import ServiceCatalog from './pages/ServiceCatalog';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Suppliers from './pages/Suppliers';
@@ -133,6 +134,7 @@ function AuthRoutes() {
       <Route path="/admin/incoming-transfers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><IncomingTransfers /></ProtectedRoute>} />
       <Route path="/admin/sku-generator" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><SkuGenerator /></ProtectedRoute>} />
       <Route path="/admin/models" element={<ProtectedRoute allowedRoles={['admin']}><ModelCatalog /></ProtectedRoute>} />
+      <Route path="/admin/models/:modelNumber" element={<ProtectedRoute allowedRoles={['admin', 'store']}><ModelAnalytics /></ProtectedRoute>} />
       <Route path="/admin/services" element={<ProtectedRoute allowedRoles={['admin']}><ServiceCatalog /></ProtectedRoute>} />
       <Route path="/admin/purchase-orders" element={<ProtectedRoute allowedRoles={['admin']}><PurchaseOrders /></ProtectedRoute>} />
       <Route path="/admin/suppliers" element={<ProtectedRoute allowedRoles={['admin']}><Suppliers /></ProtectedRoute>} />
@@ -200,6 +202,8 @@ function PreviewRoutes() {
         <Route path="invoices/:invoiceNumber/edit" element={<InvoiceForm />} />
         <Route path="invoices/:invoiceNumber" element={<InvoiceDetail />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="models" element={<ModelCatalog />} />
+        <Route path="models/:modelNumber" element={<ModelAnalytics />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="ar-aging" element={<ArAging />} />
         <Route path="tax-summary" element={<TaxSummary />} />

@@ -102,10 +102,22 @@ def get_model_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """Returns per-model inventory stats with aggregated timeline events."""
+    """Returns per-model inventory stats with aggregated timeline events and full history."""
     from sqlalchemy import func, cast, Date
 
     org_id = getattr(current_user, 'current_org_id', None)
+
+    # ── Model info ──
+    model_obj = db.query(models.PhoneModel).filter(
+        models.PhoneModel.model_number == model_number,
+        models.PhoneModel.org_id == org_id,
+    ).first()
+    model_info = {
+        "model_number": model_number,
+        "brand": model_obj.brand if model_obj else "",
+        "name": model_obj.name if model_obj else model_number,
+        "storage_gb": model_obj.storage_gb if model_obj else 0,
+    }
 
     # ── Status breakdown ──
     status_counts = {s.value: 0 for s in models.DeviceStatus}
@@ -124,6 +136,10 @@ def get_model_analytics(
     available = status_counts.get("Sellable", 0)
     sold = status_counts.get("Sold", 0)
     scrapped = status_counts.get("Scrapped", 0)
+    total_ever = db.query(func.count(models.DeviceInventory.imei)).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+    ).scalar() or 0
 
     # ── Store breakdown ──
     store_breakdown = []
@@ -134,12 +150,9 @@ def get_model_analytics(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
         models.DeviceInventory.device_status.in_([
-            models.DeviceStatus.Sellable,
-            models.DeviceStatus.In_QC,
-            models.DeviceStatus.In_Repair,
-            models.DeviceStatus.In_Transit,
-            models.DeviceStatus.Reserved_Layaway,
-            models.DeviceStatus.Awaiting_Parts,
+            models.DeviceStatus.Sellable, models.DeviceStatus.In_QC,
+            models.DeviceStatus.In_Repair, models.DeviceStatus.In_Transit,
+            models.DeviceStatus.Reserved_Layaway, models.DeviceStatus.Awaiting_Parts,
             models.DeviceStatus.On_Consignment,
         ])
     ).group_by(models.DeviceInventory.location_id).all()
@@ -151,11 +164,15 @@ def get_model_analytics(
                 loc_name = sl.name
         store_breakdown.append({"location_id": loc_id, "location_name": loc_name, "count": count})
 
-    # ── Aggregated timeline ──
-    timeline = []
+    # ── First import / first inventory entry ──
+    first_device = db.query(func.min(models.DeviceInventory.received_date)).filter(
+        models.DeviceInventory.model_number == model_number,
+        models.DeviceInventory.org_id == org_id,
+    ).scalar()
 
-    # --- Imports: group by date ---
-    import_dates = db.query(
+    # ── Imports (grouped by date) ──
+    imports = []
+    import_rows = db.query(
         cast(models.DeviceHistoryLog.timestamp, Date),
         func.count(func.distinct(models.DeviceHistoryLog.imei))
     ).join(
@@ -170,15 +187,13 @@ def get_model_analytics(
     ).order_by(
         cast(models.DeviceHistoryLog.timestamp, Date).desc()
     ).all()
-    for date_val, count in import_dates:
-        timeline.append({
-            "type": "import",
-            "label": f"Imported {count} unit{'s' if count != 1 else ''}",
+    for date_val, count in import_rows:
+        imports.append({
             "date": date_val.isoformat() if date_val else None,
             "count": count,
         })
 
-    # --- Sales: get invoice items with customer info ---
+    # ── Sales (with customer and invoice) ──
     sales = db.query(
         models.Invoice.invoice_number,
         models.Invoice.created_at,
@@ -198,30 +213,26 @@ def get_model_analytics(
     ).filter(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
-        models.Invoice.status.in_([
-            models.InvoiceStatus.Paid,
-            models.InvoiceStatus.Partially_Paid,
-        ])
+        models.Invoice.status.in_([models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid])
     ).group_by(
-        models.Invoice.invoice_number,
-        models.Invoice.created_at,
-        models.UnifiedCustomer.company_name,
-        models.UnifiedCustomer.first_name,
+        models.Invoice.invoice_number, models.Invoice.created_at,
+        models.UnifiedCustomer.company_name, models.UnifiedCustomer.first_name,
         models.UnifiedCustomer.last_name,
-    ).order_by(models.Invoice.created_at.desc()).limit(20).all()
+    ).order_by(models.Invoice.created_at.desc()).all()
 
+    sales_list = []
     for inv_num, created_at, company, fname, lname, count in sales:
         cust_name = company or f"{fname or ''} {lname or ''}".strip() or "Walk-in"
-        timeline.append({
-            "type": "sale",
-            "label": f"Sold {count} unit{'s' if count != 1 else ''}",
+        sales_list.append({
+            "invoice_number": inv_num,
             "date": created_at.isoformat() if created_at else None,
-            "detail": f"Invoice {inv_num} — {cust_name}",
+            "customer": cust_name,
             "count": count,
         })
 
-    # --- Transfers: aggregate by transfer order ---
-    transfers = db.query(
+    # ── Transfers ──
+    transfers = []
+    transfer_rows = db.query(
         models.TransferOrder.id,
         models.TransferOrder.created_at,
         models.TransferOrder.source_location_id,
@@ -236,76 +247,61 @@ def get_model_analytics(
         models.DeviceInventory.org_id == org_id,
         models.TransferOrder.status.in_(["In_Transit", "Received", "Draft"])
     ).group_by(
-        models.TransferOrder.id,
-        models.TransferOrder.created_at,
-        models.TransferOrder.source_location_id,
-        models.TransferOrder.destination_location_id,
+        models.TransferOrder.id, models.TransferOrder.created_at,
+        models.TransferOrder.source_location_id, models.TransferOrder.destination_location_id,
         models.TransferOrder.status,
-    ).order_by(models.TransferOrder.created_at.desc()).limit(15).all()
+    ).order_by(models.TransferOrder.created_at.desc()).all()
 
-    src_names = {}
-    dst_names = {}
-    for to_id, created_at, src, dst, status, count in transfers:
-        if src and src not in src_names:
+    for to_id, created_at, src, dst, status, count in transfer_rows:
+        from_name = src
+        to_name = dst
+        if src:
             sl = db.query(models.StoreLocation).filter(models.StoreLocation.id == src).first()
-            src_names[src] = sl.name if sl else src
-        if dst and dst not in dst_names:
+            if sl: from_name = sl.name
+        if dst:
             sl = db.query(models.StoreLocation).filter(models.StoreLocation.id == dst).first()
-            dst_names[dst] = sl.name if sl else dst
-        from_name = src_names.get(src, src) if src else "—"
-        to_name = dst_names.get(dst, dst) if dst else "—"
-        status_label = status.replace("_", " ").title() if status else ""
-        timeline.append({
-            "type": "transfer",
-            "label": f"Transfer {to_id}",
+            if sl: to_name = sl.name
+        transfers.append({
+            "transfer_id": to_id,
             "date": created_at.isoformat() if created_at else None,
-            "detail": f"{from_name} → {to_name} · {count} unit{'s' if count != 1 else ''} · {status_label}",
+            "from": from_name or "—",
+            "to": to_name or "—",
+            "status": status.replace("_", " ").title() if status else "",
             "count": count,
         })
 
-    # --- Notes updates: aggregate by date ---
-    notes_dates = db.query(
-        cast(models.DeviceHistoryLog.timestamp, Date),
-        func.count(func.distinct(models.DeviceHistoryLog.imei))
-    ).join(
-        models.DeviceInventory,
-        models.DeviceHistoryLog.imei == models.DeviceInventory.imei
+    # ── Scrapped devices ──
+    scrapped_devices = []
+    scrapped_rows = db.query(
+        models.DeviceInventory.imei,
+        models.DeviceInventory.notes,
+        models.DeviceInventory.received_date,
     ).filter(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
-        models.DeviceHistoryLog.action_type == "Notes Updated"
-    ).group_by(
-        cast(models.DeviceHistoryLog.timestamp, Date)
-    ).order_by(
-        cast(models.DeviceHistoryLog.timestamp, Date).desc()
-    ).limit(5).all()
-    for date_val, count in notes_dates:
-        timeline.append({
-            "type": "notes",
-            "label": f"Notes updated on {count} device{'s' if count != 1 else ''}",
-            "date": date_val.isoformat() if date_val else None,
-            "count": count,
+        models.DeviceInventory.device_status == models.DeviceStatus.Scrapped,
+    ).order_by(models.DeviceInventory.received_date.desc()).limit(10).all()
+    for imei, notes, rd in scrapped_rows:
+        scrapped_devices.append({
+            "imei": imei,
+            "notes": notes,
+            "received_date": rd.isoformat() if rd else None,
         })
 
-    # Sort timeline by date descending
-    timeline.sort(key=lambda e: e.get("date") or "", reverse=True)
-
-    # Total ever registered
-    total_ever = db.query(func.count(func.distinct(models.DeviceInventory.imei))).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
-    ).scalar() or 0
-
     return {
-        "model_number": model_number,
+        "model_info": model_info,
         "total_ever_registered": total_ever,
         "currently_in_stock": total_in_stock,
         "available_sellable": available,
-        "sold": sold,
-        "scrapped": scrapped,
+        "sold_count": sold,
+        "scrapped_count": scrapped,
+        "first_inventory_date": first_device.isoformat() if first_device else None,
         "status_breakdown": status_counts,
         "store_breakdown": store_breakdown,
-        "timeline": timeline,
+        "imports": imports,
+        "sales": sales_list,
+        "transfers": transfers,
+        "scrapped_devices": scrapped_devices,
     }
 
 
