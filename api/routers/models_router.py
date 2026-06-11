@@ -99,13 +99,16 @@ def get_brands(
 @router.get("/{model_number}/analytics")
 def get_model_analytics(
     model_number: str,
+    store_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """Returns per-model inventory stats with aggregated timeline events and full history."""
+    """Returns per-model inventory stats, scoped to store_id (non-admin locked to own store)."""
     from sqlalchemy import func, cast, Date
 
     org_id = getattr(current_user, 'current_org_id', None)
+    user_store = current_user.store_id if current_user.role != "admin" else None
+    effective_store = user_store or store_id
 
     # ── Model info ──
     model_obj = db.query(models.PhoneModel).filter(
@@ -119,15 +122,22 @@ def get_model_analytics(
         "storage_gb": model_obj.storage_gb if model_obj else 0,
     }
 
+    # Helper: scope device queries to store if non-admin or store_id provided
+    def device_filter(q):
+        q = q.filter(
+            models.DeviceInventory.model_number == model_number,
+            models.DeviceInventory.org_id == org_id,
+        )
+        if effective_store:
+            q = q.filter(models.DeviceInventory.store_id == effective_store)
+        return q
+
     # ── Status breakdown ──
     status_counts = {s.value: 0 for s in models.DeviceStatus}
-    rows = db.query(
+    rows = device_filter(db.query(
         models.DeviceInventory.device_status,
         func.count(models.DeviceInventory.imei)
-    ).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
-    ).group_by(models.DeviceInventory.device_status).all()
+    )).group_by(models.DeviceInventory.device_status).all()
     for status_val, count in rows:
         if status_val:
             status_counts[status_val.value] = count
@@ -136,19 +146,14 @@ def get_model_analytics(
     available = status_counts.get("Sellable", 0)
     sold = status_counts.get("Sold", 0)
     scrapped = status_counts.get("Scrapped", 0)
-    total_ever = db.query(func.count(models.DeviceInventory.imei)).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
-    ).scalar() or 0
+    total_ever = device_filter(db.query(func.count(models.DeviceInventory.imei))).scalar() or 0
 
     # ── Store breakdown ──
     store_breakdown = []
-    store_rows = db.query(
+    store_rows = device_filter(db.query(
         models.DeviceInventory.location_id,
         func.count(models.DeviceInventory.imei)
-    ).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
+    )).filter(
         models.DeviceInventory.device_status.in_([
             models.DeviceStatus.Sellable, models.DeviceStatus.In_QC,
             models.DeviceStatus.In_Repair, models.DeviceStatus.In_Transit,
@@ -165,10 +170,7 @@ def get_model_analytics(
         store_breakdown.append({"location_id": loc_id, "location_name": loc_name, "count": count})
 
     # ── First import / first inventory entry ──
-    first_device = db.query(func.min(models.DeviceInventory.received_date)).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
-    ).scalar()
+    first_device = device_filter(db.query(func.min(models.DeviceInventory.received_date))).scalar()
 
     # ── Imports (grouped by date) ──
     imports = []
@@ -178,9 +180,8 @@ def get_model_analytics(
     ).join(
         models.DeviceInventory,
         models.DeviceHistoryLog.imei == models.DeviceInventory.imei
-    ).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
+    )
+    import_rows = device_filter(import_rows).filter(
         models.DeviceHistoryLog.action_type.in_(["Excel Import", "Blind Scan"])
     ).group_by(
         cast(models.DeviceHistoryLog.timestamp, Date)
@@ -194,7 +195,7 @@ def get_model_analytics(
         })
 
     # ── Sales (with customer and invoice) ──
-    sales = db.query(
+    sales_q = db.query(
         models.Invoice.invoice_number,
         models.Invoice.created_at,
         models.UnifiedCustomer.company_name,
@@ -214,14 +215,17 @@ def get_model_analytics(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
         models.Invoice.status.in_([models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid])
-    ).group_by(
+    )
+    if effective_store:
+        sales_q = sales_q.filter(models.Invoice.store_id == effective_store)
+    sales_q = sales_q.group_by(
         models.Invoice.invoice_number, models.Invoice.created_at,
         models.UnifiedCustomer.company_name, models.UnifiedCustomer.first_name,
         models.UnifiedCustomer.last_name,
     ).order_by(models.Invoice.created_at.desc()).all()
 
     sales_list = []
-    for inv_num, created_at, company, fname, lname, count in sales:
+    for inv_num, created_at, company, fname, lname, count in sales_q:
         cust_name = company or f"{fname or ''} {lname or ''}".strip() or "Walk-in"
         sales_list.append({
             "invoice_number": inv_num,
@@ -230,9 +234,9 @@ def get_model_analytics(
             "count": count,
         })
 
-    # ── Transfers ──
+    # ── Transfers (involving this store) ──
     transfers = []
-    transfer_rows = db.query(
+    transfer_q = db.query(
         models.TransferOrder.id,
         models.TransferOrder.created_at,
         models.TransferOrder.source_location_id,
@@ -246,13 +250,20 @@ def get_model_analytics(
         models.DeviceInventory.model_number == model_number,
         models.DeviceInventory.org_id == org_id,
         models.TransferOrder.status.in_(["In_Transit", "Received", "Draft"])
-    ).group_by(
+    )
+    if effective_store:
+        from sqlalchemy import or_
+        transfer_q = transfer_q.filter(or_(
+            models.TransferOrder.source_location_id == effective_store,
+            models.TransferOrder.destination_location_id == effective_store,
+        ))
+    transfer_q = transfer_q.group_by(
         models.TransferOrder.id, models.TransferOrder.created_at,
         models.TransferOrder.source_location_id, models.TransferOrder.destination_location_id,
         models.TransferOrder.status,
     ).order_by(models.TransferOrder.created_at.desc()).all()
 
-    for to_id, created_at, src, dst, status, count in transfer_rows:
+    for to_id, created_at, src, dst, status, count in transfer_q:
         from_name = src
         to_name = dst
         if src:
@@ -272,13 +283,11 @@ def get_model_analytics(
 
     # ── Scrapped devices ──
     scrapped_devices = []
-    scrapped_rows = db.query(
+    scrapped_rows = device_filter(db.query(
         models.DeviceInventory.imei,
         models.DeviceInventory.notes,
         models.DeviceInventory.received_date,
-    ).filter(
-        models.DeviceInventory.model_number == model_number,
-        models.DeviceInventory.org_id == org_id,
+    )).filter(
         models.DeviceInventory.device_status == models.DeviceStatus.Scrapped,
     ).order_by(models.DeviceInventory.received_date.desc()).limit(10).all()
     for imei, notes, rd in scrapped_rows:

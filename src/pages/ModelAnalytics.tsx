@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/api';
+import { useLocationFilter } from '../context/LocationContext';
 import { ArrowLeft, Loader2, AlertCircle, Truck, ShoppingCart, PenTool, ArrowDownToLine, Store, BarChart3, Clock, Trash2 } from 'lucide-react';
 
 interface ModelInfo {
@@ -77,6 +78,7 @@ function formatDate(iso: string | null): string {
 
 export default function ModelAnalytics() {
   const { modelNumber } = useParams<{ modelNumber: string }>();
+  const { selectedLocationId } = useLocationFilter();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,11 +86,12 @@ export default function ModelAnalytics() {
   useEffect(() => {
     if (!modelNumber) return;
     setLoading(true);
-    api.get(`/api/models/${encodeURIComponent(modelNumber)}/analytics`)
+    const params = selectedLocationId ? { store_id: selectedLocationId } : {};
+    api.get(`/api/models/${encodeURIComponent(modelNumber)}/analytics`, { params })
       .then(res => setData(res.data))
       .catch(() => setError('Failed to load analytics'))
       .finally(() => setLoading(false));
-  }, [modelNumber]);
+  }, [modelNumber, selectedLocationId]);
 
   if (loading) {
     return (
