@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Loader2, AlertCircle, Package, Search, ExternalLink } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, AlertCircle, Package, Search } from 'lucide-react';
 import useModels, { createModel, updateModel, deleteModel, PhoneModel } from '../api/models';
 import { useAuth } from '../context/AuthContext';
 import { useLocationFilter } from '../context/LocationContext';
@@ -130,26 +130,29 @@ export default function ModelCatalog() {
                 <th>Name</th>
                 <th>Storage</th>
                 <th>Color</th>
+                <th className="text-right">In Stock</th>
                 <th className="w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(m => (
-                <tr key={m.model_number}>
+                <tr key={m.model_number}
+                  className={`cursor-pointer hover:bg-[var(--bg-muted)] transition-colors ${(m.inventory_count ?? 0) === 0 ? 'opacity-40' : ''}`}
+                  onClick={() => navigate(`/admin/models/${encodeURIComponent(m.model_number)}`)}>
                   <td className="font-mono text-xs">{m.model_number}</td>
                   <td className="text-sm">{m.brand}</td>
                   <td className="text-sm font-medium text-[var(--text)]">{m.name}</td>
                   <td className="text-sm">{m.storage_gb > 0 ? `${m.storage_gb}GB` : '—'}</td>
                   <td className="text-sm text-[var(--text-tertiary)]">{m.color || '—'}</td>
+                  <td className="text-right">
+                    {(m.inventory_count ?? 0) > 0 ? (
+                      <span className="font-mono font-bold text-sm text-emerald-400">{m.inventory_count}</span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-tertiary)]">0</span>
+                    )}
+                  </td>
                   <td>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => navigate(`/admin/models/${encodeURIComponent(m.model_number)}`)}
-                        className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
-                        title="View Analytics"
-                      >
-                        <ExternalLink size={14} />
-                      </button>
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                       <button onClick={() => openEdit(m)}
                         className="p-1.5 rounded hover:bg-[var(--bg-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
                         title="Edit"><Pencil size={14} /></button>
