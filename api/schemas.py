@@ -310,6 +310,7 @@ class DeviceInventoryOut(BaseModel):
     cost_basis: float
     received_date: datetime
     device_type: Optional[str] = None
+    notes: Optional[str] = None
     model: Optional[PhoneModelOut]
     store_name: Optional[str] = None
     location_type: Optional[str] = None
@@ -963,6 +964,7 @@ class ExcelImportRow(BaseModel):
     storage: str
     imei: str
     device_type: Optional[str] = None
+    notes: Optional[str] = None
 
 class ExcelPreviewRequest(BaseModel):
     rows: List[ExcelImportRow]
@@ -977,6 +979,7 @@ class PreviewRowResult(BaseModel):
     model_exists: bool = False
     generated_model_number: str = ""
     detected_device_type: str = "Phone"
+    notes: Optional[str] = None
 
 class PreviewSummary(BaseModel):
     total: int

@@ -1,7 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, func, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, func, Boolean, Text
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -216,6 +216,7 @@ class DeviceInventory(Base):
     
     received_date = Column(DateTime, default=func.now())
     warranty_expiry_date = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
     
     device_type = Column(Enum(DeviceType), default=DeviceType.Phone, nullable=True)
     model = relationship("PhoneModel")

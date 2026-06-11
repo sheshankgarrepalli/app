@@ -214,6 +214,7 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
             model_exists=model_exists,
             generated_model_number=mn,
             detected_device_type=device_type,
+            notes=getattr(row, 'notes', None),
         ))
 
     summary = PreviewSummary(
@@ -309,6 +310,7 @@ def excel_import(
                 is_hydrated=True,
                 received_date=now,
                 org_id=org_id,
+                notes=getattr(row, 'notes', None),
             ))
 
             history_logs.append(DeviceHistoryLog(

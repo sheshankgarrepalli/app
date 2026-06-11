@@ -102,6 +102,7 @@ def db_sync():
         _safe_add_column(db, "suppliers", "is_active", "INTEGER", "1")
         _safe_add_column(db, "invoice_items", "unit_cost", "FLOAT", "0.0")
         _safe_add_column(db, "device_inventory", "device_type", "TEXT")
+        _safe_add_column(db, "device_inventory", "notes", "TEXT")
         _safe_add_column(db, "invoices", "created_by_email", "TEXT")
 
         # service_catalog table

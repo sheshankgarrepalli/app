@@ -19,6 +19,7 @@ interface DeviceInfo {
     days_in_inventory: number;
     brand: string;
     last_action: string;
+    notes?: string | null;
 }
 
 interface Transition {
@@ -469,6 +470,14 @@ export default function PhoneRouting() {
                                             <div className="text-sm font-bold text-[var(--text)] truncate">{device.last_action || '—'}</div>
                                         </div>
                                     </div>
+                                    {device.notes && (
+                                        <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
+                                                <FileText size={11} /> Notes
+                                            </div>
+                                            <div className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{device.notes}</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

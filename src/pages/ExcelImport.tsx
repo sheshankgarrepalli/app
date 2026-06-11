@@ -14,6 +14,7 @@ interface PreviewRow {
   model_exists: boolean;
   generated_model_number: string;
   detected_device_type: string;
+  notes?: string | null;
 }
 
 interface PreviewResponse {
@@ -80,6 +81,7 @@ export default function ExcelImport() {
       const imeiKey = findKey(['imei', 'serial']);
       const modelKey = findKey(['model']);
       const storageKey = findKey(['storage']);
+      const notesKey = findKey(['notes', 'issues', 'defects', 'condition', 'comments']);
 
       if (!imeiKey || !modelKey || !storageKey) {
         setError(`Could not identify required columns. Found: ${keys.join(', ')}. Expected columns with "IMEI"/"Serial", "model", and "storage" in headers.`);
@@ -90,6 +92,7 @@ export default function ExcelImport() {
         model_name: String(r[modelKey] || '').trim(),
         storage: String(r[storageKey] || '').trim(),
         imei: String(r[imeiKey] || '').trim(),
+        notes: notesKey ? String(r[notesKey] || '').trim() : undefined,
       }));
 
       // Send to preview endpoint
@@ -111,7 +114,7 @@ export default function ExcelImport() {
 
     try {
       const { data } = await api.post('/api/import/excel-import', {
-        rows: validRows.map(r => ({ model_name: r.model_name, storage: String(r.storage_gb), imei: r.imei })),
+        rows: validRows.map(r => ({ model_name: r.model_name, storage: String(r.storage_gb), imei: r.imei, notes: r.notes || undefined })),
         location_id: locationId,
         device_status: deviceStatus,
       });
