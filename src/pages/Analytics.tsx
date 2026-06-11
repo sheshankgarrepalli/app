@@ -41,7 +41,7 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, selectedLocationId]);
 
   useEffect(() => {
     load();

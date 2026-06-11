@@ -63,7 +63,7 @@ export default function ArAging() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedLocationId]);
 
   useEffect(() => { load(); }, [load]);
 

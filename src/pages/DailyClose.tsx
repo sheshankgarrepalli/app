@@ -32,7 +32,7 @@ export default function DailyClose() {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load daily close');
     } finally { setLoading(false); }
-  }, []);
+  }, [selectedLocationId]);
 
   useEffect(() => { load(); }, [load]);
 

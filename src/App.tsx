@@ -133,7 +133,7 @@ function AuthRoutes() {
       <Route path="/admin/import-inventory" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><ExcelImport /></ProtectedRoute>} />
       <Route path="/admin/incoming-transfers" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><IncomingTransfers /></ProtectedRoute>} />
       <Route path="/admin/sku-generator" element={<ProtectedRoute allowedRoles={['admin', 'warehouse', 'store']}><SkuGenerator /></ProtectedRoute>} />
-      <Route path="/admin/models" element={<ProtectedRoute allowedRoles={['admin']}><ModelCatalog /></ProtectedRoute>} />
+      <Route path="/admin/models" element={<ProtectedRoute allowedRoles={['admin', 'store']}><ModelCatalog /></ProtectedRoute>} />
       <Route path="/admin/models/:modelNumber" element={<ProtectedRoute allowedRoles={['admin', 'store']}><ModelAnalytics /></ProtectedRoute>} />
       <Route path="/admin/services" element={<ProtectedRoute allowedRoles={['admin']}><ServiceCatalog /></ProtectedRoute>} />
       <Route path="/admin/purchase-orders" element={<ProtectedRoute allowedRoles={['admin']}><PurchaseOrders /></ProtectedRoute>} />
