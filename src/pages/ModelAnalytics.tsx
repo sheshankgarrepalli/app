@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/api';
+import { useAuth } from '../context/AuthContext';
 import { useLocationFilter } from '../context/LocationContext';
 import { ArrowLeft, Loader2, AlertCircle, Truck, ShoppingCart, PenTool, ArrowDownToLine, Store, BarChart3, Clock, Trash2 } from 'lucide-react';
 
@@ -78,20 +79,23 @@ function formatDate(iso: string | null): string {
 
 export default function ModelAnalytics() {
   const { modelNumber } = useParams<{ modelNumber: string }>();
+  const { user } = useAuth();
   const { selectedLocationId } = useLocationFilter();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const effectiveStoreId = user?.role !== 'admin' ? (user?.store_id || null) : selectedLocationId;
+
   useEffect(() => {
     if (!modelNumber) return;
     setLoading(true);
-    const params = selectedLocationId ? { store_id: selectedLocationId } : {};
+    const params = effectiveStoreId ? { store_id: effectiveStoreId } : {};
     api.get(`/api/models/${encodeURIComponent(modelNumber)}/analytics`, { params })
       .then(res => setData(res.data))
       .catch(() => setError('Failed to load analytics'))
       .finally(() => setLoading(false));
-  }, [modelNumber, selectedLocationId]);
+  }, [modelNumber, effectiveStoreId]);
 
   if (loading) {
     return (
