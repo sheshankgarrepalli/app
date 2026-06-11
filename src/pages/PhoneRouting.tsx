@@ -4,18 +4,23 @@ import { useLocationFilter } from '../context/LocationContext';
 import {
     Search, ArrowRightLeft, Smartphone, Loader2, AlertCircle, CheckCircle2,
     Wrench, ShieldCheck, Trash2, ShoppingCart, Zap, MapPin,
-    DollarSign, Calendar, Hash, PackageCheck, XCircle, Info, Clock, Layers,
+    DollarSign, Calendar, Hash, PackageCheck, XCircle, Info, Layers,
     FileText, Send
 } from 'lucide-react';
 
 interface DeviceInfo {
     imei: string;
     model_number: string;
+    model?: { brand?: string; name?: string; storage_gb?: number } | null;
     storage: string;
     color: string;
     device_status: string;
+    device_type?: string | null;
     cost_basis: number;
+    location_id?: string;
+    store_name?: string | null;
     current_bin: string;
+    received_date?: string | null;
     days_in_inventory: number;
     brand: string;
     last_action: string;
@@ -443,7 +448,7 @@ export default function PhoneRouting() {
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <MapPin size={11} /> Location
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text)]">{device.current_bin?.replace(/_/g, ' ') || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text)]">{device.store_name || device.location_id?.replace(/_/g, ' ') || '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
@@ -453,21 +458,21 @@ export default function PhoneRouting() {
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
-                                                <Calendar size={11} /> Days in Inventory
+                                                <Calendar size={11} /> Received
                                             </div>
-                                            <div className="font-mono text-sm font-bold text-[var(--text)]">{device.days_in_inventory ?? '—'}</div>
+                                            <div className="font-mono text-xs font-bold text-[var(--text)]">{device.received_date ? new Date(device.received_date).toLocaleDateString() : '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
                                                 <Info size={11} /> Brand
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text)]">{device.brand || '—'}</div>
+                                            <div className="text-sm font-bold text-[var(--text)]">{device.model?.brand || '—'}</div>
                                         </div>
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5 mb-1">
-                                                <Clock size={11} /> Last Action
+                                                <Info size={11} /> Type
                                             </div>
-                                            <div className="text-sm font-bold text-[var(--text)] truncate">{device.last_action || '—'}</div>
+                                            <span className="badge badge-neutral text-[10px]">{device.device_type || '—'}</span>
                                         </div>
                                     </div>
                                     {device.notes && (
