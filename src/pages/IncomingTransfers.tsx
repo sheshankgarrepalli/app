@@ -59,7 +59,7 @@ export default function IncomingTransfers() {
         } catch { setError('Failed to load incoming transfers'); } finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchTransfers(); }, []);
+    useEffect(() => { fetchTransfers(); }, [selectedLocationId]);
 
     const expandTransfer = async (id: string) => {
         if (expandedId === id) {

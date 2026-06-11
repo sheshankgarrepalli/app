@@ -88,7 +88,7 @@ export default function PurchaseOrders() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedLocationId]);
 
   useEffect(() => { load(); }, [load]);
 
