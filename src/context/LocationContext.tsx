@@ -25,12 +25,15 @@ const LocationContext = createContext<LocationContextType>({
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
-    const [selectedLocationId, setSelectedLocationIdRaw] = useState<string | null>(() => {
+    const getInitial = (): string | null => {
+        if (user && user.role !== 'admin' && user.store_id) {
+            return user.store_id;
+        }
         return localStorage.getItem('selectedLocationId') || null;
-    });
+    };
+    const [selectedLocationId, setSelectedLocationIdRaw] = useState<string | null>(getInitial);
     const [availableLocations, setAvailableLocations] = useState<StoreLocation[]>([]);
     const [loading, setLoading] = useState(false);
-    const [initialized, setInitialized] = useState(false);
 
     const setSelectedLocationId = useCallback((id: string | null) => {
         setSelectedLocationIdRaw(id);
@@ -41,17 +44,12 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // Auto-select user's store on first load for non-admin users
+    // Lock non-admin users to their store whenever user changes
     useEffect(() => {
-        if (initialized || !user) return;
-        if (user.role !== 'admin' && user.store_id) {
-            const stored = localStorage.getItem('selectedLocationId');
-            if (!stored || stored === 'all') {
-                setSelectedLocationId(user.store_id);
-            }
+        if (user && user.role !== 'admin' && user.store_id) {
+            setSelectedLocationId(user.store_id);
         }
-        setInitialized(true);
-    }, [user, initialized, setSelectedLocationId]);
+    }, [user?.store_id, user?.role]);
 
     useEffect(() => {
         setLoading(true);
