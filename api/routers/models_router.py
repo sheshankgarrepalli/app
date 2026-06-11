@@ -31,11 +31,15 @@ def get_models(
     search: Optional[str] = Query(None),
     brand: Optional[str] = Query(None),
     device_type: Optional[str] = Query(None),
+    with_inventory: bool = Query(False),
+    store_id_param: Optional[str] = Query(None, alias="store_id"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    from sqlalchemy import func
+    org_id = getattr(current_user, 'current_org_id', None)
     q = db.query(models.PhoneModel).filter(
-        models.PhoneModel.org_id == getattr(current_user, 'current_org_id', None)
+        models.PhoneModel.org_id == org_id
     )
     if search:
         q = q.filter(
@@ -46,7 +50,6 @@ def get_models(
     if brand:
         q = q.filter(models.PhoneModel.brand.ilike(f"%{brand}%"))
     if device_type:
-        # Filter by inferred device type from the model name
         name_conditions = []
         dt = device_type.lower()
         if dt == "phone":
@@ -81,7 +84,44 @@ def get_models(
         if name_conditions:
             from sqlalchemy import or_
             q = q.filter(or_(*name_conditions))
-    return q.order_by(models.PhoneModel.brand, models.PhoneModel.name).all()
+
+    models_list = q.order_by(models.PhoneModel.brand, models.PhoneModel.name).all()
+
+    if not with_inventory:
+        return models_list
+
+    # Compute inventory counts per model, optionally scoped to store
+    user_store = current_user.store_id if current_user.role != "admin" else None
+    effective_store = user_store or store_id_param
+
+    # Build a dict of model_number -> count
+    inv_q = db.query(
+        models.DeviceInventory.model_number,
+        func.count(models.DeviceInventory.imei)
+    ).filter(
+        models.DeviceInventory.org_id == org_id,
+        models.DeviceInventory.device_status.in_([
+            models.DeviceStatus.Sellable, models.DeviceStatus.In_QC,
+            models.DeviceStatus.In_Repair, models.DeviceStatus.Reserved_Layaway,
+            models.DeviceStatus.Awaiting_Parts, models.DeviceStatus.On_Consignment,
+        ])
+    )
+    if effective_store:
+        inv_q = inv_q.filter(models.DeviceInventory.store_id == effective_store)
+    inv_counts = dict(inv_q.group_by(models.DeviceInventory.model_number).all())
+
+    # Attach counts to each model
+    result = []
+    for m in models_list:
+        result.append({
+            "model_number": m.model_number,
+            "brand": m.brand,
+            "name": m.name,
+            "color": m.color,
+            "storage_gb": m.storage_gb,
+            "inventory_count": inv_counts.get(m.model_number, 0),
+        })
+    return result
 
 
 @router.get("/brands", response_model=List[str])

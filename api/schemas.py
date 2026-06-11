@@ -273,6 +273,7 @@ class PhoneModelBase(BaseModel):
 class PhoneModelCreate(PhoneModelBase): pass
 
 class PhoneModelOut(PhoneModelBase):
+    inventory_count: Optional[int] = None
     class Config: from_attributes = True
 
 class InventoryCreateItem(BaseModel):

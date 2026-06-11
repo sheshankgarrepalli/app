@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Loader2, AlertCircle, Package, Search, ExternalLink } from 'lucide-react';
 import useModels, { createModel, updateModel, deleteModel, PhoneModel } from '../api/models';
+import { useAuth } from '../context/AuthContext';
+import { useLocationFilter } from '../context/LocationContext';
 
 const emptyModel: PhoneModel = {
   model_number: '',
@@ -12,7 +14,10 @@ const emptyModel: PhoneModel = {
 };
 
 export default function ModelCatalog() {
-  const { models, brands, loading, reload } = useModels();
+  const { user } = useAuth();
+  const { selectedLocationId } = useLocationFilter();
+  const effectiveStoreId = user?.role !== 'admin' ? (user?.store_id || null) : selectedLocationId;
+  const { models, brands, loading, reload } = useModels(effectiveStoreId);
   const [search, setSearch] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
