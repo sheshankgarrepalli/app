@@ -10,6 +10,7 @@ interface PreviewRow {
   storage_gb: number;
   imei: string;
   is_valid: boolean;
+  is_existing?: boolean;
   error: string | null;
   model_exists: boolean;
   generated_model_number: string;
@@ -24,6 +25,7 @@ interface PreviewResponse {
 
 interface ImportResponse {
   devices_imported: number;
+  devices_updated: number;
   new_models_created: number;
   errors: string[];
 }
@@ -232,9 +234,9 @@ export default function ExcelImport() {
         {/* KPI Cards */}
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           <div className="kpi-card"><div className="kpi-label">Total Rows</div><div className="kpi-value">{summary.total}</div></div>
-          <div className="kpi-card border-emerald-500/20"><div className="kpi-label text-emerald-400">Valid Devices</div><div className="kpi-value text-emerald-400">{summary.valid}</div></div>
-          <div className="kpi-card border-red-500/20"><div className="kpi-label text-red-400">Duplicate IMEIs</div><div className="kpi-value text-red-400">{summary.duplicate_imeis}</div></div>
-          <div className="kpi-card border-purple-500/20"><div className="kpi-label text-purple-400">New Models</div><div className="kpi-value text-purple-400">{summary.new_models}</div></div>
+          <div className="kpi-card border-emerald-500/20"><div className="kpi-label text-emerald-400">New Devices</div><div className="kpi-value text-emerald-400">{summary.valid - preview.rows.filter(r => r.is_existing).length}</div></div>
+          <div className="kpi-card border-blue-500/20"><div className="kpi-label text-blue-400">Will Update</div><div className="kpi-value text-blue-400">{preview.rows.filter(r => r.is_existing && r.is_valid).length}</div></div>
+          <div className="kpi-card border-red-500/20"><div className="kpi-label text-red-400">Issues</div><div className="kpi-value text-red-400">{summary.total - summary.valid + summary.duplicate_imeis}</div></div>
         </div>
 
         {/* Toggle */}
@@ -254,22 +256,30 @@ export default function ExcelImport() {
                   <th>Type</th>
                   <th>Storage</th>
                   <th>Identifier</th>
+                  <th>Notes</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map(r => (
-                  <tr key={r.row_number} className={!r.is_valid ? 'bg-red-50' : ''}>
+                  <tr key={r.row_number} className={!r.is_valid ? 'bg-red-50' : r.is_existing ? 'bg-blue-50' : ''}>
                     <td className="text-xs text-[var(--text-secondary)]">{r.row_number}</td>
                     <td className="text-sm font-medium text-[var(--text)]">{r.model_name}</td>
                     <td><span className="badge badge-neutral text-[11px]">{r.detected_device_type}</span></td>
                     <td className="text-sm text-[var(--text)]">{r.storage_gb > 0 ? `${r.storage_gb}GB` : '—'}</td>
                     <td className="font-mono text-xs text-[var(--text)]">{r.imei}</td>
+                    <td className="text-xs text-[var(--text-secondary)] max-w-[200px] truncate" title={r.notes || ''}>{r.notes || '—'}</td>
                     <td>
                       {r.is_valid ? (
-                        <span className="badge badge-sellable">{r.model_exists ? 'Existing Model' : 'New Model'}</span>
+                        r.is_existing ? (
+                          <span className="badge badge-neutral bg-blue-100 text-blue-700 text-[11px]">Update Notes</span>
+                        ) : r.model_exists ? (
+                          <span className="badge badge-sellable">Existing Model</span>
+                        ) : (
+                          <span className="badge badge-sellable">New Model</span>
+                        )
                       ) : (
-                        <span className="badge badge-error">{r.error}</span>
+                        <span className="badge bg-red-100 text-red-700 text-[11px]">{r.error}</span>
                       )}
                     </td>
                   </tr>

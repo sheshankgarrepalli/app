@@ -187,8 +187,10 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
             else:
                 errors.append("Serial number must be at least 4 characters")
         elif identifier in existing_identifiers or identifier in seen_in_batch:
-            errors.append("Duplicate identifier")
-            duplicate_count += 1
+            if identifier in seen_in_batch:
+                errors.append("Duplicate in file")
+                duplicate_count += 1
+            # existing in DB → valid, will be updated with notes
 
         # Storage is optional for Watches and Accessories
         no_storage_types = ("Watch", "Accessory")
@@ -196,6 +198,7 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
             errors.append("Could not parse storage")
 
         is_valid = len(errors) == 0
+        is_existing = identifier in existing_identifiers
         model_exists = mn in existing_models
 
         if is_valid and not model_exists:
@@ -210,6 +213,7 @@ def excel_preview(req: ExcelPreviewRequest, db: Session = Depends(get_db), curre
             storage_gb=storage_gb,
             imei=identifier,
             is_valid=is_valid,
+            is_existing=is_existing,
             error="; ".join(errors) if errors else None,
             model_exists=model_exists,
             generated_model_number=mn,
@@ -233,39 +237,40 @@ def excel_import(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "store"]))
 ):
-    """Import validated rows: create PhoneModels + DeviceInventory + history logs in one transaction."""
+    """Import validated rows: create PhoneModels + DeviceInventory + history logs.
+    Existing IMEIs get notes updated (reimport with issues column)."""
     try:
         org_id = getattr(current_user, 'current_org_id', None) or getattr(current_user, 'org_id', None)
         employee_id = current_user.email
         device_type_value = getattr(req, 'device_type', 'Phone') or 'Phone'
-        # Admin can import anywhere; non-admin are locked to their assigned store
         if current_user.role.value == "admin":
             effective_location_id = req.location_id or current_user.store_id or "warehouse"
         else:
             effective_location_id = current_user.store_id or req.location_id
 
-        # Detect device type per row + double-check for duplicate identifiers
         all_identifiers = [r.imei.strip() for r in req.rows]
         row_device_types = [detect_device_type(r.model_name) for r in req.rows]
-        existing_ids = set()
+
+        # Split rows into new vs existing
+        existing_devices = {}
         if all_identifiers:
-            existing_ids = {d[0] for d in db.query(DeviceInventory.imei).filter(DeviceInventory.imei.in_(all_identifiers)).all()}
-        if existing_ids:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Identifiers already exist: {', '.join(sorted(existing_ids)[:5])}"
-            )
+            existing_devices = {
+                d.imei: d
+                for d in db.query(DeviceInventory).filter(DeviceInventory.imei.in_(all_identifiers)).all()
+            }
+
+        new_rows = [(i, r) for i, r in enumerate(req.rows) if r.imei.strip() not in existing_devices]
+        existing_rows = [(i, r) for i, r in enumerate(req.rows) if r.imei.strip() in existing_devices]
 
         # Collect unique models to create
         models_to_create: dict[str, dict] = {}
-        for row in req.rows:
+        for _, row in new_rows:
             storage_gb = parse_storage_gb(row.storage)
             brand, display_name = detect_brand_and_name(row.model_name)
             mn = generate_model_number(display_name, storage_gb)
             if mn not in models_to_create:
                 models_to_create[mn] = {"brand": brand, "name": display_name, "storage_gb": storage_gb}
 
-        # Check which models already exist (idempotent)
         from_db = db.query(PhoneModel.model_number).filter(PhoneModel.model_number.in_(list(models_to_create.keys()))).all()
         existing_model_numbers = {m[0] for m in from_db}
 
@@ -274,12 +279,8 @@ def excel_import(
         for mn, data in models_to_create.items():
             if mn not in existing_model_numbers:
                 pm = PhoneModel(
-                    model_number=mn,
-                    brand=data["brand"],
-                    name=data["name"],
-                    color=None,
-                    storage_gb=data["storage_gb"],
-                    org_id=org_id,
+                    model_number=mn, brand=data["brand"], name=data["name"],
+                    color=None, storage_gb=data["storage_gb"], org_id=org_id,
                 )
                 new_phone_models.append(pm)
                 new_models_count += 1
@@ -288,11 +289,31 @@ def excel_import(
             db.add_all(new_phone_models)
             db.flush()
 
-        # Create device inventory entries
+        # ── Update existing devices with notes ──
+        updated_count = 0
+        for i, row in existing_rows:
+            dev = existing_devices[row.imei.strip()]
+            incoming_notes = getattr(row, 'notes', None)
+            if incoming_notes:
+                old_notes = dev.notes
+                dev.notes = incoming_notes
+                updated_count += 1
+                db.add(DeviceHistoryLog(
+                    imei=dev.imei,
+                    timestamp=datetime.utcnow(),
+                    action_type="Notes Updated",
+                    employee_id=employee_id,
+                    previous_status=dev.device_status.value if dev.device_status else None,
+                    new_status=dev.device_status.value if dev.device_status else None,
+                    notes=f"Notes updated via reimport: {incoming_notes[:200]}",
+                    org_id=org_id,
+                ))
+
+        # ── Create new devices ──
         now = datetime.utcnow()
         devices = []
         history_logs = []
-        for i, row in enumerate(req.rows):
+        for i, row in new_rows:
             storage_gb = parse_storage_gb(row.storage)
             _, display_name = detect_brand_and_name(row.model_name)
             mn = generate_model_number(display_name, storage_gb)
@@ -312,7 +333,6 @@ def excel_import(
                 org_id=org_id,
                 notes=getattr(row, 'notes', None),
             ))
-
             history_logs.append(DeviceHistoryLog(
                 imei=row.imei.strip(),
                 timestamp=now,
@@ -327,7 +347,6 @@ def excel_import(
         if devices:
             db.add_all(devices)
             db.flush()
-
         if history_logs:
             db.add_all(history_logs)
 
@@ -335,6 +354,7 @@ def excel_import(
 
         return ExcelImportResponse(
             devices_imported=len(devices),
+            devices_updated=updated_count,
             new_models_created=new_models_count,
         )
     except HTTPException:

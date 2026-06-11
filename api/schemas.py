@@ -975,6 +975,7 @@ class PreviewRowResult(BaseModel):
     storage_gb: int
     imei: str
     is_valid: bool
+    is_existing: bool = False
     error: Optional[str] = None
     model_exists: bool = False
     generated_model_number: str = ""
@@ -999,6 +1000,7 @@ class ExcelImportRequest(BaseModel):
 
 class ExcelImportResponse(BaseModel):
     devices_imported: int
+    devices_updated: int = 0
     new_models_created: int
     errors: List[str] = []
 
