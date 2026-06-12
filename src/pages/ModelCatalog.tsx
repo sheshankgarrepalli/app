@@ -106,7 +106,9 @@ export default function ModelCatalog() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--text)]">Device Catalog</h1>
-          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Manage phone models, tablets, watches & more</p>
+          <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
+            {effectiveStoreId ? `Showing inventory for ${effectiveStoreId}` : 'All locations'} · {models.filter(m => (m.inventory_count ?? 0) > 0).length} models in stock
+          </p>
         </div>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium">
           <Plus size={16} /> Add Model

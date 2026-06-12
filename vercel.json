@@ -1,6 +1,14 @@
 {
   "version": 2,
   "framework": "vite",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/health", "destination": "/api/main.py" },
     { "source": "/api/debug/packages", "destination": "/api/debug.py" },
