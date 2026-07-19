@@ -813,13 +813,13 @@ def export_report(
             ])
 
     elif report_type == "sales":
-        writer.writerow(["Invoice #", "Date", "Customer", "Items", "Subtotal", "Tax", "Total", "Paid", "Balance", "Status", "Store"])
+        writer.writerow(["Invoice #", "Date", "Customer", "Subtotal", "Tax", "Total", "Paid", "Balance", "Status", "Store"])
         q = db.query(
             models.Invoice.invoice_number, models.Invoice.created_at,
             models.UnifiedCustomer.company_name, models.UnifiedCustomer.first_name,
             models.UnifiedCustomer.last_name,
             models.Invoice.subtotal, models.Invoice.tax_amount, models.Invoice.total,
-            models.Invoice.paid_amount, models.Invoice.status, models.Invoice.store_id,
+            models.Invoice.status, models.Invoice.store_id,
         ).outerjoin(
             models.UnifiedCustomer, models.Invoice.customer_id == models.UnifiedCustomer.crm_id
         ).filter(
@@ -830,12 +830,17 @@ def export_report(
         q = store_filter(q, models.Invoice.store_id)
         for r in q.order_by(models.Invoice.created_at.desc()).all():
             cust = r[2] or f"{r[3] or ''} {r[4] or ''}".strip() or "Walk-in"
-            balance = (r[7] or 0) - (r[8] or 0)
+            total = r[7] or 0
+            # Calculate paid amount from payments
+            paid = db.query(func.coalesce(func.sum(models.PaymentTransaction.amount), 0)).filter(
+                models.PaymentTransaction.invoice_id == r[0],
+            ).scalar() or 0
+            balance = total - paid
             writer.writerow([
-                r[0], r[1].isoformat() if r[1] else "", cust, "",
-                round(r[5] or 0, 2), round(r[6] or 0, 2), round(r[7] or 0, 2),
-                round(r[8] or 0, 2), round(balance, 2),
-                r[9].value if r[9] else "", r[10] or "",
+                r[0], r[1].isoformat() if r[1] else "", cust,
+                round(r[5] or 0, 2), round(r[6] or 0, 2), round(total, 2),
+                round(paid, 2), round(balance, 2),
+                r[8].value if r[8] else "", r[9] or "",
             ])
 
     elif report_type == "profit-loss":
