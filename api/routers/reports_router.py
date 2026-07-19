@@ -751,3 +751,233 @@ def get_ar_aging(
         "totals": totals,
         "customer_count": len(result),
     }
+
+
+# ── CSV Export ──────────────────────────────────────────────────────────────
+
+@router.get("/export")
+def export_report(
+    report_type: str = Query(...),
+    date_range: str = Query("All Time"),
+    store_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"])),
+):
+    """Export any report as CSV. Returns a downloadable file."""
+    from sqlalchemy import cast, Date
+
+    org_id = getattr(current_user, 'current_org_id', None)
+    user_store = current_user.store_id if current_user.role != "admin" else None
+    effective_store = user_store or store_id
+    start = _resolve_start(date_range)
+    now = datetime.utcnow()
+
+    def store_filter(q, col):
+        if effective_store:
+            return q.filter(col == effective_store)
+        return q
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if report_type == "inventory":
+        writer.writerow(["Model Number", "Brand", "Name", "Storage (GB)", "Status", "Store", "IMEI", "Notes", "Received Date"])
+        rows = db.query(
+            models.DeviceInventory.model_number,
+            models.PhoneModel.brand,
+            models.PhoneModel.name,
+            models.PhoneModel.storage_gb,
+            models.DeviceInventory.device_status,
+            models.DeviceInventory.location_id,
+            models.DeviceInventory.imei,
+            models.DeviceInventory.notes,
+            models.DeviceInventory.received_date,
+        ).outerjoin(
+            models.PhoneModel, models.PhoneModel.model_number == models.DeviceInventory.model_number
+        ).filter(
+            models.DeviceInventory.org_id == org_id,
+        )
+        rows = store_filter(rows, models.DeviceInventory.store_id)
+        for r in rows.order_by(models.DeviceInventory.received_date.desc()).all():
+            writer.writerow([
+                r[0] or "", r[1] or "", r[2] or "", r[3] or 0,
+                r[4].value if r[4] else "", r[5] or "", r[6] or "",
+                r[7] or "", r[8].isoformat() if r[8] else "",
+            ])
+
+    elif report_type == "sales":
+        writer.writerow(["Invoice #", "Date", "Customer", "Items", "Subtotal", "Tax", "Total", "Paid", "Balance", "Status", "Store"])
+        q = db.query(
+            models.Invoice.invoice_number, models.Invoice.created_at,
+            models.UnifiedCustomer.company_name, models.UnifiedCustomer.first_name,
+            models.UnifiedCustomer.last_name,
+            models.Invoice.subtotal, models.Invoice.tax_amount, models.Invoice.total,
+            models.Invoice.paid_amount, models.Invoice.status, models.Invoice.store_id,
+        ).outerjoin(
+            models.UnifiedCustomer, models.Invoice.customer_id == models.UnifiedCustomer.crm_id
+        ).filter(
+            models.Invoice.org_id == org_id,
+            models.Invoice.created_at >= start,
+            models.Invoice.status.in_([models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid, models.InvoiceStatus.Unpaid, models.InvoiceStatus.Overdue]),
+        )
+        q = store_filter(q, models.Invoice.store_id)
+        for r in q.order_by(models.Invoice.created_at.desc()).all():
+            cust = r[2] or f"{r[3] or ''} {r[4] or ''}".strip() or "Walk-in"
+            balance = (r[7] or 0) - (r[8] or 0)
+            writer.writerow([
+                r[0], r[1].isoformat() if r[1] else "", cust, "",
+                round(r[5] or 0, 2), round(r[6] or 0, 2), round(r[7] or 0, 2),
+                round(r[8] or 0, 2), round(balance, 2),
+                r[9].value if r[9] else "", r[10] or "",
+            ])
+
+    elif report_type == "profit-loss":
+        writer.writerow(["Metric", "Value"])
+        revenue = db.query(func.sum(models.Invoice.total)).filter(
+            models.Invoice.org_id == org_id, models.Invoice.created_at >= start,
+            models.Invoice.status.in_([models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid]),
+        )
+        revenue = store_filter(revenue, models.Invoice.store_id).scalar() or 0
+
+        cogs = db.query(func.sum(models.DeviceInventory.cost_basis)).join(
+            models.InvoiceItem, models.InvoiceItem.imei == models.DeviceInventory.imei
+        ).join(
+            models.Invoice, models.Invoice.id == models.InvoiceItem.invoice_id
+        ).filter(
+            models.DeviceInventory.org_id == org_id,
+            models.Invoice.created_at >= start,
+        )
+        cogs = store_filter(cogs, models.Invoice.store_id).scalar() or 0
+
+        gross = revenue - cogs
+        margin_pct = round((gross / revenue * 100), 1) if revenue > 0 else 0
+        writer.writerow(["Revenue", round(revenue, 2)])
+        writer.writerow(["Cost of Goods Sold", round(cogs, 2)])
+        writer.writerow(["Gross Profit", round(gross, 2)])
+        writer.writerow(["Gross Margin %", margin_pct])
+
+    elif report_type == "tax-summary":
+        writer.writerow(["Store", "Total Sales", "Taxable Sales", "Exempt Sales", "Tax Collected", "Invoices"])
+        q = db.query(
+            models.Invoice.store_id,
+            func.count(models.Invoice.id),
+            func.sum(models.Invoice.total),
+            func.sum(models.Invoice.tax_amount),
+        ).filter(
+            models.Invoice.org_id == org_id,
+            models.Invoice.created_at >= start,
+            models.Invoice.status.in_([models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid]),
+        )
+        q = store_filter(q, models.Invoice.store_id)
+        for sid, cnt, total, tax in q.group_by(models.Invoice.store_id).all():
+            taxable = total or 0
+            exempt = 0
+            writer.writerow([sid or "", cnt or 0, round(taxable, 2), round(exempt, 2), round(tax or 0, 2), cnt or 0])
+
+    elif report_type == "ar-aging":
+        writer.writerow(["Customer", "Total Outstanding", "Current", "1-30 Days", "31-60 Days", "61-90 Days", "90+ Days"])
+        customers = db.query(models.UnifiedCustomer).filter(
+            models.UnifiedCustomer.org_id == org_id,
+        ).all()
+        for c in customers:
+            invs = db.query(models.Invoice).filter(
+                models.Invoice.customer_id == c.crm_id,
+                models.Invoice.org_id == org_id,
+                models.Invoice.status.in_([models.InvoiceStatus.Unpaid, models.InvoiceStatus.Overdue, models.InvoiceStatus.Partially_Paid]),
+            )
+            invs = store_filter(invs, models.Invoice.store_id)
+            invs = invs.all()
+            if not invs:
+                continue
+            total_bal = 0
+            current = overdue_1_30 = overdue_31_60 = overdue_61_90 = overdue_90plus = 0
+            for inv in invs:
+                bal = (inv.total or 0) - (inv.paid_amount or 0)
+                if bal <= 0:
+                    continue
+                total_bal += bal
+                if inv.due_date and now > inv.due_date:
+                    days = (now - inv.due_date).days
+                    if days <= 30: overdue_1_30 += bal
+                    elif days <= 60: overdue_31_60 += bal
+                    elif days <= 90: overdue_61_90 += bal
+                    else: overdue_90plus += bal
+                else:
+                    current += bal
+            if total_bal > 0:
+                name = c.company_name or f"{c.first_name or ''} {c.last_name or ''}".strip() or c.crm_id
+                writer.writerow([name, round(total_bal, 2), round(current, 2), round(overdue_1_30, 2), round(overdue_31_60, 2), round(overdue_61_90, 2), round(overdue_90plus, 2)])
+
+    elif report_type == "employee-sales":
+        writer.writerow(["Employee", "Invoice Count", "Total Sales", "Date Range"])
+        q = db.query(
+            models.Invoice.created_by_email,
+            func.count(models.Invoice.id),
+            func.sum(models.Invoice.total),
+        ).filter(
+            models.Invoice.org_id == org_id,
+            models.Invoice.created_at >= start,
+            models.Invoice.status.in_([models.InvoiceStatus.Paid, models.InvoiceStatus.Partially_Paid]),
+        )
+        q = store_filter(q, models.Invoice.store_id)
+        for email, cnt, total in q.group_by(models.Invoice.created_by_email).all():
+            writer.writerow([email or "Unknown", cnt or 0, round(total or 0, 2), date_range])
+
+    elif report_type == "transfers":
+        writer.writerow(["Transfer ID", "Date", "From", "To", "Status", "Device Count"])
+        q = db.query(
+            models.TransferOrder.id, models.TransferOrder.created_at,
+            models.TransferOrder.source_location_id, models.TransferOrder.destination_location_id,
+            models.TransferOrder.status,
+        ).filter(models.TransferOrder.org_id == org_id)
+        if effective_store:
+            from sqlalchemy import or_
+            q = q.filter(or_(
+                models.TransferOrder.source_location_id == effective_store,
+                models.TransferOrder.destination_location_id == effective_store,
+            ))
+        for to_id, created_at, src, dst, status in q.order_by(models.TransferOrder.created_at.desc()).all():
+            cnt = db.query(func.count(models.DeviceInventory.imei)).filter(
+                models.DeviceInventory.assigned_transfer_order_id == to_id,
+            ).scalar() or 0
+            writer.writerow([to_id, created_at.isoformat() if created_at else "", src or "", dst or "", status or "", cnt])
+
+    elif report_type == "customers":
+        writer.writerow(["CRM ID", "Name", "Company", "Phone", "Email", "Type", "Balance", "Credit Limit"])
+        for c in db.query(models.UnifiedCustomer).filter(models.UnifiedCustomer.org_id == org_id).order_by(models.UnifiedCustomer.name).all():
+            name = f"{c.first_name or ''} {c.last_name or ''}".strip()
+            writer.writerow([c.crm_id, name, c.company_name or "", c.phone or "", c.email or "", c.customer_type.value if c.customer_type else "", round(c.current_balance or 0, 2), round(c.credit_limit or 0, 2)])
+
+    elif report_type == "low-stock":
+        writer.writerow(["Model Number", "Brand", "Name", "Storage (GB)", "In Stock"])
+        inv_q = db.query(
+            models.DeviceInventory.model_number,
+            models.PhoneModel.brand,
+            models.PhoneModel.name,
+            models.PhoneModel.storage_gb,
+            func.count(models.DeviceInventory.imei),
+        ).join(
+            models.PhoneModel, models.PhoneModel.model_number == models.DeviceInventory.model_number
+        ).filter(
+            models.DeviceInventory.org_id == org_id,
+            models.DeviceInventory.device_status.in_([models.DeviceStatus.Sellable, models.DeviceStatus.In_QC]),
+        )
+        inv_q = store_filter(inv_q, models.DeviceInventory.store_id)
+        for mn, brand, name, storage, cnt in inv_q.group_by(
+            models.DeviceInventory.model_number, models.PhoneModel.brand,
+            models.PhoneModel.name, models.PhoneModel.storage_gb,
+        ).having(func.count(models.DeviceInventory.imei) <= 5).order_by(func.count(models.DeviceInventory.imei)).all():
+            writer.writerow([mn or "", brand or "", name or "", storage or 0, cnt])
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown report type: {report_type}")
+
+    csv_content = output.getvalue()
+    output.close()
+
+    filename = f"{report_type}_{date_range.replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        iter([csv_content]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

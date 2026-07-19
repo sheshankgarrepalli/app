@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLocationFilter } from '../context/LocationContext';
 import {
   PackagePlus, ArrowRightLeft, ClipboardCheck,
-  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search, LogOut, ChevronDown, Library
+  Bell, ChevronRight, Home, Sun, Moon, PackageSearch, Truck, BadgeCheck, Wrench, MapPin, Users, PackageOpen, FileText, Settings, Upload, BarChart3, QrCode, Clock, Receipt, TrendingUp, Package, Building2, DollarSign, ShoppingCart, AlertTriangle, Search, LogOut, ChevronDown, Library, Download
 } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -108,6 +108,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { id: 'profit-loss', label: 'Profit & Loss', path: '/admin/profit-loss', icon: TrendingUp, roles: ['admin'] },
         { id: 'employee-sales', label: 'Employee Sales', path: '/admin/employee-sales', icon: ShoppingCart, roles: ['admin'] },
         { id: 'low-stock', label: 'Low Stock', path: '/admin/low-stock', icon: AlertTriangle, roles: ['admin', 'warehouse'] },
+        { id: 'export-reports', label: 'Export Reports', path: '/admin/export-reports', icon: Download, roles: ['admin', 'store'] },
       ]
     },
   ];
