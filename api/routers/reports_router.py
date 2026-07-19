@@ -759,6 +759,8 @@ def get_ar_aging(
 def export_report(
     report_type: str = Query(...),
     date_range: str = Query("All Time"),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
     store_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_role(["admin", "store"])),
@@ -769,7 +771,12 @@ def export_report(
     org_id = getattr(current_user, 'current_org_id', None)
     user_store = current_user.store_id if current_user.role != "admin" else None
     effective_store = user_store or store_id
-    start = _resolve_start(date_range)
+
+    # Resolve start date: custom range or preset
+    if date_range == "Custom" and date_from:
+        start = datetime.strptime(date_from, "%Y-%m-%d")
+    else:
+        start = _resolve_start(date_range)
     now = datetime.utcnow()
 
     def store_filter(q, col):

@@ -16,7 +16,7 @@ const REPORT_TYPES = [
   { value: 'low-stock', label: 'Low Stock Alert', desc: 'Models with 5 or fewer units in stock' },
 ];
 
-const DATE_RANGES = ['Today', 'This Week', 'This Month', '3 Months', '6 Months', 'All Time'];
+const DATE_RANGES = ['Today', 'This Week', 'This Month', '3 Months', '6 Months', 'All Time', 'Custom'];
 
 export default function ExportReports() {
   const { user } = useAuth();
@@ -25,6 +25,8 @@ export default function ExportReports() {
 
   const [reportType, setReportType] = useState('inventory');
   const [dateRange, setDateRange] = useState('All Time');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +35,10 @@ export default function ExportReports() {
     setError(null);
     try {
       const params: Record<string, string> = { report_type: reportType, date_range: dateRange };
+      if (dateRange === 'Custom') {
+        if (dateFrom) params.date_from = dateFrom;
+        if (dateTo) params.date_to = dateTo;
+      }
       if (effectiveStoreId) params.store_id = effectiveStoreId;
       const { data } = await api.get('/api/reports/export', {
         params,
@@ -41,7 +47,7 @@ export default function ExportReports() {
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${reportType}_${dateRange.replace(/ /g, '_')}.csv`;
+      a.download = `${reportType}_${dateRange === 'Custom' ? `${dateFrom || 'start'}_${dateTo || 'end'}` : dateRange.replace(/ /g, '_')}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -110,6 +116,28 @@ export default function ExportReports() {
                   <option key={dr} value={dr}>{dr}</option>
                 ))}
               </select>
+              {dateRange === 'Custom' && (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-[var(--text-tertiary)] mb-0.5 block">From</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={e => setDateFrom(e.target.value)}
+                      className="form-input text-xs w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-[var(--text-tertiary)] mb-0.5 block">To</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={e => setDateTo(e.target.value)}
+                      className="form-input text-xs w-full"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5 flex items-center gap-1.5">
