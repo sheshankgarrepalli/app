@@ -127,6 +127,7 @@ def create_user(
         store_id=req.store_id,
         password_hash=hash_password(req.password),
         is_active=True,
+        org_id=getattr(current_user, 'current_org_id', None) or getattr(current_user, 'org_id', None),
     )
     db.add(user)
     db.commit()
