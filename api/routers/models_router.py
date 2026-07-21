@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/models", tags=["models"])
 
 def infer_device_type(name: str) -> str:
     n = name.lower()
-    for kw in ["iphone", "galaxy", "pixel", "oneplus", "xiaomi", "motorola", "nokia", "moto"]:
+    for kw in ["iphone", "galaxy", "pixel", "oneplus", "xiaomi", "motorola", "nokia", "moto", "stylus"]:
         if kw in n: return "Phone"
     for kw in ["ipad", "tablet", "tab"]:
         if kw in n: return "Tablet"
@@ -60,6 +60,7 @@ def get_models(
             name_conditions.append(models.PhoneModel.name.ilike("%oneplus%"))
             name_conditions.append(models.PhoneModel.name.ilike("%nokia%"))
             name_conditions.append(models.PhoneModel.name.ilike("%xiaomi%"))
+            name_conditions.append(models.PhoneModel.name.ilike("%stylus%"))
         elif dt == "tablet":
             name_conditions.append(models.PhoneModel.name.ilike("%ipad%"))
             name_conditions.append(models.PhoneModel.name.ilike("%tab%"))
