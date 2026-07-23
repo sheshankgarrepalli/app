@@ -35,9 +35,9 @@ def _resolve_tax_rate(db: Session, store_id: str, org_id: str, customer_tax_exem
 
 
 def _generate_invoice_number(db: Session, store_id: str, org_id: str) -> str:
-    """Generate {STORE_PREFIX}-{YYMM}-{NNNN} invoice number, per-store monthly sequence."""
+    """Generate {STORE_PREFIX}-{YYYYMMDD}-{NNNN} invoice number, per-store daily sequence."""
     now = datetime.utcnow()
-    yymm = now.strftime("%y%m")
+    date_part = now.strftime("%Y%m%d")
 
     store = db.query(models.StoreLocation).filter(
         models.StoreLocation.id == store_id,
@@ -48,7 +48,7 @@ def _generate_invoice_number(db: Session, store_id: str, org_id: str) -> str:
     last = db.query(models.Invoice).filter(
         models.Invoice.store_id == store_id,
         models.Invoice.org_id == org_id,
-        models.Invoice.invoice_number.like(f"{prefix}-{yymm}-%")
+        models.Invoice.invoice_number.like(f"{prefix}-{date_part}-%")
     ).order_by(models.Invoice.id.desc()).first()
 
     if last:
@@ -59,7 +59,7 @@ def _generate_invoice_number(db: Session, store_id: str, org_id: str) -> str:
     else:
         seq = 1
 
-    return f"{prefix}-{yymm}-{seq:04d}"
+    return f"{prefix}-{date_part}-{seq:04d}"
 
 @router.post("/checkout", response_model=schemas.InvoiceOut)
 def retail_checkout(
