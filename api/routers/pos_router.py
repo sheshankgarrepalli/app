@@ -2341,3 +2341,153 @@ def upload_invoice_attachment(
     db.commit()
 
     return {"status": "uploaded", "invoice_number": invoice.invoice_number}
+
+
+# ── Register Open / Close ───────────────────────────────────────────────────
+
+@router.get("/register/status")
+def register_status(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"])),
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    store_id = current_user.store_id or "warehouse"
+    session = db.query(models.RegisterSession).filter(
+        models.RegisterSession.org_id == org_id,
+        models.RegisterSession.store_id == store_id,
+        models.RegisterSession.status == "open",
+    ).order_by(models.RegisterSession.id.desc()).first()
+    if not session:
+        return {"status": "closed", "store_id": store_id}
+    return {
+        "status": "open",
+        "store_id": store_id,
+        "id": session.id,
+        "opened_by": session.opened_by,
+        "opening_float": session.opening_float,
+        "opened_at": session.opened_at.isoformat() if session.opened_at else None,
+    }
+
+
+@router.post("/register/open")
+def register_open(
+    opened_by: str = Query(...),
+    opening_float: float = Query(0.0),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"])),
+):
+    org_id = getattr(current_user, 'current_org_id', None)
+    store_id = current_user.store_id or "warehouse"
+
+    existing = db.query(models.RegisterSession).filter(
+        models.RegisterSession.org_id == org_id,
+        models.RegisterSession.store_id == store_id,
+        models.RegisterSession.status == "open",
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Register already open")
+
+    session = models.RegisterSession(
+        org_id=org_id, store_id=store_id,
+        opened_by=opened_by, opening_float=opening_float,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {
+        "status": "open",
+        "id": session.id,
+        "opened_by": session.opened_by,
+        "opening_float": session.opening_float,
+        "opened_at": session.opened_at.isoformat() if session.opened_at else None,
+    }
+
+
+@router.post("/register/close")
+def register_close(
+    closed_by: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role(["admin", "store"])),
+):
+    from sqlalchemy import func
+    org_id = getattr(current_user, 'current_org_id', None)
+    store_id = current_user.store_id or "warehouse"
+
+    session = db.query(models.RegisterSession).filter(
+        models.RegisterSession.org_id == org_id,
+        models.RegisterSession.store_id == store_id,
+        models.RegisterSession.status == "open",
+    ).order_by(models.RegisterSession.id.desc()).first()
+    if not session:
+        raise HTTPException(status_code=400, detail="No open register found")
+
+    # Calculate totals from invoices created since open
+    opened_at = session.opened_at
+    now = datetime.utcnow()
+
+    cash_sales = db.query(func.coalesce(func.sum(models.PaymentTransaction.amount), 0)).join(
+        models.Invoice, models.Invoice.id == models.PaymentTransaction.invoice_id
+    ).filter(
+        models.PaymentTransaction.payment_method == models.PaymentMethodEnum.Cash,
+        models.Invoice.store_id == store_id,
+        models.Invoice.org_id == org_id,
+        models.Invoice.created_at >= opened_at,
+        models.Invoice.created_at <= now,
+    ).scalar() or 0
+
+    zelle_total = db.query(func.coalesce(func.sum(models.PaymentTransaction.amount), 0)).join(
+        models.Invoice, models.Invoice.id == models.PaymentTransaction.invoice_id
+    ).filter(
+        models.PaymentTransaction.payment_method == models.PaymentMethodEnum.Zelle,
+        models.Invoice.store_id == store_id,
+        models.Invoice.org_id == org_id,
+        models.Invoice.created_at >= opened_at,
+        models.Invoice.created_at <= now,
+    ).scalar() or 0
+
+    card_total = db.query(func.coalesce(func.sum(models.PaymentTransaction.amount), 0)).join(
+        models.Invoice, models.Invoice.id == models.PaymentTransaction.invoice_id
+    ).filter(
+        models.PaymentTransaction.payment_method == models.PaymentMethodEnum.Credit_Card,
+        models.Invoice.store_id == store_id,
+        models.Invoice.org_id == org_id,
+        models.Invoice.created_at >= opened_at,
+        models.Invoice.created_at <= now,
+    ).scalar() or 0
+
+    other_total = db.query(func.coalesce(func.sum(models.PaymentTransaction.amount), 0)).join(
+        models.Invoice, models.Invoice.id == models.PaymentTransaction.invoice_id
+    ).filter(
+        models.PaymentTransaction.payment_method.in_([
+            models.PaymentMethodEnum.Wire,
+            models.PaymentMethodEnum.Store_Credit,
+            models.PaymentMethodEnum.On_Terms,
+        ]),
+        models.Invoice.store_id == store_id,
+        models.Invoice.org_id == org_id,
+        models.Invoice.created_at >= opened_at,
+        models.Invoice.created_at <= now,
+    ).scalar() or 0
+
+    expected_cash = session.opening_float + cash_sales
+    envelope = cash_sales
+
+    session.closed_by = closed_by
+    session.closed_at = now
+    session.status = "closed"
+    db.commit()
+
+    return {
+        "status": "closed",
+        "opened_by": session.opened_by,
+        "closed_by": closed_by,
+        "opening_float": session.opening_float,
+        "cash_sales": round(cash_sales, 2),
+        "zelle_total": round(zelle_total, 2),
+        "card_total": round(card_total, 2),
+        "other_total": round(other_total, 2),
+        "expected_cash": round(expected_cash, 2),
+        "envelope": round(envelope, 2),
+        "opened_at": session.opened_at.isoformat() if session.opened_at else None,
+        "closed_at": now.isoformat(),
+    }

@@ -629,3 +629,16 @@ class ServiceCatalog(Base):
     category = Column(String, nullable=True)
     default_price = Column(Float, default=0.0)
     is_active = Column(Boolean, default=True)
+
+
+class RegisterSession(Base):
+    __tablename__ = "register_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(String, index=True, nullable=True)
+    store_id = Column(String, index=True, nullable=False)
+    opened_by = Column(String, nullable=False)
+    closed_by = Column(String, nullable=True)
+    opening_float = Column(Float, default=0.0)
+    opened_at = Column(DateTime, default=func.now())
+    closed_at = Column(DateTime, nullable=True)
+    status = Column(String, default="open")  # open / closed

@@ -95,6 +95,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       label: 'Sales',
       items: [
         { id: 'invoices', label: 'Invoices', path: '/admin/invoices', icon: FileText, roles: ['admin', 'store'] },
+        { id: 'register', label: 'Register', path: '/admin/register', icon: DollarSign, roles: ['admin', 'store'] },
         { id: 'daily-close', label: 'Daily Close', path: '/admin/daily-close', icon: DollarSign, roles: ['admin'] },
         { id: 'settings', label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['admin'] },
       ]

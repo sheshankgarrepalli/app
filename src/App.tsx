@@ -41,6 +41,7 @@ import DailyClose from './pages/DailyClose';
 import EmployeeSales from './pages/EmployeeSales';
 import LowStockAlerts from './pages/LowStockAlerts';
 import ExportReports from './pages/ExportReports';
+import RegisterOpenClose from './pages/RegisterOpenClose';
 
 const isDevEnv = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
@@ -165,6 +166,7 @@ function AuthRoutes() {
       <Route path="/admin/employee-sales" element={<ProtectedRoute allowedRoles={['admin']}><EmployeeSales /></ProtectedRoute>} />
       <Route path="/admin/low-stock" element={<ProtectedRoute allowedRoles={['admin']}><LowStockAlerts /></ProtectedRoute>} />
       <Route path="/admin/export-reports" element={<ProtectedRoute allowedRoles={['admin', 'store']}><ExportReports /></ProtectedRoute>} />
+      <Route path="/admin/register" element={<ProtectedRoute allowedRoles={['admin', 'store']}><RegisterOpenClose /></ProtectedRoute>} />
 
       {/* Public Invoice Route — no auth */}
       <Route path="/invoice/:shareToken" element={<ErrorBoundary><PublicInvoice /></ErrorBoundary>} />
@@ -214,6 +216,7 @@ function PreviewRoutes() {
         <Route path="employee-sales" element={<EmployeeSales />} />
         <Route path="low-stock" element={<LowStockAlerts />} />
         <Route path="export-reports" element={<ExportReports />} />
+        <Route path="register" element={<RegisterOpenClose />} />
         <Route path="*" element={<Navigate to="/admin/inventory" replace />} />
       </Routes>
     </ErrorBoundary></Layout>
