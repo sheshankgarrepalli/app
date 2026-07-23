@@ -441,14 +441,14 @@ class CustomerDocumentOut(CustomerDocumentBase):
     class Config: from_attributes = True
 
 class UnifiedCustomerCreate(BaseModel):
-    customer_type: CustomerType
+    customer_type: CustomerType = CustomerType.Retail
     name: Optional[str] = None # Deprecated
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     company_name: Optional[str] = None
     contact_person: Optional[str] = None
     shipping_address: Optional[str] = None
-    phone: str # Required now per user instructions
+    phone: Optional[str] = None
     email: Optional[str] = None
     tax_exempt_id: Optional[str] = None
     tax_exempt_expiry: Optional[date] = None
