@@ -705,7 +705,7 @@ export default function InvoiceForm() {
           </div>
 
           {/* Line Items Table */}
-          <div className="card overflow-hidden">
+          <div className="card overflow-visible">
             <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-muted)]">
               <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Invoice Items</p>
               <div className="flex items-center gap-3">
@@ -848,7 +848,12 @@ export default function InvoiceForm() {
                         className="form-input text-xs py-1.5"
                         placeholder="SKU"
                         value={item.sku || ''}
-                        onChange={e => updateItem(idx, 'sku', e.target.value)}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updateItem(idx, 'sku', val);
+                          if (acTimer.current) clearTimeout(acTimer.current);
+                          acTimer.current = setTimeout(() => doAutocomplete(val, idx), 250);
+                        }}
                       />
                     </td>
                     <td className="p-2">
